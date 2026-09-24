@@ -18,6 +18,8 @@ fi
 
 # 2. Check and Auto-Download Models
 mkdir -p models/needle3
+mkdir -p models/whisper
+mkdir -p models/sd15
 
 # Function to download model if missing
 download_if_missing() {
@@ -25,18 +27,31 @@ download_if_missing() {
     local url=$2
     if [ ! -f "$file" ]; then
         echo "[-] Model missing: $file" | tee -a "$LOG_FILE"
-        echo "    Downloading directly..." | tee -a "$LOG_FILE"
+        echo "    Downloading directly from HuggingFace..." | tee -a "$LOG_FILE"
         wget -q --show-progress "$url" -O "$file"
     fi
 }
 
-echo "[+] Verifying core models..." | tee -a "$LOG_FILE"
-# Download Needle3 (Assuming it's a small internal router model available somewhere, using Qwen 0.5B as a placeholder example for the architecture if actual link isn't provided)
-# *NOTE*: Replace this URL with the actual Needle3 URL if hosted on HuggingFace.
-# download_if_missing "models/needle3.cact" "https://huggingface.co/..."
+echo "[+] Verifying core and requested models from .env..." | tee -a "$LOG_FILE"
 
-# Download Qwen 2.5 1.5B (The local fallback brain)
-download_if_missing "models/Qwen2.5-1.5B-Instruct-Q8_0.gguf" "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q8_0.gguf"
+# Dynamically parse .env and download missing models
+grep "^MODEL_.*_FILE=" .env | while read -r line; do
+    var_name=$(echo "$line" | cut -d'=' -f1)
+    file_path=$(echo "$line" | cut -d'=' -f2 | tr -d '"')
+    
+    # Needle3 is bundled in git, skip downloading it
+    if [[ "$file_path" == *"needle3"* ]]; then
+        continue
+    fi
+    
+    # Find matching URL variable
+    url_var_name="${var_name/_FILE/_URL}"
+    url=$(grep "^${url_var_name}=" .env | cut -d'=' -f2 | tr -d '"')
+    
+    if [ -n "$url" ]; then
+        download_if_missing "models/$file_path" "$url"
+    fi
+done
 
 
 # 3. Check if able to run properly (Compile if needed)
