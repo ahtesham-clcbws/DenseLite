@@ -174,24 +174,19 @@ wget https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5
 ```
 Ensure the filenames perfectly match the paths defined in your `.env` configuration (e.g. `MODEL_LOCAL_QWEN_PATH=models/Qwen2.5-1.5B-Instruct-Q8_0.gguf`).
 
-### 3. Build from Source
+### 3. Build and Run (Single Entry Point)
 
-DenseLite uses CMake and heavily depends on AVX2/FMA optimizations for its internal inference engine and Zvec vector database.
+DenseLite includes a single smart executable script (`start.sh`) that acts as the entry point. You do not need to run any external build commands. The script will automatically:
+1. Verify `.env` configuration and warn about missing models.
+2. Build the C++ binary from source if it isn't compiled yet (using CMake/make).
+3. Start the API gateway.
+4. Save a limited rotating log to `denselite.log` (capped at 5000 lines).
 
+Simply run:
 ```bash
-mkdir build
-cd build
-cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
-make -j4 DenseLite
+./start.sh
 ```
-
-### 4. Run the Gateway
-
-Execute the compiled binary from the `build` directory:
-```bash
-./DenseLite
-```
-The API server will spin up on `http://localhost:9501`.
+If this is the first run, it will compile DenseLite. Afterward, the API server will automatically spin up on `http://localhost:9501`.
 
 ### 5. How to Use DenseLite (API)
 

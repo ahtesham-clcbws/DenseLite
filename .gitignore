@@ -4,4 +4,4 @@ models/
 .DS_Store
 *.db
 *.log
-.agents
+.agentsdenselite.log
