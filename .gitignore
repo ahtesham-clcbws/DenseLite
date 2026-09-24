@@ -6,3 +6,4 @@ models/
 *.log
 .agents/
 denselite.log
+REPO_MAP.xml
