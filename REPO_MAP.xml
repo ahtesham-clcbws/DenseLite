@@ -33,7 +33,7 @@ The content is organized as follows:
 <notes>
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: dependencies/**
+- Files matching these patterns are excluded: dependencies/**, build/**, models/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Empty lines have been removed from all files
@@ -116,7 +116,7 @@ jobs:
       # Generates a full structural map with signatures and dependency graphs
       - name: Build Code Map
         run: |
-          npx -y repomix --style xml --output REPO_MAP.xml --remove-empty-lines --ignore "dependencies/**"
+          npx -y repomix --style xml --output REPO_MAP.xml --remove-empty-lines --ignore "dependencies/**,build/**,models/**"
       - name: Commit Map back to Repo
         run: |
           git config user.name "github-actions[bot]"
