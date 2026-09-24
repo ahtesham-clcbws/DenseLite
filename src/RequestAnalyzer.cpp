@@ -46,6 +46,7 @@ OpenAIRequest RequestAnalyzer::parse_request(const std::string& raw_json_body) {
                 }
                 req.messages.push_back(m);
             }
+        }
         if (j.contains("tools") && j["tools"].is_array()) {
             for (const auto& t : j["tools"]) {
                 OpenAITool tool;

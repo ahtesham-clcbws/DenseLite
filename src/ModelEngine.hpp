@@ -3,6 +3,7 @@
 #include <map>
 #include "model.hpp"
 #include "sqlite_router.hpp"
+#include "RequestAnalyzer.hpp"
 
 // Abstraction for Model Execution (Cloud vs Local)
 class ModelEngine {

@@ -6,6 +6,7 @@
 #include "model.hpp"
 #include "sqlite_router.hpp"
 #include "Curator.hpp"
+#include "RequestAnalyzer.hpp"
 
 struct InferenceSession {
     std::string session_id;
