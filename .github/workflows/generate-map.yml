@@ -16,7 +16,7 @@ jobs:
       # Generates a full structural map with signatures and dependency graphs
       - name: Build Code Map
         run: |
-          npx -y repomix --style xml --output REPO_MAP.xml --remove-empty-lines --ignore "dependencies/**"
+          npx -y repomix --style xml --output REPO_MAP.xml --remove-empty-lines --ignore "dependencies/**,build/**,models/**"
 
       - name: Commit Map back to Repo
         run: |
