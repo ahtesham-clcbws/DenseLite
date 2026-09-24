@@ -1,5 +1,9 @@
 # DenseLite
 
+![Version](https://img.shields.io/badge/version-v3.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![C++](https://img.shields.io/badge/language-C++-blue.svg)
+
 **DenseLite** is a hyper-optimized, C++ based multi-model orchestration gateway designed to dynamically load, route, and execute large language models, vector embeddings, speech recognition, and image generation locally. It acts as an incredibly fast, edge-optimized "local brain".
 
 ## Features
