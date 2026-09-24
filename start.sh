@@ -10,10 +10,74 @@ echo "======================================" >> "$LOG_FILE"
 echo "=== DenseLite Startup: $(date) ===" | tee -a "$LOG_FILE"
 echo "======================================" >> "$LOG_FILE"
 
-# 1. Check .env configuration
+# 1. Check .env configuration and Interactively Setup
 if [ ! -f ".env" ]; then
-    echo "[!] .env file not found. Copying from env.example..." | tee -a "$LOG_FILE"
+    echo "======================================"
+    echo "=== DenseLite First-Time Setup ==="
+    echo "======================================"
+    
+    TOTAL_RAM=$(awk '/MemTotal/ {printf "%.0f", $2/1024/1024}' /proc/meminfo)
+    echo "[i] System RAM Detected: ${TOTAL_RAM}GB"
+    echo ""
+    echo "Please select the models you want to use. All models are Q8_0 quantized."
+    
+    # 1. Select Main Qwen Model
+    echo ""
+    echo "Select Main Qwen Model (General & Reasoning):"
+    select QWEN_MAIN in "Qwen2.5-1.5B (Recommended for >= 8GB RAM)" "Qwen2.5-0.5B (For low-spec systems)"; do
+        case $QWEN_MAIN in
+            "Qwen2.5-1.5B (Recommended for >= 8GB RAM)" ) QWEN_MAIN_FILE="Qwen2.5-1.5B-Instruct-Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q8_0.gguf"; break;;
+            "Qwen2.5-0.5B (For low-spec systems)" ) QWEN_MAIN_FILE="Qwen2.5-0.5B-Instruct-Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q8_0.gguf"; break;;
+        esac
+    done
+
+    # 2. Select Coder Qwen Model
+    echo ""
+    echo "Select Qwen Coder Model:"
+    select QWEN_CODER in "Qwen2.5-Coder-1.5B (Recommended)" "Qwen2.5-Coder-0.5B (Faster, less accurate)"; do
+        case $QWEN_CODER in
+            "Qwen2.5-Coder-1.5B (Recommended)" ) QWEN_CODER_FILE="Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q8_0.gguf"; break;;
+            "Qwen2.5-Coder-0.5B (Faster, less accurate)" ) QWEN_CODER_FILE="Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q8_0.gguf"; break;;
+        esac
+    done
+
+    # 3. Select SmolLM2 Model
+    echo ""
+    echo "Select SmolLM2 Model (Context Compression):"
+    select SMOLLM in "SmolLM2-360M (Standard)" "SmolLM2-135M (Minimal)"; do
+        case $SMOLLM in
+            "SmolLM2-360M (Standard)" ) SMOLLM_FILE="SmolLM2-360M-Instruct-Q8_0.gguf"; SMOLLM_URL="https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q8_0.gguf"; break;;
+            "SmolLM2-135M (Minimal)" ) SMOLLM_FILE="SmolLM2-135M-Instruct-Q8_0.gguf"; SMOLLM_URL="https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct-GGUF/resolve/main/smollm2-135m-instruct-q8_0.gguf"; break;;
+        esac
+    done
+
+    # 4. Select Nomic Embed Model
+    echo ""
+    echo "Select Nomic Embed Model:"
+    select NOMIC in "nomic-embed-text-v1.5 (Modern)" "nomic-embed-text-v1.0 (Legacy)"; do
+        case $NOMIC in
+            "nomic-embed-text-v1.5 (Modern)" ) NOMIC_FILE="nomic-embed-text-v1.5.Q8_0.gguf"; NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf"; break;;
+            "nomic-embed-text-v1.0 (Legacy)" ) NOMIC_FILE="nomic-embed-text-v1.0.Q8_0.gguf"; NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v1.0-GGUF/resolve/main/nomic-embed-text-v1.0.Q8_0.gguf"; break;;
+        esac
+    done
+
+    echo "[+] Generating .env file with your selections..."
     cp env.example .env
+    
+    # Inject selections into .env using sed
+    sed -i "s|^MODEL_QWEN_MAIN_FILE=.*|MODEL_QWEN_MAIN_FILE=\"$QWEN_MAIN_FILE\"|" .env
+    sed -i "s|^MODEL_QWEN_MAIN_URL=.*|MODEL_QWEN_MAIN_URL=\"$QWEN_MAIN_URL\"|" .env
+    
+    sed -i "s|^MODEL_QWEN_CODER_FILE=.*|MODEL_QWEN_CODER_FILE=\"$QWEN_CODER_FILE\"|" .env
+    sed -i "s|^MODEL_QWEN_CODER_URL=.*|MODEL_QWEN_CODER_URL=\"$QWEN_CODER_URL\"|" .env
+    
+    sed -i "s|^MODEL_SMOLLM2_FILE=.*|MODEL_SMOLLM2_FILE=\"$SMOLLM_FILE\"|" .env
+    sed -i "s|^MODEL_SMOLLM2_URL=.*|MODEL_SMOLLM2_URL=\"$SMOLLM_URL\"|" .env
+    
+    sed -i "s|^MODEL_NOMIC_FILE=.*|MODEL_NOMIC_FILE=\"$NOMIC_FILE\"|" .env
+    sed -i "s|^MODEL_NOMIC_URL=.*|MODEL_NOMIC_URL=\"$NOMIC_URL\"|" .env
+    
+    echo "[+] Configuration saved to .env" | tee -a "$LOG_FILE"
 fi
 
 # 2. Check and Auto-Download Models
