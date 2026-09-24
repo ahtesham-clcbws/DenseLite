@@ -38,9 +38,9 @@ When Zed sends a request to DenseLite, it flows through a deterministic pipeline
 
 ```mermaid
 flowchart TD
-    A["🖥️ Zed IDE sends POST /v1/chat/completions"] --> B["📥 server.cpp\n(HTTP Gateway)"]
-    B --> C["🔍 RequestAnalyzer\nParse JSON → OpenAIRequest"]
-    C --> D["🧠 NeedleRouter\nClassify intent via local LLM"]
+    A["🖥️ Zed IDE sends POST /v1/chat/completions"] --> B["📥 server.cpp<br/>(HTTP Gateway)"]
+    B --> C["🔍 RequestAnalyzer<br/>Parse JSON → OpenAIRequest"]
+    C --> D["🧠 NeedleRouter<br/>Classify intent via local LLM"]
     D --> E{"Intent Type?"}
 
     E -->|"reasoning"| F["📐 High-complexity path"]
@@ -48,37 +48,37 @@ flowchart TD
     E -->|"text"| G["💬 Standard path"]
     E -->|"image"| H["🎨 Image generation path"]
 
-    F --> I["🗜️ ContextManager\nZvec semantic filter + Nomic Embed"]
+    F --> I["🗜️ ContextManager<br/>Zvec semantic filter + Nomic Embed"]
     G --> I
     H --> I
 
     I --> J["⚡ ModelEngine"]
     J --> K{"Cloud or Local?"}
 
-    K -->|"Cloud API available"| L["☁️ CloudAdapter\nGroq / OpenRouter / Gemini"]
-    K -->|"Offline / all keys exhausted"| M["🔧 LocalInference\nAVX2 infer.cpp\nQwen 2.5 1.5B"]
+    K -->|"Cloud API available"| L["☁️ CloudAdapter<br/>Groq / OpenRouter / Gemini"]
+    K -->|"Offline / all keys exhausted"| M["🔧 LocalInference<br/>AVX2 infer.cpp<br/>Qwen 2.5 1.5B"]
 
     L --> N["📊 ResponseAnalyzer"]
     M --> N
 
     N --> O{"Response Type?"}
 
-    O -->|"COMPLETE"| P["✅ CompletionPolicy\nVerify task satisfaction"]
-    O -->|"TOOL_CALL"| Q["🔨 Format tool request\nReturn to Zed for execution"]
-    O -->|"INCOMPLETE"| R["🔄 Re-enter pipeline\n(multi-turn loop)"]
+    O -->|"COMPLETE"| P["✅ CompletionPolicy<br/>Verify task satisfaction"]
+    O -->|"TOOL_CALL"| Q["🔨 Format tool request<br/>Return to Zed for execution"]
+    O -->|"INCOMPLETE"| R["🔄 Re-enter pipeline<br/>(multi-turn loop)"]
     O -->|"MODEL_ERROR"| S["🚨 ProviderErrorAnalyzer"]
 
-    P --> T["📝 Curator\nConsolidate multi-turn results"]
-    T --> U["📤 Formatter\nSSE stream → Zed"]
+    P --> T["📝 Curator<br/>Consolidate multi-turn results"]
+    T --> U["📤 Formatter<br/>SSE stream → Zed"]
 
-    Q --> V["Zed executes tool\nReturns result via HTTP"]
+    Q --> V["Zed executes tool<br/>Returns result via HTTP"]
     V --> C
 
     S --> W["🔀 RecoveryPolicy"]
     W --> X{"Recovery Action?"}
 
-    X -->|"SWITCH_PROVIDER"| Y["SQLiteRouter\nGet next provider + key"]
-    X -->|"SWITCH_MODEL"| Z["SQLiteRouter\nGet fallback model"]
+    X -->|"SWITCH_PROVIDER"| Y["SQLiteRouter<br/>Get next provider + key"]
+    X -->|"SWITCH_MODEL"| Z["SQLiteRouter<br/>Get fallback model"]
     X -->|"FALLBACK_LOCAL"| M
     X -->|"FAIL_SESSION"| AA["❌ Return error to Zed"]
 
@@ -96,21 +96,21 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["Cloud API\nreturns error"] --> B{"HTTP Status?"}
+    A["Cloud API<br/>returns error"] --> B{"HTTP Status?"}
 
-    B -->|"429"| C["Rate Limit\n5-min cooldown on key"]
-    B -->|"404"| D["Model Not Found\nSwitch to fallback model"]
-    B -->|"5xx"| E["Server Error\n1-min cooldown + retry"]
-    B -->|"DNS Fail"| F["Network Down\nFallback to local AVX2"]
+    B -->|"429"| C["Rate Limit<br/>5-min cooldown on key"]
+    B -->|"404"| D["Model Not Found<br/>Switch to fallback model"]
+    B -->|"5xx"| E["Server Error<br/>1-min cooldown + retry"]
+    B -->|"DNS Fail"| F["Network Down<br/>Fallback to local AVX2"]
 
-    C --> G["SQLiteRouter\nRound-robin next key"]
-    D --> H["SQLiteRouter\nget_fallback_model()"]
+    C --> G["SQLiteRouter<br/>Round-robin next key"]
+    D --> H["SQLiteRouter<br/>get_fallback_model()"]
     E --> G
-    F --> I["LocalInference\ninfer.cpp"]
+    F --> I["LocalInference<br/>infer.cpp"]
 
-    G --> J["Retry with\nnew credentials"]
+    G --> J["Retry with<br/>new credentials"]
     H --> J
-    I --> K["Generate locally\nQwen 2.5 1.5B"]
+    I --> K["Generate locally<br/>Qwen 2.5 1.5B"]
 
     J --> L["✅ Transparent to user"]
     K --> L
@@ -125,23 +125,23 @@ flowchart LR
 ```mermaid
 flowchart TD
     A["DenseLite starts"] --> B["Read .env config"]
-    B --> C["HardwareManager\nEnforce 50% CPU / 45% RAM"]
-    C --> D["Load resident models\nsequentially into RAM"]
+    B --> C["HardwareManager<br/>Enforce 50% CPU / 45% RAM"]
+    C --> D["Load resident models<br/>sequentially into RAM"]
 
-    D --> E["needle3.cact\n(Intent Router)"]
-    D --> F["SmolLM2-360M\n(Context Compression)"]
-    D --> G["Nomic Embed\n(Vector Embeddings)"]
-    D --> H["Qwen 2.5 1.5B\n(Main Local Brain)"]
-    D --> I["Qwen 2.5 Coder\n(Code Specialist)"]
+    D --> E["needle3.cact<br/>(Intent Router)"]
+    D --> F["SmolLM2-360M<br/>(Context Compression)"]
+    D --> G["Nomic Embed<br/>(Vector Embeddings)"]
+    D --> H["Qwen 2.5 1.5B<br/>(Main Local Brain)"]
+    D --> I["Qwen 2.5 Coder<br/>(Code Specialist)"]
 
-    E --> J["GGUF Parser\nmmap + 32-byte align"]
+    E --> J["GGUF Parser<br/>mmap + 32-byte align"]
     F --> J
     G --> J
     H --> J
     I --> J
 
-    J --> K["SQLiteRouter\nInit DB + seed models"]
-    K --> L["HTTP Server\nListening on :9501"]
+    J --> K["SQLiteRouter<br/>Init DB + seed models"]
+    K --> L["HTTP Server<br/>Listening on :9501"]
 
     style A fill:#4a9eff,color:#fff
     style L fill:#00b894,color:#fff
