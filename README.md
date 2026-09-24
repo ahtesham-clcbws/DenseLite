@@ -188,7 +188,7 @@ Simply run:
 ```
 If this is the first run, it will compile DenseLite. Afterward, the API server will automatically spin up on `http://localhost:9501`.
 
-### 5. How to Use DenseLite (API)
+### 4. How to Use DenseLite (API)
 
 DenseLite exposes a standard OpenAI-compatible HTTP REST API. Once running, you can connect any agent, IDE, or script to `http://localhost:9501/v1` as the base URL.
 
@@ -207,7 +207,7 @@ curl http://localhost:9501/v1/chat/completions \
 ```
 DenseLite will intercept this, use `NeedleRouter` to classify the intent as `coding`, search history via `Zvec` if needed, select the best model (Cloud API or Local fallback), and stream the Server-Sent Events (SSE) back to the caller.
 
-### 6. Run E2E Tests
+### 5. Run E2E Tests
 
 ```bash
 ./test_e2e.sh
