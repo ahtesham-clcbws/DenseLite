@@ -323,7 +323,7 @@ DenseLite/
 │
 ├── dependencies/
 │   ├── json.hpp                # nlohmann/json (vendored).
-│   └── zvec/                   # Alibaba Zvec vector database (git submodule).
+│   └── zvec/                   # Alibaba Zvec vector database (bundled dependency).
 │
 └── models/                     # Local model weights (not committed).
 ```
