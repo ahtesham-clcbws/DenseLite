@@ -24,20 +24,20 @@ if [ ! -f ".env" ]; then
     # 1. Select Main Qwen Model
     echo ""
     echo "Select Main Qwen Model (General & Reasoning):"
-    select QWEN_MAIN in "Qwen2.5-1.5B (Recommended for >= 8GB RAM)" "Qwen2.5-0.5B (For low-spec systems)"; do
+    select QWEN_MAIN in "Qwen2.5-1.5B-Abliterated (Recommended for >= 8GB RAM)" "Qwen2.5-0.5B-Abliterated (For low-spec systems)"; do
         case $QWEN_MAIN in
-            "Qwen2.5-1.5B (Recommended for >= 8GB RAM)" ) QWEN_MAIN_FILE="Qwen2.5-1.5B-Instruct-Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q8_0.gguf"; break;;
-            "Qwen2.5-0.5B (For low-spec systems)" ) QWEN_MAIN_FILE="Qwen2.5-0.5B-Instruct-Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q8_0.gguf"; break;;
+            "Qwen2.5-1.5B-Abliterated (Recommended for >= 8GB RAM)" ) QWEN_MAIN_FILE="Qwen2.5-1.5B-Instruct-abliterated.Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/hf-audio/qwen2.5-1.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-1.5b-instruct-abliterated.q8_0.gguf"; break;;
+            "Qwen2.5-0.5B-Abliterated (For low-spec systems)" ) QWEN_MAIN_FILE="Qwen2.5-0.5B-Instruct-abliterated.Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/hf-audio/qwen2.5-0.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-0.5b-instruct-abliterated.q8_0.gguf"; break;;
         esac
     done
 
     # 2. Select Coder Qwen Model
     echo ""
     echo "Select Qwen Coder Model:"
-    select QWEN_CODER in "Qwen2.5-Coder-1.5B (Recommended)" "Qwen2.5-Coder-0.5B (Faster, less accurate)"; do
+    select QWEN_CODER in "Qwen2.5-Coder-1.5B-Abliterated (Recommended)" "Qwen2.5-Coder-0.5B-Abliterated (Faster, less accurate)"; do
         case $QWEN_CODER in
-            "Qwen2.5-Coder-1.5B (Recommended)" ) QWEN_CODER_FILE="Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q8_0.gguf"; break;;
-            "Qwen2.5-Coder-0.5B (Faster, less accurate)" ) QWEN_CODER_FILE="Qwen2.5-Coder-0.5B-Instruct-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q8_0.gguf"; break;;
+            "Qwen2.5-Coder-1.5B-Abliterated (Recommended)" ) QWEN_CODER_FILE="Qwen2.5-Coder-1.5B-Instruct-abliterated-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/hf-audio/qwen2.5-coder-1.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-coder-1.5b-instruct-abliterated-q8_0.gguf"; break;;
+            "Qwen2.5-Coder-0.5B-Abliterated (Faster, less accurate)" ) QWEN_CODER_FILE="Qwen2.5-Coder-0.5B-Instruct-abliterated-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/hf-audio/qwen2.5-coder-0.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-coder-0.5b-instruct-abliterated-q8_0.gguf"; break;;
         esac
     done
 
