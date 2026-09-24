@@ -151,42 +151,43 @@ flowchart TD
 
 ## Quick Start
 
+> [!WARNING]
+> **First-Run Data Download:** DenseLite will automatically download between **1.5GB and 6.0GB** of model weights during its first startup, depending on which models you select in the interactive setup wizard. Ensure you have a stable internet connection.
+
+### System Requirements
+
+To ensure stable performance with local LLM fallback and semantic routing, we recommend the following minimum hardware specifications:
+
+| Resource | Minimum Required |
+|----------|-----------------|
+| **Memory (RAM)** | 8 GB (16 GB Recommended for 1.5B models) |
+| **Storage** | 10 GB Free Space (SSD strongly recommended) |
+| **CPU** | 4 Cores (AVX2 support required for GGUF) |
+| **OS** | Linux / macOS / WSL2 on Windows |
+
+---
 
 ### 1. Setup Environment
 
-Clone the repository and copy the example environment file:
+Clone the repository and run the setup script:
 ```bash
 git clone https://github.com/ahtesham-clcbws/DenseLite.git
 cd DenseLite
-cp env.example .env
 ```
 
-### 2. Download Models
+### 2. Build and Run (Interactive Entry Point)
 
-All required models must be placed inside a `models/` directory at the root of the project.
-You can find the direct HuggingFace download links for each supported model inside the `env.example` file. 
-
-To download them manually, you can use `wget` or `curl`. For example:
-```bash
-mkdir -p models/needle3
-# Example: Downloading a GGUF model
-wget https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q8_0.gguf -O models/Qwen2.5-1.5B-Instruct-Q8_0.gguf
-```
-Ensure the filenames perfectly match the paths defined in your `.env` configuration (e.g. `MODEL_LOCAL_QWEN_PATH=models/Qwen2.5-1.5B-Instruct-Q8_0.gguf`).
-
-### 3. Build and Run (Single Entry Point)
-
-DenseLite includes a single smart executable script (`start.sh`) that acts as the entry point. You do not need to run any external build commands. The script will automatically:
-1. Verify `.env` configuration and warn about missing models.
-2. Build the C++ binary from source if it isn't compiled yet (using CMake/make).
-3. Start the API gateway.
-4. Save a limited rotating log to `denselite.log` (capped at 5000 lines).
+DenseLite includes a single smart executable script (`start.sh`) that acts as the entry point. You do not need to run any external build commands or manually download models. The script will automatically:
+1. **Interactive Setup:** Ask you to select your preferred models based on your hardware capabilities.
+2. **Auto-Download:** Stream and download the selected GGUF models directly from HuggingFace to the `models/` directory.
+3. **Auto-Compile:** Build the C++ binary from source if it isn't compiled yet (using CMake/make).
+4. **Auto-Start:** Start the API gateway and save a limited rotating log to `denselite.log` (capped at 5000 lines).
 
 Simply run:
 ```bash
 ./start.sh
 ```
-If this is the first run, it will compile DenseLite. Afterward, the API server will automatically spin up on `http://localhost:9501`.
+The API server will automatically spin up on `http://localhost:9501`.
 
 ### 4. How to Use DenseLite (API)
 
