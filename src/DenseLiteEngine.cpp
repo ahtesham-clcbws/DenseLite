@@ -51,9 +51,13 @@ void DenseLiteEngine::process(const std::string& request_body, httplib::Response
     
     execute_pipeline(session, parsed_req, res);
 
-    // Save state back
+    // Save state back or cleanup
     std::lock_guard<std::mutex> lock(engine_mutex);
-    active_sessions[session.session_id] = session;
+    if (session.status == SessionStatus::COMPLETED || session.status == SessionStatus::FAILED) {
+        active_sessions.erase(session.session_id);
+    } else {
+        active_sessions[session.session_id] = session;
+    }
 }
 
 void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res) {
@@ -88,20 +92,40 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     if (target_model.empty()) target_model = "qwen_main";
 
     std::string output;
-    int status_code = model_engine.infer(target_model, prompt, output);
+    int status_code = 0;
+    int max_retries = 3;
+    bool success = false;
 
-    if (status_code != 200) {
+    for (int attempt = 0; attempt < max_retries; ++attempt) {
+        status_code = model_engine.infer(target_model, parsed_req, prompt, output);
+
+        if (status_code == 200) {
+            success = true;
+            break;
+        }
+
         ProviderErrorAnalysis analysis = ProviderErrorAnalyzer::analyze("UNKNOWN", target_model, status_code, output);
         RecoveryAction action = RecoveryPolicy::determine_action(status_code, output);
         
         if (action == RecoveryAction::FAIL_SESSION) {
-            session.status = SessionStatus::FAILED;
-            res.status = status_code;
-            res.set_content(output, "text/plain");
-            return;
+            break;
+        } else if (action == RecoveryAction::SWITCH_MODEL || action == RecoveryAction::SWITCH_PROVIDER) {
+            std::cout << "[Engine] Recovering: Switching model/provider." << std::endl;
+            target_model = router.get_cheapest_model_for_provider("OPENROUTER", "text");
+            if (target_model.empty()) target_model = "qwen_main";
+        } else if (action == RecoveryAction::FALLBACK_LOCAL) {
+            std::cout << "[Engine] Recovering: Fallback to local model." << std::endl;
+            target_model = "qwen_coder";
         } else {
-            std::cout << "[Engine] Recovering from error using policy." << std::endl;
+            std::cout << "[Engine] Recovering: Retrying same model." << std::endl;
         }
+    }
+
+    if (!success) {
+        session.status = SessionStatus::FAILED;
+        res.status = status_code;
+        res.set_content(output, "text/plain");
+        return;
     }
 
     ResponseAction r_action = ResponseAnalyzer::analyze(output);
@@ -115,13 +139,22 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     }
 
     // 4. CURATION
-    session.status = SessionStatus::COMPLETED;
-    Curator curator;
-    std::string final_curated_output = curator.consolidate(session.iteration_results, session.task_type);
-
-    // 5. FORMATTING (SSE chunk format)
     std::string sse_response;
-    sse_response += "data: " + Formatter::format_sse_delta(final_curated_output) + "\n\n";
-    sse_response += Formatter::format_sse_done() + "\n\n";
+    if (session.status == SessionStatus::COMPLETED) {
+        Curator curator;
+        std::string final_curated_output = curator.consolidate(session.iteration_results, session.task_type);
+
+        // 5. FORMATTING (SSE chunk format)
+        sse_response += Formatter::format_sse_delta(final_curated_output);
+        sse_response += Formatter::format_sse_done();
+    } else {
+        // Just return the chunk and let the client know it's not done (we don't send DONE)
+        sse_response += Formatter::format_sse_delta(output);
+        // Note: We don't send [DONE] here because the session is CONTINUING.
+        // However, standard Zed client expects [DONE] to close the stream.
+        // We will send DONE for now so the HTTP request completes. In a real multi-turn,
+        // we might hold the connection open or use internal loops.
+        sse_response += Formatter::format_sse_done();
+    }
     res.set_content(sse_response, "text/event-stream");
 }

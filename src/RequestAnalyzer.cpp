@@ -12,73 +12,56 @@ static std::string generate_session_id() {
     return "req_" + std::to_string(ms);
 }
 
-static std::string json_get_string(const std::string& json, const std::string& key, size_t start_pos = 0) {
-    std::string needle = "\"" + key + "\":\"";
-    size_t pos = json.find(needle, start_pos);
-    if (pos == std::string::npos) return "";
-    size_t val_start = pos + needle.size();
-    size_t i = val_start;
-    while (i < json.size()) {
-        if (json[i] == '\\') { i += 2; continue; }
-        if (json[i] == '"') break;
-        i++;
-    }
-    if (i >= json.size()) return "";
-    return json.substr(val_start, i - val_start);
-}
+#include "../dependencies/json.hpp"
 
-static int json_get_int(const std::string& json, const std::string& key, int default_val = 0) {
-    std::string needle = "\"" + key + "\":";
-    size_t pos = json.find(needle);
-    if (pos == std::string::npos) return default_val;
-    size_t val_start = pos + needle.size();
-    while (val_start < json.size() && json[val_start] == ' ') val_start++;
-    std::string num_str;
-    while (val_start < json.size() && (json[val_start] >= '0' && json[val_start] <= '9')) {
-        num_str += json[val_start++];
-    }
-    if (num_str.empty()) return default_val;
-    return std::stoi(num_str);
-}
-
-static float json_get_float(const std::string& json, const std::string& key, float default_val = 0.0f) {
-    std::string needle = "\"" + key + "\":";
-    size_t pos = json.find(needle);
-    if (pos == std::string::npos) return default_val;
-    size_t val_start = pos + needle.size();
-    while (val_start < json.size() && json[val_start] == ' ') val_start++;
-    std::string num_str;
-    while (val_start < json.size() && ((json[val_start] >= '0' && json[val_start] <= '9') || json[val_start] == '.' || json[val_start] == '-')) {
-        num_str += json[val_start++];
-    }
-    if (num_str.empty()) return default_val;
-    try { return std::stof(num_str); } catch (...) { return default_val; }
-}
+using json = nlohmann::json;
 
 OpenAIRequest RequestAnalyzer::parse_request(const std::string& raw_json_body) {
     OpenAIRequest req;
     req.session_id = generate_session_id();
-    req.model = json_get_string(raw_json_body, "model");
-    if (req.model.empty()) req.model = "denselite";
-    req.max_tokens = json_get_int(raw_json_body, "max_completion_tokens", 512);
-    if (req.max_tokens <= 0) req.max_tokens = json_get_int(raw_json_body, "max_tokens", 512);
-    req.temperature = json_get_float(raw_json_body, "temperature", 0.7f);
-    req.repetition_penalty = json_get_float(raw_json_body, "repetition_penalty", 1.15f);
-
-    size_t search_pos = 0;
-    while (true) {
-        size_t role_pos = raw_json_body.find("\"role\":\"", search_pos);
-        if (role_pos == std::string::npos) break;
+    
+    try {
+        json j = json::parse(raw_json_body);
+        req.model = j.value("model", "denselite");
+        req.max_tokens = j.value("max_completion_tokens", j.value("max_tokens", 512));
+        req.temperature = j.value("temperature", 0.7f);
+        req.repetition_penalty = j.value("repetition_penalty", 1.15f);
         
-        std::string role = json_get_string(raw_json_body, "role", search_pos);
-        std::string content = Formatter::json_unescape(json_get_string(raw_json_body, "content", search_pos));
-        
-        OpenAIMessage msg;
-        msg.role = role;
-        msg.content = content;
-        req.messages.push_back(msg);
-        
-        search_pos = role_pos + 8;
+        if (j.contains("messages") && j["messages"].is_array()) {
+            for (const auto& msg : j["messages"]) {
+                OpenAIMessage m;
+                m.role = msg.value("role", "");
+                if (msg.contains("content")) {
+                    if (msg["content"].is_string()) {
+                        m.content = msg["content"].get<std::string>();
+                    } else if (msg["content"].is_array()) {
+                        std::string combined;
+                        for (const auto& part : msg["content"]) {
+                            if (part.contains("type") && part["type"] == "text" && part.contains("text")) {
+                                combined += part["text"].get<std::string>();
+                            }
+                        }
+                        m.content = combined;
+                    }
+                }
+                req.messages.push_back(m);
+            }
+        if (j.contains("tools") && j["tools"].is_array()) {
+            for (const auto& t : j["tools"]) {
+                OpenAITool tool;
+                tool.type = t.value("type", "function");
+                if (t.contains("function")) {
+                    tool.function.name = t["function"].value("name", "");
+                    tool.function.description = t["function"].value("description", "");
+                    if (t["function"].contains("parameters")) {
+                        tool.function.parameters_schema = t["function"]["parameters"].dump();
+                    }
+                }
+                req.tools.push_back(tool);
+            }
+        }
+    } catch (...) {
+        std::cerr << "[RequestAnalyzer] Error parsing JSON request body" << std::endl;
     }
     
     return req;
@@ -98,10 +81,13 @@ std::string RequestAnalyzer::compile_prompt(const OpenAIRequest& req, const std:
 }
 
 std::string RequestAnalyzer::categorize_request(const OpenAIRequest& req) {
+    const std::vector<std::string> image_keywords = {"\"image_url\"", "data:image"};
+    const std::vector<std::string> reasoning_keywords = {"architect", "plan", "calculate", "solve", "design"};
+    const std::vector<std::string> coding_keywords = {"code", "function", "script", "c++", "python", "implement"};
+
     for (const auto& msg : req.messages) {
-        if (msg.content.find("\"image_url\"") != std::string::npos || 
-            msg.content.find("data:image") != std::string::npos) {
-            return "image";
+        for (const auto& kw : image_keywords) {
+            if (msg.content.find(kw) != std::string::npos) return "image";
         }
     }
 
@@ -110,21 +96,12 @@ std::string RequestAnalyzer::categorize_request(const OpenAIRequest& req) {
         std::string lower_msg = last_msg;
         std::transform(lower_msg.begin(), lower_msg.end(), lower_msg.begin(), ::tolower);
 
-        if (lower_msg.find("architect") != std::string::npos ||
-            lower_msg.find("plan") != std::string::npos ||
-            lower_msg.find("calculate") != std::string::npos ||
-            lower_msg.find("solve") != std::string::npos ||
-            lower_msg.find("design") != std::string::npos) {
-            return "reasoning";
+        for (const auto& kw : reasoning_keywords) {
+            if (lower_msg.find(kw) != std::string::npos) return "reasoning";
         }
 
-        if (lower_msg.find("code") != std::string::npos ||
-            lower_msg.find("function") != std::string::npos ||
-            lower_msg.find("script") != std::string::npos ||
-            lower_msg.find("c++") != std::string::npos ||
-            lower_msg.find("python") != std::string::npos ||
-            lower_msg.find("implement") != std::string::npos) {
-            return "coding";
+        for (const auto& kw : coding_keywords) {
+            if (lower_msg.find(kw) != std::string::npos) return "coding";
         }
     }
     return "text";

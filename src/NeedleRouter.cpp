@@ -60,5 +60,13 @@ RoutingDecision NeedleRouter::analyze_request(const OpenAIRequest& req, DenseMod
     std::cout << "[NeedleRouter] Raw LLM Decision: " << raw_output << std::endl;
     
     RoutingDecision decision = parse_decision_json(raw_output);
+    
+    // Fallback if LLM hallucinates an invalid intent
+    if (decision.intent != "reasoning" && decision.intent != "coding" && 
+        decision.intent != "image" && decision.intent != "text") {
+        std::cout << "[NeedleRouter] Hallucinated intent '" << decision.intent << "', falling back to regex." << std::endl;
+        decision.intent = RequestAnalyzer::categorize_request(req);
+    }
+    
     return decision;
 }

@@ -160,12 +160,14 @@ inline void rope(float* vec, int pos, int num_heads, int head_dim, const float* 
 // ----------------------------------------------------------------------------
 // 5. SwiGLU Activation (SiLU * gate)
 // ----------------------------------------------------------------------------
-inline void swiglu(float* out, const float* up, const float* gate, int size) {
+inline void swiglu(float* out_and_gate, const float* up, int size) {
+    // Note: The caller passes the gate tensor to `out_and_gate`.
+    // The operation is performed in-place. Because it computes element-by-element,
+    // reading from and writing to `out_and_gate` simultaneously is safe.
     // out[i] = up[i] * (gate[i] * sigmoid(gate[i]))
-    // For AVX2 we could vectorize this, but scalar is fine for scaffolding
     for (int i = 0; i < size; ++i) {
-        float silu = gate[i] / (1.0f + std::exp(-gate[i]));
-        out[i] = up[i] * silu;
+        float silu = out_and_gate[i] / (1.0f + std::exp(-out_and_gate[i]));
+        out_and_gate[i] = up[i] * silu;
     }
 }
 

@@ -31,17 +31,21 @@ std::vector<OpenAIMessage> ContextManager::truncate_history(const std::vector<Op
     
     // Always preserve the system prompt if it exists
     size_t start_idx = 0;
+    int running_tokens = 0;
     if (messages[0].role == "system") {
         optimized.push_back(messages[0]);
         start_idx = 1;
+        running_tokens += messages[0].content.size() / 4;
     }
     
-    // Only keep the most recent messages that fit
-    int running_tokens = 0;
-    if (!optimized.empty()) running_tokens += optimized[0].content.size() / 4;
+    // Ensure the last message (current user query) is always included
+    if (messages.size() > start_idx) {
+        running_tokens += messages.back().content.size() / 4;
+    }
     
     std::vector<OpenAIMessage> recent_buffer;
-    for (int i = messages.size() - 1; i >= (int)start_idx; --i) {
+    // Iterate from second-to-last message backwards
+    for (int i = messages.size() - 2; i >= (int)start_idx; --i) {
         int msg_tokens = messages[i].content.size() / 4;
         if (running_tokens + msg_tokens > max_context_tokens) {
             break;
@@ -55,63 +59,20 @@ std::vector<OpenAIMessage> ContextManager::truncate_history(const std::vector<Op
         optimized.push_back(recent_buffer[i]);
     }
     
+    // Append the last message
+    if (messages.size() > start_idx) {
+        optimized.push_back(messages.back());
+    }
+    
     return optimized;
 }
 
-// Zvec C++ Implementation Structure (V3.0)
 std::vector<OpenAIMessage> ContextManager::semantic_filter(const std::vector<OpenAIMessage>& messages, DenseModel* nomic) {
     if (messages.size() < 2) return messages; // Nothing to filter
 
-    zvec::CollectionOptions options;
-    auto db_res = zvec::Collection::Open("denselite_vectors.zvec", options);
-    
-    std::vector<OpenAIMessage> optimized;
-    
-    size_t start_idx = 0;
-    if (messages[0].role == "system") {
-        optimized.push_back(messages[0]);
-        start_idx = 1;
-    }
-
-    std::string current_query = messages.back().content;
-    
-    std::vector<float> query_vector;
-    if (nomic) {
-        std::cout << "[Zvec] Generating Nomic Embed vector for current query..." << std::endl;
-        InferenceState state;
-        init_inference_state(nomic->config, 512, state);
-        std::vector<int> tokens = tokenize(nomic->vocab, current_query);
-        std::vector<float> logits(nomic->config.vocab_size);
-        for (int t : tokens) {
-            forward_pass(*nomic, state, t, logits);
-        }
-        query_vector = state.x;
-    } else {
-        query_vector = std::vector<float>(768, 0.1f);
-    }
-
-    std::cout << "[Zvec] Performing sub-millisecond similarity search against history..." << std::endl;
-    if (db_res.ok()) {
-        auto collection = db_res.value();
-        zvec::SearchQuery q;
-        q.vector = query_vector;
-        q.top_k = 5; // Get top 5 most relevant past messages
-        auto results = collection->query(q);
-        
-        if (results.ok()) {
-            std::vector<OpenAIMessage> past_messages;
-            for (const auto& doc : results.value()) {
-                // Here we would parse doc.payload to reconstruct messages.
-                // Since this is an in-memory test implementation without real ingestion yet:
-                // We'll just push back from the incoming messages if we matched an ID
-            }
-            // For now, if no real ingestion, we just fall back to truncate
-            optimized = truncate_history(messages, 8192);
-            return optimized;
-        }
-    }
-    
-    // If ZVec fails or no results, fallback
-    optimized = truncate_history(messages, 8192);
-    return optimized;
+    // TODO: Requires encoder-specific forward_pass implementation.
+    // Nomic Embed is an encoder model; running it through the decoder forward_pass produces garbage.
+    // For now, force the truncation path.
+    std::cout << "[ContextManager] Semantic filter is currently a stub. Falling back to greedy truncation." << std::endl;
+    return truncate_history(messages, 8192);
 }

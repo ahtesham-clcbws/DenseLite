@@ -271,7 +271,7 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
                   config.embedding_length, mlp_hidden_dim);
         
         // SwiGLU activation: result = SiLU(gate) * up
-        math::swiglu(mlp_gate.data(), mlp_up.data(), mlp_gate.data(), mlp_hidden_dim);
+        math::swiglu(mlp_gate.data(), mlp_up.data(), mlp_hidden_dim);
         
         // Down Projection + Residual
         {
@@ -296,7 +296,8 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
 void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCallback callback,
               int max_tokens, float temperature, float repetition_penalty) {
     InferenceState state;
-    int ctx_len = model.config.context_length > 0 ? model.config.context_length : 4096;
+    int base_ctx_len = model.config.context_length > 0 ? model.config.context_length : 4096;
+    int ctx_len = std::min(base_ctx_len, 8192); // Cap at 8192 to prevent OOM
     init_inference_state(model.config, ctx_len, state);
     
     std::vector<float> logits(model.config.vocab_size);

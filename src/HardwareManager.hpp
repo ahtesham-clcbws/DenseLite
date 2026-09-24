@@ -5,6 +5,8 @@
 #include <string>
 #include <iostream>
 
+#include <omp.h>
+
 class HardwareManager {
 public:
     static int get_max_allowed_threads() {
@@ -34,7 +36,6 @@ public:
         return static_cast<size_t>(total_ram_bytes * 0.45);
     }
 
-#include <omp.h>
     static void enforce_limits() {
         int threads = get_max_allowed_threads();
         size_t ram = get_max_allowed_ram_bytes();

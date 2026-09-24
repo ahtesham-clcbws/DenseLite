@@ -41,7 +41,9 @@ set(BUILD_C_BINDINGS OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(dependencies/zvec)
 
-target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared)
+find_package(OpenMP REQUIRED)
+
+target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX)
 
 # Add include directory for headers
 target_include_directories(DenseLite PRIVATE src)

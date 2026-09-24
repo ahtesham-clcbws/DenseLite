@@ -6,34 +6,103 @@
 ModelEngine::ModelEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router)
     : local_models(resident_models), sqlite_router(router) {}
 
-int ModelEngine::infer(const std::string& model_name, const std::string& prompt, std::string& output) {
+#include "../dependencies/json.hpp"
+
+using json = nlohmann::json;
+
+int ModelEngine::infer(const std::string& model_name, const OpenAIRequest& req, const std::string& compiled_prompt, std::string& output) {
     // 1. Ask SQLiteRouter if this is a Cloud model or Local model
     std::string provider = sqlite_router.get_provider_for_model(model_name);
 
     if (provider == "local" || provider.empty()) {
-        return infer_local(model_name, prompt, output);
+        return infer_local(model_name, compiled_prompt, output);
     } else {
         APIKeyStatus key_status = sqlite_router.get_next_available_key(provider);
         std::string api_key = key_status.key_value;
         std::string provider_url = sqlite_router.get_provider_url(provider);
-        return infer_cloud(model_name, provider_url, api_key, prompt, output);
+        return infer_cloud(model_name, provider_url, api_key, req, output);
     }
 }
 
-int ModelEngine::infer_cloud(const std::string& model_name, const std::string& provider_url, const std::string& api_key, const std::string& prompt, std::string& output) {
+int ModelEngine::infer_cloud(const std::string& model_name, const std::string& provider_url, const std::string& api_key, const OpenAIRequest& req, std::string& output) {
     std::cout << "[ModelEngine] Routing inference to Cloud (" << provider_url << ") for model: " << model_name << "\n";
     
+    // Support Gemini v1beta formatting vs standard OpenAI
+    bool is_gemini = (provider_url.find("generativelanguage") != std::string::npos);
+    std::string endpoint = is_gemini ? "/v1beta/models/" + model_name + ":generateContent" : "/v1/chat/completions";
+
     httplib::Client cli(provider_url.c_str());
     cli.set_read_timeout(120);
     
     httplib::Headers headers = {
-        {"Authorization", "Bearer " + api_key},
         {"Content-Type", "application/json"}
     };
     
-    std::string payload = "{\"model\": \"" + model_name + "\", \"messages\": [{\"role\": \"user\", \"content\": \"" + Formatter::json_escape(prompt) + "\"}]}";
+    if (is_gemini) {
+        headers.emplace("x-goog-api-key", api_key);
+    } else {
+        headers.emplace("Authorization", "Bearer " + api_key);
+    }
     
-    auto res = cli.Post("/v1/chat/completions", headers, payload, "application/json");
+    json payload = json::object();
+    
+    if (is_gemini) {
+        // Build Gemini format
+        json contents = json::array();
+        for (const auto& m : req.messages) {
+            json part = json::object();
+            part["text"] = m.content;
+            json content = json::object();
+            content["role"] = m.role == "assistant" ? "model" : "user";
+            content["parts"] = json::array({part});
+            contents.push_back(content);
+        }
+        payload["contents"] = contents;
+        
+        json generationConfig = json::object();
+        generationConfig["temperature"] = req.temperature;
+        generationConfig["maxOutputTokens"] = req.max_tokens;
+        payload["generationConfig"] = generationConfig;
+        
+        // TODO: Tools for Gemini
+    } else {
+        // Build OpenAI format
+        payload["model"] = model_name;
+        payload["temperature"] = req.temperature;
+        payload["max_tokens"] = req.max_tokens;
+        
+        json messages = json::array();
+        for (const auto& m : req.messages) {
+            json msg = json::object();
+            msg["role"] = m.role;
+            msg["content"] = m.content;
+            if (!m.name.empty()) msg["name"] = m.name;
+            if (!m.tool_call_id.empty()) msg["tool_call_id"] = m.tool_call_id;
+            messages.push_back(msg);
+        }
+        payload["messages"] = messages;
+        
+        if (!req.tools.empty()) {
+            json tools = json::array();
+            for (const auto& t : req.tools) {
+                json tool = json::object();
+                tool["type"] = t.type;
+                json func = json::object();
+                func["name"] = t.function.name;
+                func["description"] = t.function.description;
+                if (!t.function.parameters_schema.empty()) {
+                    try {
+                        func["parameters"] = json::parse(t.function.parameters_schema);
+                    } catch (...) {}
+                }
+                tool["function"] = func;
+                tools.push_back(tool);
+            }
+            payload["tools"] = tools;
+        }
+    }
+    
+    auto res = cli.Post(endpoint.c_str(), headers, payload.dump(), "application/json");
     
     if (!res) {
         output = "{\"error\": \"Connection failed\"}";
@@ -65,7 +134,14 @@ int ModelEngine::infer_local(const std::string& model_name, const std::string& p
     
     generate(it->second, tokens, stream_cb, 512, 0.7f, 1.15f);
     
-    output = "{\"choices\": [{\"message\": {\"content\": \"" + Formatter::json_escape(result_text) + "\"}}]}";
+    json response = json::object();
+    json message = json::object();
+    message["content"] = result_text;
+    json choice = json::object();
+    choice["message"] = message;
+    response["choices"] = json::array({choice});
+    
+    output = response.dump();
     
     return 200;
 }

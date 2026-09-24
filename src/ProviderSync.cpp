@@ -1,8 +1,10 @@
 #include "ProviderSync.hpp"
 #include <iostream>
-#include <regex>
 #include <cctype>
 #include <httplib.h>
+#include "../dependencies/json.hpp"
+
+using json = nlohmann::json;
 
 void ProviderSync::sync_models_from_provider(sqlite3* db, const std::string& provider, const std::string& api_key) {
     if (!db) return;
@@ -53,15 +55,40 @@ void ProviderSync::sync_models_from_provider(sqlite3* db, const std::string& pro
     
     std::string body = res->body;
     
-    // Choose the right regex pattern depending on the provider's JSON schema
-    std::string regex_str = R"REGEX("id"\s*:\s*"([^"]+)")REGEX";
-    if (provider == "COHERE" || provider == "GEMINI") {
-        regex_str = R"REGEX("name"\s*:\s*"([^"]+)")REGEX";
+    std::vector<std::string> model_names;
+    try {
+        json j = json::parse(body);
+        
+        if (provider == "COHERE") {
+            if (j.contains("models") && j["models"].is_array()) {
+                for (const auto& item : j["models"]) {
+                    if (item.contains("name") && item["name"].is_string()) {
+                        model_names.push_back(item["name"].get<std::string>());
+                    }
+                }
+            }
+        } else if (provider == "GEMINI") {
+            if (j.contains("models") && j["models"].is_array()) {
+                for (const auto& item : j["models"]) {
+                    if (item.contains("name") && item["name"].is_string()) {
+                        model_names.push_back(item["name"].get<std::string>());
+                    }
+                }
+            }
+        } else {
+            // Standard OpenAI format (Groq, OpenRouter, etc.)
+            if (j.contains("data") && j["data"].is_array()) {
+                for (const auto& item : j["data"]) {
+                    if (item.contains("id") && item["id"].is_string()) {
+                        model_names.push_back(item["id"].get<std::string>());
+                    }
+                }
+            }
+        }
+    } catch (...) {
+        std::cerr << "[SQLiteRouter] Error parsing models JSON from " << provider << std::endl;
+        return;
     }
-    
-    std::regex id_regex(regex_str);
-    auto words_begin = std::sregex_iterator(body.begin(), body.end(), id_regex);
-    auto words_end = std::sregex_iterator();
     
     // Begin transaction
     sqlite3_exec(db, "BEGIN TRANSACTION;", 0, 0, nullptr);
@@ -79,8 +106,8 @@ void ProviderSync::sync_models_from_provider(sqlite3* db, const std::string& pro
     sqlite3_stmt* ins_stmt;
     if (sqlite3_prepare_v2(db, ins_sql.c_str(), -1, &ins_stmt, nullptr) == SQLITE_OK) {
         int priority = 1;
-        for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-            std::string model_name = (*i)[1].str();
+        for (const auto& m_name : model_names) {
+            std::string model_name = m_name;
             
             // Gemini models have a "models/" prefix which is not used in the OpenAI endpoint
             if (provider == "GEMINI" && model_name.find("models/") == 0) {

@@ -53,8 +53,10 @@ void SQLiteRouter::seed_default_models() {
 
     // Check current version in DB
     int db_version = 0;
-    const char* check_ver_sql = "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT);"
-                                "SELECT value FROM metadata WHERE key = 'model_seed_version';";
+    const char* init_meta_sql = "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT);";
+    sqlite3_exec(db, init_meta_sql, 0, 0, nullptr);
+
+    const char* check_ver_sql = "SELECT value FROM metadata WHERE key = 'model_seed_version';";
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(db, check_ver_sql, -1, &stmt, nullptr) == SQLITE_OK) {
         if (sqlite3_step(stmt) == SQLITE_ROW) {
