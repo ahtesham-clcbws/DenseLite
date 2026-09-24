@@ -16,13 +16,28 @@ if [ ! -f ".env" ]; then
     cp env.example .env
 fi
 
-# 2. Check Models Directory
-if [ ! -d "models" ] || [ -z "$(ls -A models 2>/dev/null)" ]; then
-    echo "[-] WARNING: 'models' directory is missing or empty. Local fallback inference will fail." | tee -a "$LOG_FILE"
-    echo "    Please download required GGUF files to the models/ directory." | tee -a "$LOG_FILE"
-else
-    echo "[+] Models directory detected." | tee -a "$LOG_FILE"
-fi
+# 2. Check and Auto-Download Models
+mkdir -p models/needle3
+
+# Function to download model if missing
+download_if_missing() {
+    local file=$1
+    local url=$2
+    if [ ! -f "$file" ]; then
+        echo "[-] Model missing: $file" | tee -a "$LOG_FILE"
+        echo "    Downloading directly..." | tee -a "$LOG_FILE"
+        wget -q --show-progress "$url" -O "$file"
+    fi
+}
+
+echo "[+] Verifying core models..." | tee -a "$LOG_FILE"
+# Download Needle3 (Assuming it's a small internal router model available somewhere, using Qwen 0.5B as a placeholder example for the architecture if actual link isn't provided)
+# *NOTE*: Replace this URL with the actual Needle3 URL if hosted on HuggingFace.
+# download_if_missing "models/needle3.cact" "https://huggingface.co/..."
+
+# Download Qwen 2.5 1.5B (The local fallback brain)
+download_if_missing "models/Qwen2.5-1.5B-Instruct-Q8_0.gguf" "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q8_0.gguf"
+
 
 # 3. Check if able to run properly (Compile if needed)
 if [ ! -f "build/DenseLite" ]; then
