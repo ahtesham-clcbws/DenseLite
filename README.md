@@ -161,7 +161,7 @@ To ensure stable performance with local LLM fallback and semantic routing, we re
 | Resource | Minimum Required |
 |----------|-----------------|
 | **Memory (RAM)** | 8 GB (16 GB Recommended for 1.5B models) |
-| **Storage** | 10 GB Free Space (SSD strongly recommended) |
+| **Storage** | 10 GB Free Space (NVMe strongly recommended; SATA SSDs may be less responsive and take 10x longer to load models) |
 | **CPU** | 4 Cores (AVX2 support required for GGUF) |
 | **OS** | Linux / macOS / WSL2 on Windows |
 
