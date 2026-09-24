@@ -214,6 +214,15 @@ DenseLite will intercept this, use `NeedleRouter` to classify the intent as `cod
 ./test_e2e.sh
 ```
 
+### 6. LLM Codebase Map
+
+DenseLite automatically generates a full structural XML map of the entire codebase (excluding third-party dependencies and binaries) on every push to `main`. This is extremely useful for providing context to LLMs like Cursor or Claude.
+
+You can access the always-up-to-date raw map here:
+```text
+https://raw.githubusercontent.com/ahtesham-clcbws/DenseLite/repomap/REPO_MAP.xml
+```
+
 ---
 
 ## Architecture
