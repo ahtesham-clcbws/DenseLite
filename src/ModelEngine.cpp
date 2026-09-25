@@ -29,7 +29,9 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
     
     // Support Gemini v1beta formatting vs standard OpenAI
     bool is_gemini = (provider_url.find("generativelanguage") != std::string::npos);
-    std::string endpoint = is_gemini ? "/v1beta/models/" + model_name + ":generateContent" : "/v1/chat/completions";
+    bool is_openrouter = (provider_url.find("openrouter") != std::string::npos);
+    std::string endpoint = is_gemini ? "/v1beta/models/" + model_name + ":generateContent" 
+                                     : (is_openrouter ? "/api/v1/chat/completions" : "/v1/chat/completions");
 
     try {
         httplib::Client cli(provider_url.c_str());

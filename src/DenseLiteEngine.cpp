@@ -91,11 +91,10 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     std::string target_model;
     if (parsed_req.model == "qwen_main" || parsed_req.model == "qwen_coder" || parsed_req.model == "smollm2") {
         target_model = parsed_req.model;
-    } else if (!parsed_req.model.empty() && parsed_req.model != "denselite") {
-        target_model = parsed_req.model;
+    } else if (parsed_req.model == "denselite" || parsed_req.model.empty()) {
+        target_model = (session.task_type == "coding") ? "qwen_coder" : "qwen_main";
     } else {
-        target_model = router.get_cheapest_model_for_provider("GROQ", "text");
-        if (target_model.empty()) target_model = "qwen_main";
+        target_model = parsed_req.model;
     }
 
     std::string output;

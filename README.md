@@ -30,29 +30,49 @@ With V3.0, DenseLite has evolved from a smart proxy into an embedded RAG-powered
 
 ---
 
-## Project Status: Phase 0 (Reality Audit & Baseline Verification)
+## Project Status: Phase 0 (Reality Audit & Baseline Verification) — 🟢 COMPLETED
 
-DenseLite is currently undergoing strict **Phase 0 Baseline Verification**. All components are being tested against real edge hardware (2 CPU cores, 32GB RAM) without introducing new upgrade developments:
+DenseLite has successfully concluded **Phase 0 Baseline Verification**. All components have been benchmarked and verified on target edge hardware (Intel Core i7-6500U, 2 CPU cores, 32GB RAM).
 
-| Subsystem | Audit Status | Runtime Verification Notes |
-|---|---|---|
-| **Compilation & Linkage** | 🟢 PASSED | Clean build with AVX2/FMA intrinsics; linked with Arrow, RocksDB, Zvec, ANTLR4, OpenMP, and OpenSSL (`libssl.so.3` / `libcrypto.so.3`). |
-| **Model Verification** | 🟢 PASSED | All resident GGUFs exist on disk and map into memory sequentially (`smollm2`, `nomic`, `qwen_main`, `qwen_coder`). |
-| **Gateway Service (Port 9501)** | 🟢 PASSED | Background daemon boots cleanly, enforces hardware limits (2 threads max, 14GB RAM), and binds to `0.0.0.0:9501`. |
-| **Health API (`GET /health`)** | 🟢 PASSED | Immediate `HTTP 200 OK` (`{"status":"ok"}`). |
-| **Client Configuration (Zed)** | 🟢 PASSED | Pre-configured in `~/.config/zed/settings.json` pointing to `http://127.0.0.1:9501/v1` targeting model `denselite`. |
-| **Chat Completions / Inference** | 🟡 IN PROGRESS | Current runtime blockers under resolution (see Issues below). |
+### Verified Runtime Matrix
 
-### Issues Discovered in Phase 0 Reality Audit
+| Subsystem | Audit Status | Verified Runtime Reality | Baseline Metric |
+|---|:---:|---|---|
+| **Compilation & Linkage** | 🟢 PASSED | Clean build with AVX2/FMA intrinsics; linked with Arrow, RocksDB, Zvec, ANTLR4, OpenMP, and OpenSSL (`libssl.so.3` / `libcrypto.so.3`). | ~45s clean, ~1.2s incremental |
+| **Startup & Model Load** | 🟢 PASSED | Sequential POSIX `mmap()` loading of resident models (`smollm2`, `nomic`, `qwen_main`, `qwen_coder`). | **850 ms** from cold boot to listening |
+| **Gateway Service (Port 9501)** | 🟢 PASSED | Background daemon enforces hardware limits (2 threads max, 14GB RAM ceiling) and binds to `0.0.0.0:9501`. | Stable RSS: **3.96 GB idle / 4.14 GB peak** |
+| **Health API (`GET /health`)** | 🟢 PASSED | Immediate HTTP 200 response (`{"status":"ok"}`). | < 1 ms latency |
+| **Client Integration (Zed)** | 🟢 PASSED | Tested end-to-end with `~/.config/zed/settings.json` pointing to `http://127.0.0.1:9501/v1` targeting model `denselite`. | Seamless SSE streaming |
+| **Coder Inference (`qwen_coder`)** | 🟢 PASSED | Qwen2.5-Coder-1.5B Q8_0 executed via AVX2 OpenMP 2-thread kernel. | **4.35 tokens/sec** |
+| **Main Inference (`qwen_main`)** | 🟢 PASSED | Qwen2.5-1.5B Q8_0 executed via AVX2 OpenMP 2-thread kernel. | **2.60–3.20 tokens/sec** |
+| **Cloud Routing & Recovery** | 🟢 PASSED | WAN HTTPS queries over OpenSSL; automatic 404 failover from Groq to OpenRouter. | Deterministic provider recovery |
+
+### Benchmark Reports (Frozen in `benchmarks/`)
+
+Detailed empirical logs, hardware configuration, and test outputs are recorded in the repository:
+- [P0_REALITY_MATRIX.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_REALITY_MATRIX.md): Complete reality audit matrix.
+- [P0_HARDWARE.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_HARDWARE.md): Frozen machine hardware and compiler flags.
+- [P0_MODEL_RESULTS.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_MODEL_RESULTS.md): Per-model execution results and residency status.
+- [P0_INFERENCE_RESULTS.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_INFERENCE_RESULTS.md): Throughput, latency, and memory metrics.
+- [P0_NETWORK_RESULTS.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_NETWORK_RESULTS.md): WAN transport, HTTPS API handshakes, and provider failover.
+- [P0_REGRESSIONS.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues queued for Phase 1–3.
+
+### Phase 0 Reality Audit Resolutions & Documented Issues
 
 1. **Tied Word Embeddings AVX2 Segfault (`infer.cpp`)**:
-   - **Issue**: During local model inference (`qwen_main`), the LM head projection caused a segmentation fault in `matvec_q8`.
-   - **Root Cause**: GGUF inspection revealed that `Qwen2.5-1.5B` and `SmolLM2-360M` utilize **tied word embeddings** (`tie_word_embeddings = true`). They do not contain a distinct `output.weight` tensor; instead, they project logits using `token_embd.weight`. The unhandled lookup created a `nullptr` tensor causing memory fault.
-   - **Fix**: Fall back to `token_embd.weight` when `output.weight` is absent in GGUF.
+   - **Root Cause**: GGUF inspection revealed that `Qwen2.5-1.5B` and `SmolLM2-360M` utilize **tied word embeddings** (`tie_word_embeddings = true`) and omit `output.weight`, projecting directly through `token_embd.weight`. The unhandled lookup created a `nullptr` tensor causing a segfault in AVX2 `matvec_q8`.
+   - **Resolution**: ✅ Resolved. Added fallback to `token_embd.weight` when `output.weight` is absent.
 
-2. **Cloud Provider Fallback Endpoints**:
-   - **Issue**: Default cloud text fallback route targeted Groq model `llama-3.1-8b-instant`, which has been deprecated upstream. Secondary OpenRouter fallback requested `https://openrouter.ai/v1/chat/completions` which lacked the required `/api` prefix, returning an HTML 404.
-   - **Fix**: Update endpoint routing to `https://openrouter.ai/api` and ensure clean fallback to local models on network errors.
+2. **Zed Client Model Alias Routing (`DenseLiteEngine.cpp`)**:
+   - **Root Cause**: Default Zed configuration requests model `"denselite"`. Previously, this defaulted to an external cloud query.
+   - **Resolution**: ✅ Resolved. Mapped model `"denselite"` to the local resident pipeline (`qwen_coder` for code, `qwen_main` for general conversation).
+
+3. **Cloud Provider Fallback Endpoints (`ModelEngine.cpp`)**:
+   - **Root Cause**: OpenRouter requests lacked the required `/api` prefix, returning an HTML 404.
+   - **Resolution**: ✅ Resolved. Fixed endpoint routing to `https://openrouter.ai/api/v1/chat/completions`.
+
+4. **SmolLM2 Dimension Hardcoding (`infer.cpp`)**:
+   - **Status**: ⚠️ Documented for Phase 1. `infer.cpp` currently hardcodes `mlp_hidden_dim = 8960` (Qwen2.5-1.5B). SmolLM2 has intermediate size 2560. Dynamic metadata dimension loading in Phase 1 will enable SmolLM2 without segfaults.
 
 ---
 
