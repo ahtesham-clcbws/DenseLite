@@ -42,8 +42,11 @@ set(BUILD_C_BINDINGS OFF CACHE BOOL "" FORCE)
 add_subdirectory(dependencies/zvec)
 
 find_package(OpenMP REQUIRED)
+find_package(OpenSSL REQUIRED)
 
-target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX)
+target_compile_definitions(DenseLite PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto)
 
 # Add include directory for headers
 target_include_directories(DenseLite PRIVATE src)
+

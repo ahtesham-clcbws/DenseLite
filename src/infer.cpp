@@ -289,7 +289,11 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
                   (float*)model.tensors["output_norm.weight"].data);
     
     // 4. LM Head (Vocab Projection)
-    matvec_q8(model.tensors["output.weight"], state.x.data(), logits.data(),
+    // Some models (e.g. Qwen2.5-1.5B, SmolLM2) tie word embeddings and omit output.weight
+    const Tensor& output_weight = model.tensors.count("output.weight")
+        ? model.tensors.at("output.weight")
+        : model.tensors.at("token_embd.weight");
+    matvec_q8(output_weight, state.x.data(), logits.data(),
               config.embedding_length, config.vocab_size);
 }
 

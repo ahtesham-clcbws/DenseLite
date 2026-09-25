@@ -31,86 +31,92 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
     bool is_gemini = (provider_url.find("generativelanguage") != std::string::npos);
     std::string endpoint = is_gemini ? "/v1beta/models/" + model_name + ":generateContent" : "/v1/chat/completions";
 
-    httplib::Client cli(provider_url.c_str());
-    cli.set_read_timeout(120);
-    
-    httplib::Headers headers = {
-        {"Content-Type", "application/json"}
-    };
-    
-    if (is_gemini) {
-        headers.emplace("x-goog-api-key", api_key);
-    } else {
-        headers.emplace("Authorization", "Bearer " + api_key);
-    }
-    
-    json payload = json::object();
-    
-    if (is_gemini) {
-        // Build Gemini format
-        json contents = json::array();
-        for (const auto& m : req.messages) {
-            json part = json::object();
-            part["text"] = m.content;
-            json content = json::object();
-            content["role"] = m.role == "assistant" ? "model" : "user";
-            content["parts"] = json::array({part});
-            contents.push_back(content);
+    try {
+        httplib::Client cli(provider_url.c_str());
+        cli.set_read_timeout(120);
+        
+        httplib::Headers headers = {
+            {"Content-Type", "application/json"}
+        };
+        
+        if (is_gemini) {
+            headers.emplace("x-goog-api-key", api_key);
+        } else {
+            headers.emplace("Authorization", "Bearer " + api_key);
         }
-        payload["contents"] = contents;
         
-        json generationConfig = json::object();
-        generationConfig["temperature"] = req.temperature;
-        generationConfig["maxOutputTokens"] = req.max_tokens;
-        payload["generationConfig"] = generationConfig;
+        json payload = json::object();
         
-        // TODO: Tools for Gemini
-    } else {
-        // Build OpenAI format
-        payload["model"] = model_name;
-        payload["temperature"] = req.temperature;
-        payload["max_tokens"] = req.max_tokens;
-        
-        json messages = json::array();
-        for (const auto& m : req.messages) {
-            json msg = json::object();
-            msg["role"] = m.role;
-            msg["content"] = m.content;
-            if (!m.name.empty()) msg["name"] = m.name;
-            if (!m.tool_call_id.empty()) msg["tool_call_id"] = m.tool_call_id;
-            messages.push_back(msg);
-        }
-        payload["messages"] = messages;
-        
-        if (!req.tools.empty()) {
-            json tools = json::array();
-            for (const auto& t : req.tools) {
-                json tool = json::object();
-                tool["type"] = t.type;
-                json func = json::object();
-                func["name"] = t.function.name;
-                func["description"] = t.function.description;
-                if (!t.function.parameters_schema.empty()) {
-                    try {
-                        func["parameters"] = json::parse(t.function.parameters_schema);
-                    } catch (...) {}
-                }
-                tool["function"] = func;
-                tools.push_back(tool);
+        if (is_gemini) {
+            // Build Gemini format
+            json contents = json::array();
+            for (const auto& m : req.messages) {
+                json part = json::object();
+                part["text"] = m.content;
+                json content = json::object();
+                content["role"] = m.role == "assistant" ? "model" : "user";
+                content["parts"] = json::array({part});
+                contents.push_back(content);
             }
-            payload["tools"] = tools;
+            payload["contents"] = contents;
+            
+            json generationConfig = json::object();
+            generationConfig["temperature"] = req.temperature;
+            generationConfig["maxOutputTokens"] = req.max_tokens;
+            payload["generationConfig"] = generationConfig;
+            
+            // TODO: Tools for Gemini
+        } else {
+            // Build OpenAI format
+            payload["model"] = model_name;
+            payload["temperature"] = req.temperature;
+            payload["max_tokens"] = req.max_tokens;
+            
+            json messages = json::array();
+            for (const auto& m : req.messages) {
+                json msg = json::object();
+                msg["role"] = m.role;
+                msg["content"] = m.content;
+                if (!m.name.empty()) msg["name"] = m.name;
+                if (!m.tool_call_id.empty()) msg["tool_call_id"] = m.tool_call_id;
+                messages.push_back(msg);
+            }
+            payload["messages"] = messages;
+            
+            if (!req.tools.empty()) {
+                json tools = json::array();
+                for (const auto& t : req.tools) {
+                    json tool = json::object();
+                    tool["type"] = t.type;
+                    json func = json::object();
+                    func["name"] = t.function.name;
+                    func["description"] = t.function.description;
+                    if (!t.function.parameters_schema.empty()) {
+                        try {
+                            func["parameters"] = json::parse(t.function.parameters_schema);
+                        } catch (...) {}
+                    }
+                    tool["function"] = func;
+                    tools.push_back(tool);
+                }
+                payload["tools"] = tools;
+            }
         }
-    }
-    
-    auto res = cli.Post(endpoint.c_str(), headers, payload.dump(), "application/json");
-    
-    if (!res) {
-        output = "{\"error\": \"Connection failed\"}";
+        
+        auto res = cli.Post(endpoint.c_str(), headers, payload.dump(), "application/json");
+        
+        if (!res) {
+            output = "{\"error\": \"Connection failed\"}";
+            return 503;
+        }
+        
+        output = res->body;
+        return res->status;
+    } catch (const std::exception& e) {
+        std::cerr << "[ModelEngine] Cloud inference error: " << e.what() << std::endl;
+        output = std::string("{\"error\": \"") + e.what() + "\"}";
         return 503;
     }
-    
-    output = res->body;
-    return res->status;
 }
 
 #include "Formatter.hpp"

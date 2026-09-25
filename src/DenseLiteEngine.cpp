@@ -87,9 +87,16 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     
     ModelEngine model_engine(models, router);
     
-    // Choose model based on intent (stubbed for now, pick best general model)
-    std::string target_model = router.get_cheapest_model_for_provider("GROQ", "text");
-    if (target_model.empty()) target_model = "qwen_main";
+    // Choose model based on request model or intent
+    std::string target_model;
+    if (parsed_req.model == "qwen_main" || parsed_req.model == "qwen_coder" || parsed_req.model == "smollm2") {
+        target_model = parsed_req.model;
+    } else if (!parsed_req.model.empty() && parsed_req.model != "denselite") {
+        target_model = parsed_req.model;
+    } else {
+        target_model = router.get_cheapest_model_for_provider("GROQ", "text");
+        if (target_model.empty()) target_model = "qwen_main";
+    }
 
     std::string output;
     int status_code = 0;
@@ -115,7 +122,7 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
             if (target_model.empty()) target_model = "qwen_main";
         } else if (action == RecoveryAction::FALLBACK_LOCAL) {
             std::cout << "[Engine] Recovering: Fallback to local model." << std::endl;
-            target_model = "qwen_coder";
+            target_model = "qwen_main";
         } else {
             std::cout << "[Engine] Recovering: Retrying same model." << std::endl;
         }

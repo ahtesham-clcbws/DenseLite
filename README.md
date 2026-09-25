@@ -30,6 +30,65 @@ With V3.0, DenseLite has evolved from a smart proxy into an embedded RAG-powered
 
 ---
 
+## Project Status: Phase 0 (Reality Audit & Baseline Verification)
+
+DenseLite is currently undergoing strict **Phase 0 Baseline Verification**. All components are being tested against real edge hardware (2 CPU cores, 32GB RAM) without introducing new upgrade developments:
+
+| Subsystem | Audit Status | Runtime Verification Notes |
+|---|---|---|
+| **Compilation & Linkage** | 🟢 PASSED | Clean build with AVX2/FMA intrinsics; linked with Arrow, RocksDB, Zvec, ANTLR4, OpenMP, and OpenSSL (`libssl.so.3` / `libcrypto.so.3`). |
+| **Model Verification** | 🟢 PASSED | All resident GGUFs exist on disk and map into memory sequentially (`smollm2`, `nomic`, `qwen_main`, `qwen_coder`). |
+| **Gateway Service (Port 9501)** | 🟢 PASSED | Background daemon boots cleanly, enforces hardware limits (2 threads max, 14GB RAM), and binds to `0.0.0.0:9501`. |
+| **Health API (`GET /health`)** | 🟢 PASSED | Immediate `HTTP 200 OK` (`{"status":"ok"}`). |
+| **Client Configuration (Zed)** | 🟢 PASSED | Pre-configured in `~/.config/zed/settings.json` pointing to `http://127.0.0.1:9501/v1` targeting model `denselite`. |
+| **Chat Completions / Inference** | 🟡 IN PROGRESS | Current runtime blockers under resolution (see Issues below). |
+
+### Issues Discovered in Phase 0 Reality Audit
+
+1. **Tied Word Embeddings AVX2 Segfault (`infer.cpp`)**:
+   - **Issue**: During local model inference (`qwen_main`), the LM head projection caused a segmentation fault in `matvec_q8`.
+   - **Root Cause**: GGUF inspection revealed that `Qwen2.5-1.5B` and `SmolLM2-360M` utilize **tied word embeddings** (`tie_word_embeddings = true`). They do not contain a distinct `output.weight` tensor; instead, they project logits using `token_embd.weight`. The unhandled lookup created a `nullptr` tensor causing memory fault.
+   - **Fix**: Fall back to `token_embd.weight` when `output.weight` is absent in GGUF.
+
+2. **Cloud Provider Fallback Endpoints**:
+   - **Issue**: Default cloud text fallback route targeted Groq model `llama-3.1-8b-instant`, which has been deprecated upstream. Secondary OpenRouter fallback requested `https://openrouter.ai/v1/chat/completions` which lacked the required `/api` prefix, returning an HTML 404.
+   - **Fix**: Update endpoint routing to `https://openrouter.ai/api` and ensure clean fallback to local models on network errors.
+
+---
+
+## Roadmap & Future Updates (v3.2.1 Architecture Queue)
+
+The following modular phases are frozen and scheduled for sequential implementation following the completion of Phase 0:
+
+- **Phase 1: Pure C++ AVX2 Model Execution Engine**
+  Zero-dependency CPU transformer forward pass (AVX2 + FMA, Q8_0 dequantization, RMSNorm, RoPE, SwiGLU, and Top-K sampling) running without llama.cpp, PyTorch, or ONNX.
+
+- **Phase 2: Model Lifecycle & Role Manager**
+  Dynamic mmap memory management, assigning model roles (`qwen_coder`, `qwen_main`, `smollm2`), and safe eviction under memory pressure.
+
+- **Phase 3: Native BPE Tokenizer & Context Window Engine**
+  Trie-based Byte-Pair Encoding (BPE) tokenization/detokenization, token budgeting, and rolling KV cache management.
+
+- **Phase 4A: Vector & State Memory Store (Zvec + SQLite)**
+  Persistent hybrid memory combining SQLite (metadata, conversation state, rate limits) and Zvec/RocksDB (dense vector embeddings and fast semantic search).
+
+- **Phase 4B: Code Intelligence & AST Parser (Tree-sitter)**
+  Tree-sitter syntax-aware code parsing, AST symbol extraction, and scope navigation for codebases.
+
+- **Phase 5: Hybrid Search & Evidence Reranking**
+  Multi-channel retrieval combining keyword BM25/FTS5 search with dense embeddings and deterministic reranking.
+
+- **Phase 6: Evidence-Based Autonomous Agent Loop**
+  Multi-turn reasoning and tool action loop (Read, Edit, Command execution) with self-healing recovery.
+
+- **Phase 7: 2-Core Resource Governance & CPU/RAM Throttling**
+  Strict 2-thread CPU cap (50% max) and 14 GB RAM ceiling for stable execution on edge laptops.
+
+- **Phase 8: Multimodal Vision & Speech Processing**
+  Offline speech-to-text with Whisper.cpp and lightweight image generation pipelines.
+
+---
+
 ## How It Works
 
 When a Client IDE or Agent sends a request to DenseLite, it flows through a deterministic pipeline of specialized C++ modules. Each module has a single responsibility and a clean interface boundary.
