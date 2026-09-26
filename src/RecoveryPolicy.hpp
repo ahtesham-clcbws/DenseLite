@@ -2,11 +2,13 @@
 #include <string>
 
 enum class RecoveryAction {
-    RETRY_SAME_MODEL,
-    SWITCH_MODEL,
-    SWITCH_PROVIDER,
-    FALLBACK_LOCAL,
-    FAIL_SESSION
+    RETRY_SAME,       // Transient network/provider error
+    SWITCH_KEY,       // Key-level rate limit or quota exceeded
+    SWITCH_PROVIDER,  // Provider overloaded (429/503)
+    SWITCH_MODEL,     // Model not found or deprecated (404)
+    REDUCE_CONTEXT,   // Context window exceeded (400/413)
+    FALLBACK_LOCAL,   // Cloud service down -> fallback to local AVX2
+    FAIL_SESSION      // Unrecoverable authentication/permission failure
 };
 
 class RecoveryPolicy {

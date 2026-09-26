@@ -30,24 +30,41 @@ static std::string extract_text(const std::string& raw) {
     return raw;
 }
 
-std::string Curator::consolidate(const std::vector<std::string>& intermediate_results, const std::string& task_type) {
+std::string Curator::consolidate(
+    const std::vector<std::string>& intermediate_results,
+    const std::string& task_type,
+    const std::vector<SearchResult>& search_evidence) {
+
     if (intermediate_results.empty()) {
         return "";
     }
-    
-    // For simple single-shot tasks, just return the only result
-    if (intermediate_results.size() == 1) {
+
+    std::stringstream consolidated;
+
+    // Single iteration without extra evidence: direct return
+    if (intermediate_results.size() == 1 && search_evidence.empty()) {
         return extract_text(intermediate_results[0]);
     }
 
-    // For multi-turn tasks (e.g., plan -> code -> test), consolidate them.
-    // In a full implementation, this might use SmolLM2 for summarization.
-    std::stringstream consolidated;
-    consolidated << "### Task Consolidation (" << task_type << ")\n";
-    
-    for (size_t i = 0; i < intermediate_results.size(); ++i) {
-        consolidated << "\n--- Iteration " << (i + 1) << " ---\n";
-        consolidated << extract_text(intermediate_results[i]) << "\n";
+    if (intermediate_results.size() == 1) {
+        consolidated << extract_text(intermediate_results[0]);
+    } else {
+        consolidated << "### Task Consolidation (" << task_type << ")\n";
+        for (size_t i = 0; i < intermediate_results.size(); ++i) {
+            consolidated << "\n--- Iteration " << (i + 1) << " ---\n";
+            consolidated << extract_text(intermediate_results[i]) << "\n";
+        }
+    }
+
+    if (!search_evidence.empty()) {
+        consolidated << "\n\n### Supporting Evidence Citations\n";
+        for (const auto& ev : search_evidence) {
+            if (!ev.symbol_name.empty()) {
+                consolidated << "- **" << ev.symbol_name << "** (`" << ev.file_path << "`)\n";
+            } else if (!ev.file_path.empty()) {
+                consolidated << "- `" << ev.file_path << "`\n";
+            }
+        }
     }
 
     return consolidated.str();

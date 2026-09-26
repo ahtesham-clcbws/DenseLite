@@ -22,6 +22,10 @@
 #include "memory_engine.hpp"
 #include "code_indexer.hpp"
 #include "search_engine.hpp"
+#include "ResponseAnalyzer.hpp"
+#include "RecoveryPolicy.hpp"
+#include "CompletionPolicy.hpp"
+#include "Curator.hpp"
 #include <filesystem>
 
 using Clock = std::chrono::high_resolution_clock;
@@ -506,13 +510,110 @@ void benchmark_phase5_search_fusion() {
     std::cout << "======================================================\n\n";
 }
 
+void benchmark_phase6_agent_loop() {
+    std::cout << "\n======================================================\n";
+    std::cout << " BENCHMARK: Phase 6 Evidence-Based Autonomous Agent Loop\n";
+    std::cout << "======================================================\n";
+
+    // 1. ResponseAnalyzer Throughput across formats
+    std::string sample_tool_resp = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\\\"main.cpp\\\"}\"}}]}}]}";
+    std::string sample_trunc_resp = "{\"choices\":[{\"message\":{\"content\":\"Truncated code part\"},\"finish_reason\":\"length\"}]}";
+    std::string sample_done_resp = "{\"choices\":[{\"message\":{\"content\":\"Final result completed\"},\"finish_reason\":\"stop\"}]}";
+
+    const int ANALYZE_ITERS = 50000;
+    auto start = Clock::now();
+    for (int i = 0; i < ANALYZE_ITERS; ++i) {
+        auto a1 = ResponseAnalyzer::analyze(sample_tool_resp);
+        auto a2 = ResponseAnalyzer::analyze(sample_trunc_resp);
+        auto a3 = ResponseAnalyzer::analyze(sample_done_resp);
+        (void)a1; (void)a2; (void)a3;
+    }
+    auto end = Clock::now();
+    double analyze_sec = std::chrono::duration<double>(end - start).count();
+    double analyze_ops = (ANALYZE_ITERS * 3) / analyze_sec;
+
+    std::cout << "[1] ResponseAnalyzer 5-State Multi-Format Analysis:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << analyze_ops << " analyses/sec\n";
+    std::cout << "    - Latency per analysis: " << std::setprecision(2) << (analyze_sec * 1e6 / (ANALYZE_ITERS * 3)) << " us\n";
+
+    // 2. RecoveryPolicy 7-Action Decision Throughput
+    const int RECOVERY_ITERS = 100000;
+    start = Clock::now();
+    for (int i = 0; i < RECOVERY_ITERS; ++i) {
+        auto r1 = RecoveryPolicy::determine_action(429, "rate_limit_exceeded");
+        auto r2 = RecoveryPolicy::determine_action(429, "api key quota exhausted");
+        auto r3 = RecoveryPolicy::determine_action(413, "payload too large");
+        auto r4 = RecoveryPolicy::determine_action(404, "model not found");
+        (void)r1; (void)r2; (void)r3; (void)r4;
+    }
+    end = Clock::now();
+    double rec_sec = std::chrono::duration<double>(end - start).count();
+    double rec_ops = (RECOVERY_ITERS * 4) / rec_sec;
+
+    std::cout << "[2] RecoveryPolicy 7-Action Policy Engine:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << rec_ops << " decisions/sec\n";
+    std::cout << "    - Latency per decision: " << std::setprecision(2) << (rec_sec * 1e6 / (RECOVERY_ITERS * 4)) << " us\n";
+
+    // 3. CompletionPolicy Evidence Evaluation Throughput
+    CompletionEvidence ev;
+    ev.evidence_says_complete = true;
+    ev.artifact_produced = true;
+    std::string candidate_text = "Here is the implementation:\n```cpp\nint solve() { return 1; }\n```";
+
+    const int COMPLETE_ITERS = 100000;
+    start = Clock::now();
+    for (int i = 0; i < COMPLETE_ITERS; ++i) {
+        bool ok = CompletionPolicy::is_acceptable("coding", candidate_text, {}, ev);
+        (void)ok;
+    }
+    end = Clock::now();
+    double comp_sec = std::chrono::duration<double>(end - start).count();
+    double comp_ops = COMPLETE_ITERS / comp_sec;
+
+    std::cout << "[3] CompletionPolicy Evidence Verification:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << comp_ops << " evaluations/sec\n";
+    std::cout << "    - Latency per evaluation: " << std::setprecision(2) << (comp_sec * 1e6 / COMPLETE_ITERS) << " us\n";
+
+    // 4. Curator Multi-Iteration Consolidation
+    Curator curator;
+    std::vector<std::string> turns = {
+        "{\"choices\":[{\"message\":{\"content\":\"Step 1: Analyzed AST chunk\"}}]}",
+        "{\"choices\":[{\"message\":{\"content\":\"Step 2: Applied recovery action\"}}]}",
+        "{\"choices\":[{\"message\":{\"content\":\"Step 3: Produced final verified patch\"}}]}"
+    };
+    SearchResult cite1;
+    cite1.symbol_name = "RecoveryPolicy::determine_action";
+    cite1.file_path = "src/RecoveryPolicy.cpp";
+
+    SearchResult cite2;
+    cite2.symbol_name = "CompletionPolicy::is_acceptable";
+    cite2.file_path = "src/CompletionPolicy.cpp";
+
+    const int CURATOR_ITERS = 10000;
+    start = Clock::now();
+    for (int i = 0; i < CURATOR_ITERS; ++i) {
+        std::string res = curator.consolidate(turns, "coding", {cite1, cite2});
+        (void)res;
+    }
+    end = Clock::now();
+    double cur_sec = std::chrono::duration<double>(end - start).count();
+    double cur_ops = CURATOR_ITERS / cur_sec;
+
+    std::cout << "[4] Curator Multi-Turn Stitching & Evidence Citation:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << cur_ops << " consolidations/sec\n";
+    std::cout << "    - Latency per consolidation (3 turns + 2 cites): " << std::setprecision(2) << (cur_sec * 1e6 / CURATOR_ITERS) << " us\n";
+    std::cout << "======================================================\n\n";
+}
+
 int main() {
     benchmark_vulkan_lifecycle();
     benchmark_phase3_tokenizer_context();
     benchmark_phase4a_memory();
     benchmark_phase4b_code_intel();
     benchmark_phase5_search_fusion();
+    benchmark_phase6_agent_loop();
     return 0;
 }
+
 
 

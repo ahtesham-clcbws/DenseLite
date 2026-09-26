@@ -69,109 +69,95 @@ void DenseLiteEngine::process(const std::string& request_body, httplib::Response
 
 void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res) {
     session.status = SessionStatus::ANALYZING;
-    
-    // 1. ROUTING
+    std::string user_query = parsed_req.messages.empty() ? "" : parsed_req.messages.back().content;
+
+    // 1. ROUTING & RECALL
     session.status = SessionStatus::ROUTING;
-    DenseModel* needle = nullptr;
-    if (models.find("needle") != models.end()) {
-        needle = &models.at("needle");
-    }
-    
+    DenseModel* needle = (models.find("needle") != models.end()) ? &models.at("needle") : nullptr;
     RoutingDecision decision = NeedleRouter::analyze_request(parsed_req, needle);
     session.task_type = decision.intent;
-    std::cout << "[Engine] Intent: " << session.task_type << "\n";
+    memory_engine_.working().set_task(session.task_type, user_query);
 
-    // 2. MODEL SELECTION
-    std::string target_model;
-    if (parsed_req.model == "qwen_main" || parsed_req.model == "qwen_coder" || parsed_req.model == "smollm2") {
-        target_model = parsed_req.model;
-    } else if (parsed_req.model == "denselite" || parsed_req.model.empty()) {
+    // 2. SEARCH & CONTEXT COMPILATION
+    auto search_hits = search_engine_.search(user_query, session.task_type, 5);
+    std::string target_model = parsed_req.model;
+    if (target_model == "denselite" || target_model.empty()) {
         target_model = (session.task_type == "coding") ? "qwen_coder" : "qwen_main";
-    } else {
-        target_model = parsed_req.model;
     }
 
-    // 3. CONTEXT MANAGEMENT & COMPILATION
-    auto opt_result = context_engine_.optimize_and_compile(parsed_req, target_model, 8192);
+    auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, 8192);
     std::string prompt = opt_result.compiled_prompt;
-    std::cout << "[Engine] Context tokens: " << opt_result.compiled_context.prompt_tokens 
-              << " / " << opt_result.budget_plan.max_input_tokens 
-              << " (Reserve: " << opt_result.budget_plan.generation_reserve << ")\n";
 
-    // 4. INFERRING
+    // 3. INFERENCE & INTERNAL CONTINUATION LOOP (Phase 6)
     session.status = SessionStatus::INFERRING;
     ModelEngine model_engine(models, router);
+    const int MAX_INTERNAL_TURNS = 3;
 
-    std::string output;
-    int status_code = 0;
-    int max_retries = 3;
-    bool success = false;
+    for (int turn = 0; turn < MAX_INTERNAL_TURNS; ++turn) {
+        std::string output;
+        int status_code = 0;
+        bool step_ok = false;
 
-    for (int attempt = 0; attempt < max_retries; ++attempt) {
-        status_code = model_engine.infer(target_model, parsed_req, prompt, output);
+        for (int retry = 0; retry < 3; ++retry) {
+            status_code = model_engine.infer(target_model, parsed_req, prompt, output);
+            if (status_code == 200) { step_ok = true; break; }
 
-        if (status_code == 200) {
-            success = true;
-            break;
+            RecoveryAction action = RecoveryPolicy::determine_action(status_code, output);
+            if (action == RecoveryAction::REDUCE_CONTEXT) {
+                opt_result = context_engine_.optimize_and_compile(parsed_req, {}, target_model, 4096);
+                prompt = opt_result.compiled_prompt;
+            } else if (action == RecoveryAction::SWITCH_MODEL || action == RecoveryAction::SWITCH_PROVIDER || action == RecoveryAction::SWITCH_KEY) {
+                target_model = router.get_cheapest_model_for_provider("OPENROUTER", "text");
+                if (target_model.empty()) target_model = "qwen_main";
+            } else if (action == RecoveryAction::FALLBACK_LOCAL) {
+                target_model = "qwen_main";
+            } else if (action == RecoveryAction::FAIL_SESSION) {
+                break;
+            }
         }
 
-        ProviderErrorAnalysis analysis = ProviderErrorAnalyzer::analyze("UNKNOWN", target_model, status_code, output);
-        RecoveryAction action = RecoveryPolicy::determine_action(status_code, output);
-        
-        if (action == RecoveryAction::FAIL_SESSION) {
+        if (!step_ok) {
+            session.status = SessionStatus::FAILED;
+            res.status = status_code;
+            res.set_content(output, "text/plain");
+            return;
+        }
+
+        session.iteration_results.push_back(output);
+        ResponseAction action = ResponseAnalyzer::analyze(output);
+
+        if (action == ResponseAction::TOOL_CALL) {
+            session.status = SessionStatus::WAITING_FOR_TOOL;
+            res.set_content(output, "application/json");
+            return;
+        }
+
+        if (action == ResponseAction::INVALID) {
+            target_model = "qwen_main"; // Fallback to safe local model
+            continue;
+        }
+
+        if (action == ResponseAction::MODEL_CONTINUE) {
+            session.status = SessionStatus::CONTINUING;
+            prompt += "\n" + output + "\nContinue directly:";
+            continue;
+        }
+
+        CompletionEvidence evidence;
+        evidence.has_output = !output.empty();
+        evidence.has_task_type = !session.task_type.empty();
+        evidence.artifact_produced = (output.find("```") != std::string::npos);
+        evidence.evidence_says_complete = (action == ResponseAction::COMPLETE);
+
+        if (CompletionPolicy::is_acceptable(session.task_type, output, session.iteration_results, evidence)) {
+            session.status = SessionStatus::COMPLETED;
             break;
-        } else if (action == RecoveryAction::SWITCH_MODEL || action == RecoveryAction::SWITCH_PROVIDER) {
-            std::cout << "[Engine] Recovering: Switching model/provider." << std::endl;
-            target_model = router.get_cheapest_model_for_provider("OPENROUTER", "text");
-            if (target_model.empty()) target_model = "qwen_main";
-        } else if (action == RecoveryAction::FALLBACK_LOCAL) {
-            std::cout << "[Engine] Recovering: Fallback to local model." << std::endl;
-            target_model = "qwen_main";
-        } else {
-            std::cout << "[Engine] Recovering: Retrying same model." << std::endl;
         }
     }
 
-    if (!success) {
-        session.status = SessionStatus::FAILED;
-        res.status = status_code;
-        res.set_content(output, "text/plain");
-        return;
-    }
-
-    // Record turn in session memory and persistent store
-    std::string user_content = parsed_req.messages.empty() ? "" : parsed_req.messages.back().content;
-    memory_engine_.session().add_message("user", user_content);
-    memory_engine_.session().add_message("assistant", output);
-    memory_engine_.store().save_session(memory_engine_.session());
-
-    ResponseAction r_action = ResponseAnalyzer::analyze(output);
-    session.iteration_results.push_back(output);
-
-    if (!CompletionPolicy::is_acceptable(session.task_type, output, session.iteration_results)) {
-        session.status = SessionStatus::CONTINUING;
-        std::cout << "[Engine] Response incomplete. Would trigger multi-turn loop." << std::endl;
-    } else {
-        session.status = SessionStatus::COMPLETED;
-    }
-
-    // 4. CURATION
-    std::string sse_response;
-    if (session.status == SessionStatus::COMPLETED) {
-        Curator curator;
-        std::string final_curated_output = curator.consolidate(session.iteration_results, session.task_type);
-
-        // 5. FORMATTING (SSE chunk format)
-        sse_response += Formatter::format_sse_delta(final_curated_output);
-        sse_response += Formatter::format_sse_done();
-    } else {
-        // Just return the chunk and let the client know it's not done (we don't send DONE)
-        sse_response += Formatter::format_sse_delta(output);
-        // Note: We don't send [DONE] here because the session is CONTINUING.
-        // However, standard Zed client expects [DONE] to close the stream.
-        // We will send DONE for now so the HTTP request completes. In a real multi-turn,
-        // we might hold the connection open or use internal loops.
-        sse_response += Formatter::format_sse_done();
-    }
+    // 4. CURATION & FORMATTING
+    Curator curator;
+    std::string final_output = curator.consolidate(session.iteration_results, session.task_type, search_hits);
+    std::string sse_response = Formatter::format_sse_delta(final_output) + Formatter::format_sse_done();
     res.set_content(sse_response, "text/event-stream");
 }

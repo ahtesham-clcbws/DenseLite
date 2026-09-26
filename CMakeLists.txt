@@ -186,6 +186,10 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/structural_search.cpp
     src/result_fusion.cpp
     src/search_engine.cpp
+    src/ResponseAnalyzer.cpp
+    src/RecoveryPolicy.cpp
+    src/CompletionPolicy.cpp
+    src/Curator.cpp
 )
 target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
 target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
@@ -243,6 +247,17 @@ add_executable(test_search tests/search_engine_tests.cpp
 target_link_libraries(test_search PRIVATE Threads::Threads sqlite3 treesitter_static)
 target_include_directories(test_search PRIVATE src dependencies/tree-sitter/lib/include)
 add_test(NAME SearchEngine COMMAND test_search)
+
+add_executable(test_agent_loop tests/agent_loop_tests.cpp
+    src/ResponseAnalyzer.cpp
+    src/RecoveryPolicy.cpp
+    src/CompletionPolicy.cpp
+    src/Curator.cpp
+)
+target_link_libraries(test_agent_loop PRIVATE Threads::Threads)
+target_include_directories(test_agent_loop PRIVATE src)
+add_test(NAME AgentLoop COMMAND test_agent_loop)
+
 
 
 
