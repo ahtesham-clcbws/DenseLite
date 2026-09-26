@@ -17,7 +17,7 @@ jobs:
       - name: Build Code Map
         run: |
           mkdir -p out
-          npx -y repomix --style xml --output out/REPO_MAP.xml --remove-empty-lines --ignore "dependencies/**,build/**,models/**,out/**"
+          npx -y repomix --style xml --output out/REPO_MAP.xml --remove-empty-lines --ignore "dependencies/**,dependencies/vulkan/**,**/vulkan/**,build/**,models/**,out/**"
 
       - name: Push to repomap branch
         uses: peaceiris/actions-gh-pages@v4
