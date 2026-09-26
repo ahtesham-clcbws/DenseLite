@@ -9,6 +9,7 @@
 #include "RequestAnalyzer.hpp"
 #include "context_engine.hpp"
 #include "tokenizer_registry.hpp"
+#include "memory_engine.hpp"
 
 struct InferenceSession {
     std::string session_id;
@@ -30,12 +31,14 @@ public:
 
     TokenizerRegistry& get_tokenizer_registry() { return tokenizer_registry_; }
     ContextEngine& get_context_engine() { return context_engine_; }
+    MemoryEngine& get_memory_engine() { return memory_engine_; }
 
 private:
     std::map<std::string, DenseModel>& models;
     SQLiteRouter& router;
     TokenizerRegistry tokenizer_registry_;
     ContextEngine context_engine_;
+    MemoryEngine memory_engine_;
 
     InferenceSession get_or_create_session(const std::string& session_id);
     void execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res);

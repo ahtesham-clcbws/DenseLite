@@ -19,6 +19,9 @@
 #include "context_compressor.hpp"
 #include "context_compiler.hpp"
 #include "context_engine.hpp"
+#include "memory_engine.hpp"
+#include "code_indexer.hpp"
+#include <filesystem>
 
 using Clock = std::chrono::high_resolution_clock;
 
@@ -240,8 +243,171 @@ void benchmark_phase3_tokenizer_context() {
     std::cout << "======================================================\n\n";
 }
 
+void benchmark_phase4a_memory() {
+    std::cout << "\n======================================================\n";
+    std::cout << " BENCHMARK: Phase 4A Memory Engine (Zvec + SQLite)\n";
+    std::cout << "======================================================\n";
+
+    std::string test_db = "/tmp/bench_memory.db";
+    std::filesystem::remove(test_db);
+
+    MemoryEngine engine;
+    engine.init(test_db);
+
+    // 1. SQLite Canonical Write Throughput
+    const int WRITE_ITERS = 5000;
+    auto start = Clock::now();
+    for (int i = 0; i < WRITE_ITERS; ++i) {
+        MemoryEntry e;
+        e.id = "mem_" + std::to_string(i);
+        e.key = "key_" + std::to_string(i);
+        e.value = "Persistent value record testing canonical persistence throughput in SQLite " + std::to_string(i);
+        e.category = MemoryCategory::DISCOVERY;
+        e.confidence = 1.0f;
+        engine.store().put_memory(e);
+    }
+    auto end = Clock::now();
+    double write_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[1] Canonical SQLite Memory Write Throughput:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (WRITE_ITERS / write_sec) << " writes/sec\n";
+    std::cout << "    - Latency per insert: " << std::setprecision(2) << (write_sec * 1e6 / WRITE_ITERS) << " us\n";
+
+    // 2. SQLite Canonical Read Throughput
+    const int READ_ITERS = 10000;
+    start = Clock::now();
+    for (int i = 0; i < READ_ITERS; ++i) {
+        MemoryEntry out;
+        std::string k = "key_" + std::to_string(i % WRITE_ITERS);
+        engine.store().get_memory(k, out);
+    }
+    end = Clock::now();
+    double read_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[2] Canonical SQLite Memory Read Throughput:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (READ_ITERS / read_sec) << " reads/sec\n";
+    std::cout << "    - Latency per read: " << std::setprecision(2) << (read_sec * 1e6 / READ_ITERS) << " us\n";
+
+    // 3. MemoryRecall Top-K Query
+    const int RECALL_ITERS = 2000;
+    start = Clock::now();
+    for (int i = 0; i < RECALL_ITERS; ++i) {
+        auto recalled = engine.recall().recall("key_42", 5);
+        (void)recalled;
+    }
+    end = Clock::now();
+    double recall_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[3] MemoryRecall Top-K Query Search:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (RECALL_ITERS / recall_sec) << " queries/sec\n";
+    std::cout << "    - Latency per recall: " << std::setprecision(2) << (recall_sec * 1e6 / RECALL_ITERS) << " us\n";
+
+    // 4. Session Compaction & Consolidation
+    engine.session().set_session_id("sess_bench");
+    for (int i = 0; i < 20; ++i) {
+        engine.session().add_message("user", "Turn " + std::to_string(i) + ": Remember framework: Laravel 12");
+        engine.session().add_message("assistant", "Confirmed.");
+    }
+    start = Clock::now();
+    auto cres = engine.end_session_and_archive();
+    end = Clock::now();
+    double cons_us = std::chrono::duration<double, std::micro>(end - start).count();
+    std::cout << "[4] Session Compaction & Deterministic Archive:\n";
+    std::cout << "    - Archive ID: " << cres.archive_id << "\n";
+    std::cout << "    - Compaction Latency: " << std::setprecision(2) << cons_us << " us\n";
+
+    std::filesystem::remove(test_db);
+    std::cout << "======================================================\n\n";
+}
+
+void benchmark_phase4b_code_intel() {
+    std::cout << "\n======================================================\n";
+    std::cout << " BENCHMARK: Phase 4B Code Intelligence (Tree-sitter)\n";
+    std::cout << "======================================================\n";
+
+    std::string test_db = "/tmp/bench_code_intel.db";
+    std::filesystem::remove(test_db);
+
+    CodeIndexer indexer;
+    indexer.init(test_db);
+
+    // Prepare realistic C++ source snippet (50 lines)
+    std::string cpp_source =
+        "#include <iostream>\n"
+        "#include <vector>\n"
+        "class RouterController {\n"
+        "public:\n"
+        "    void handle_request(int req_id) {\n"
+        "        std::cout << req_id << std::endl;\n"
+        "    }\n"
+        "    void dispatch_job(const std::string& job) {\n"
+        "        std::cout << job << std::endl;\n"
+        "    }\n"
+        "};\n"
+        "int process_data(int a, int b) {\n"
+        "    return a + b;\n"
+        "}\n";
+
+    // 1. Language Detection Latency
+    const int DETECT_ITERS = 100000;
+    auto start = Clock::now();
+    for (int i = 0; i < DETECT_ITERS; ++i) {
+        auto lang = indexer.languages().detect_language("src/controllers/RouterController.cpp");
+        (void)lang;
+    }
+    auto end = Clock::now();
+    double detect_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[1] Language Detection Latency:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (DETECT_ITERS / detect_sec) << " lookups/sec\n";
+    std::cout << "    - Latency per check: " << std::setprecision(3) << (detect_sec * 1e9 / DETECT_ITERS) << " ns\n";
+
+    // 2. Tree-sitter AST Parsing & Chunking Throughput
+    const int PARSE_ITERS = 2000;
+    start = Clock::now();
+    size_t total_chunks = 0;
+    ASTChunker chunker(&indexer.languages());
+    for (int i = 0; i < PARSE_ITERS; ++i) {
+        auto chunks = chunker.chunk("RouterController.cpp", cpp_source);
+        total_chunks += chunks.size();
+    }
+    end = Clock::now();
+    double parse_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[2] Tree-sitter AST Parsing & Chunking (C++):\n";
+    std::cout << "    - Parses per second: " << std::fixed << std::setprecision(0) << (PARSE_ITERS / parse_sec) << " files/sec\n";
+    std::cout << "    - Latency per file: " << std::setprecision(2) << (parse_sec * 1e6 / PARSE_ITERS) << " us\n";
+    std::cout << "    - Chunks extracted: " << (total_chunks / PARSE_ITERS) << " definitions/file\n";
+
+    // 3. Incremental Change Tracking Throughput
+    const int HASH_ITERS = 50000;
+    start = Clock::now();
+    for (int i = 0; i < HASH_ITERS; ++i) {
+        bool changed = indexer.tracker().has_changed("RouterController.cpp", cpp_source);
+        (void)changed;
+    }
+    end = Clock::now();
+    double hash_sec = std::chrono::duration<double>(end - start).count();
+    double hash_mb_sec = (HASH_ITERS * cpp_source.size()) / (hash_sec * 1024 * 1024);
+    std::cout << "[3] Incremental Hash Change Tracking (64-bit FNV-1a):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (HASH_ITERS / hash_sec) << " checks/sec ("
+              << std::setprecision(2) << hash_mb_sec << " MB/s)\n";
+
+    // 4. End-to-End File Indexing & Symbol Search
+    start = Clock::now();
+    auto idx_res = indexer.index_file("RouterController.cpp", cpp_source, true);
+    auto syms = indexer.query_symbol("RouterController");
+    end = Clock::now();
+    double idx_us = std::chrono::duration<double, std::micro>(end - start).count();
+    std::cout << "[4] Full End-to-End File Indexing & Symbol Query:\n";
+    std::cout << "    - Chunks Indexed: " << idx_res.chunk_count << "\n";
+    std::cout << "    - Symbols Found: " << syms.size() << "\n";
+    std::cout << "    - Total Latency: " << std::setprecision(2) << idx_us << " us\n";
+
+    std::filesystem::remove(test_db);
+    std::cout << "======================================================\n\n";
+}
+
 int main() {
     benchmark_vulkan_lifecycle();
     benchmark_phase3_tokenizer_context();
+    benchmark_phase4a_memory();
+    benchmark_phase4b_code_intel();
     return 0;
 }
+

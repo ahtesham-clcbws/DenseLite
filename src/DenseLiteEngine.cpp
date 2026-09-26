@@ -21,6 +21,7 @@ DenseLiteEngine::DenseLiteEngine(std::map<std::string, DenseModel>& resident_mod
     for (const auto& pair : models) {
         tokenizer_registry_.register_tokenizer(pair.first, &pair.second.vocab, pair.second.config.eos_token_id);
     }
+    memory_engine_.init("denselite_memory.db");
 }
 
 InferenceSession DenseLiteEngine::get_or_create_session(const std::string& session_id) {
@@ -135,6 +136,12 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         res.set_content(output, "text/plain");
         return;
     }
+
+    // Record turn in session memory and persistent store
+    std::string user_content = parsed_req.messages.empty() ? "" : parsed_req.messages.back().content;
+    memory_engine_.session().add_message("user", user_content);
+    memory_engine_.session().add_message("assistant", output);
+    memory_engine_.store().save_session(memory_engine_.session());
 
     ResponseAction r_action = ResponseAnalyzer::analyze(output);
     session.iteration_results.push_back(output);

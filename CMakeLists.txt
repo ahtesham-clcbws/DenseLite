@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
-project(DenseLite LANGUAGES CXX)
+project(DenseLite LANGUAGES C CXX)
 
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -45,6 +47,39 @@ add_executable(DenseLite
     src/context_compressor.cpp
     src/context_compiler.cpp
     src/context_engine.cpp
+    src/working_memory.cpp
+    src/session_memory.cpp
+    src/persistent_memory.cpp
+    src/memory_store.cpp
+    src/memory_recall.cpp
+    src/memory_consolidator.cpp
+    src/memory_engine.cpp
+    src/language_registry.cpp
+    src/ast_chunker.cpp
+    src/symbol_index.cpp
+    src/code_change_tracker.cpp
+    src/code_indexer.cpp
+)
+
+# Tree-sitter Core Runtime & Multi-Language Grammars
+add_library(treesitter_static STATIC
+    dependencies/tree-sitter/lib/src/lib.c
+    dependencies/tree-sitter/grammars/cpp/src/parser.c
+    dependencies/tree-sitter/grammars/cpp/src/scanner.c
+    dependencies/tree-sitter/grammars/python/src/parser.c
+    dependencies/tree-sitter/grammars/python/src/scanner.c
+    dependencies/tree-sitter/grammars/php/php/src/parser.c
+    dependencies/tree-sitter/grammars/php/php/src/scanner.c
+    dependencies/tree-sitter/grammars/javascript/src/parser.c
+    dependencies/tree-sitter/grammars/javascript/src/scanner.c
+)
+target_include_directories(treesitter_static PUBLIC
+    dependencies/tree-sitter/lib/include
+    dependencies/tree-sitter/grammars/cpp/src
+    dependencies/tree-sitter/grammars/python/src
+    dependencies/tree-sitter/grammars/php/php/src
+    dependencies/tree-sitter/grammars/php/common
+    dependencies/tree-sitter/grammars/javascript/src
 )
 
 # Disable massive Zvec submodules building to keep DenseLite fast
@@ -59,10 +94,10 @@ find_package(OpenMP REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 target_compile_definitions(DenseLite PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
-target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto vulkan)
+target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto vulkan treesitter_static)
 
 # Add include directory for headers
-target_include_directories(DenseLite PRIVATE src dependencies/vulkan/include)
+target_include_directories(DenseLite PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
 
 # ============================================================================
 # Test Targets (Phase 1 & Phase 2)
@@ -127,9 +162,47 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/context_compiler.cpp
     src/context_engine.cpp
     src/RequestAnalyzer.cpp
+    src/working_memory.cpp
+    src/session_memory.cpp
+    src/persistent_memory.cpp
+    src/memory_store.cpp
+    src/memory_recall.cpp
+    src/memory_consolidator.cpp
+    src/memory_engine.cpp
+    src/language_registry.cpp
+    src/ast_chunker.cpp
+    src/symbol_index.cpp
+    src/code_change_tracker.cpp
+    src/code_indexer.cpp
 )
-target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
-target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include)
+target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
+target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
+
+add_executable(test_memory tests/memory_engine_tests.cpp
+    src/working_memory.cpp
+    src/session_memory.cpp
+    src/persistent_memory.cpp
+    src/memory_store.cpp
+    src/memory_recall.cpp
+    src/memory_consolidator.cpp
+    src/memory_engine.cpp
+)
+target_link_libraries(test_memory PRIVATE Threads::Threads sqlite3)
+target_include_directories(test_memory PRIVATE src)
+add_test(NAME MemoryEngine COMMAND test_memory)
+
+add_executable(test_code_intel tests/code_indexer_tests.cpp
+    src/language_registry.cpp
+    src/ast_chunker.cpp
+    src/symbol_index.cpp
+    src/code_change_tracker.cpp
+    src/code_indexer.cpp
+)
+target_link_libraries(test_code_intel PRIVATE Threads::Threads sqlite3 treesitter_static)
+target_include_directories(test_code_intel PRIVATE src dependencies/tree-sitter/lib/include)
+add_test(NAME CodeIntelligence COMMAND test_code_intel)
+
+
 
 
 
