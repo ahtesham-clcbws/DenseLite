@@ -222,24 +222,32 @@ Simply run:
 ```
 The API server will automatically spin up on `http://localhost:9501`.
 
-### 3. How to Use DenseLite (API)
+### 3. How to Use DenseLite (API & Client IDE Setup)
 
-DenseLite exposes a standard OpenAI-compatible HTTP REST API. Once running, you can connect any agent, IDE, or script to `http://localhost:9501/v1` as the base URL.
+DenseLite exposes a standard OpenAI-compatible HTTP REST API on `http://localhost:9501/v1`.
 
-Here is a standard cURL example to interact with the engine:
+> 📘 **Full Client Configuration Guide:**  
+> For complete UI walkthroughs, screenshots, and copy-paste JSON snippets for **Zed Editor**, **OpenCode**, and **VS Code (Continue/Cline)**, see **[docs/CLIENT_INTEGRATION_GUIDE.md](docs/CLIENT_INTEGRATION_GUIDE.md)**.
+
+| Client / IDE | Configuration Target | Base URL | Model ID |
+|---|---|---|---|
+| **Zed Editor** | `~/.config/zed/settings.json` | `http://localhost:9501/v1` | `denselite` / `qwen_coder` |
+| **OpenCode** | `~/.config/opencode/config.json` | `http://localhost:9501/v1` | `denselite` / `qwen_coder` |
+| **VS Code (Continue)** | `~/.continue/config.json` | `http://localhost:9501/v1` | `denselite` / `qwen_coder` |
+
+#### Quick cURL Example
 ```bash
 curl http://localhost:9501/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "auto",
+    "model": "denselite",
     "messages": [
-      {"role": "system", "content": "You are a helpful assistant."},
       {"role": "user", "content": "Write a python script to reverse a string."}
     ],
     "stream": true
   }'
 ```
-DenseLite will intercept this, use `NeedleRouter` to classify the intent as `coding`, search history via `Zvec` if needed, select the best model (Cloud API or Local fallback), and stream the Server-Sent Events (SSE) back to the caller.
+DenseLite intercepts this request, automatically classifies the intent as `coding`, retrieves structural symbols and history if relevant, executes through local AVX2 or cloud failover, and streams SSE chunks back to the client.
 
 ### 4. Run E2E Tests
 
