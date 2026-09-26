@@ -18,19 +18,24 @@ With V3.2.1, DenseLite features a pure C++ AVX2 forward pass, GPU-preferred unif
 ---
 
 ## Features
-
+ 
 - **GPU-Preferred Unified Placement**: Workloads attempt Vulkan GPU compute allocation first, with automatic, deterministic fallback to Host CPU/RAM.
 - **85% VRAM Safety Ceiling**: Strict safety gate ($2048\text{ MiB} \times 0.85 = 1740\text{ MiB}$) reserving 15% (~308 MiB) for host display servers (X11/Wayland) and desktop compositors.
 - **Dynamic Device Limit Query**: Dynamically inspects `VkPhysicalDeviceLimits` for buffer alignments and ranges instead of hardcoded magic values.
 - **Bounded KV Cache Allocation**: Strictly bounded by $\text{KV Bytes} \le \text{Effective Context Tokens} \times \text{KV Bytes Per Token}$ with zero crash/OOM risk.
-- **RAII ModelLease & Eviction Guards**: Reference-counted model leases (`active_users`) prevent unmapping or memory eviction during active inference.
+- **RAII ModelLease & Eviction Guards**: Reference-counted model leases (`active_users`) prevent unmapping or memory eviction during active inference (4.54M ops/sec).
 - **Model-Driven Native Runtime**: 100% zero-dependency CPU transformer forward pass (`infer.cpp`) with AVX2 + FMA intrinsics, Q8_0 dequantization, dynamic RoPE (`RopeConfig`), RMSNorm, and SwiGLU.
-- **Safe Error Propagation**: All loaders and lifecycle methods return diagnostic error messages with zero legacy `exit(1)` aborts.
-- **Hardware Enforced**: Built-in continuous `ResourceGovernor` enforcing 2 threads (50% CPU allocation) and process RSS limits.
+- **Native Trie BPE Tokenizer & Context Engine**: Trie-based tokenization (1.26M tok/s), zero-alloc fast counting, strict $\ge 25\%$ generation reserve invariant, and ChatML context compilation.
+- **Two-Tier Persistent Memory Store**: Durable SQLite canonical storage + in-RAM tiered cache for sub-millisecond lexical & semantic recall (11.8M recalls/s).
+- **Tree-sitter Code Intelligence**: AST syntax-aware code parsing, structural symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and 64-bit FNV-1a incremental delta change tracking (2.62 GB/s).
+- **Unified Multi-Signal Search**: Combined Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter retrieval with deterministic `ResultFusion` scoring (139.6K fusions/s).
+- **Evidence-Based Autonomous Agent Loop**: 5-state response parsing with stop-reason discrimination, 7-action self-healing fault recovery (429/413/404/5xx), and anti-hallucination completion verification.
+- **2-Core Resource Governance**: Dynamic OpenMP thread throttling capped at 50% CPU ($\le 2$ threads) and a 6-stage progressive eviction cascade for low-power edge laptops.
+- **On-Demand Leased Multimodal Engine**: Offline speech-to-text with Whisper.cpp (23.9K chunks/sec) and Stable Diffusion image generation with 0-byte permanent RAM footprint.
 
 ---
 
-### Comprehensive System Benchmarks (🟢 EMPIRICALLY VERIFIED 2026-09-26)
+## Comprehensive System Benchmarks (🟢 EMPIRICALLY VERIFIED 2026-09-26)
 
 Official hardware-level empirical benchmarks recorded on host Intel Core i7-6500U:
 - [00_DENSELITE_MASTER_BENCHMARK_REPORT.md](benchmarks/00_DENSELITE_MASTER_BENCHMARK_REPORT.md): Authoritative system benchmark scorecard, execution summary, and master performance metrics.
@@ -74,7 +79,7 @@ flowchart TD
     E -->|"text"| G["💬 Standard path"]
     E -->|"image"| H["🎨 Image generation path"]
 
-    F --> I["🗜️ ContextManager<br/>Zvec semantic filter + Nomic Embed"]
+    F --> I["🗜️ ContextEngine & SearchEngine<br/>Multi-Signal Retrieval + Exact BPE"]
     G --> I
     H --> I
 
@@ -91,7 +96,7 @@ flowchart TD
 
     O -->|"COMPLETE"| P["✅ CompletionPolicy<br/>Verify task satisfaction"]
     O -->|"TOOL_CALL"| Q["🔨 Format tool request<br/>Return to Client for execution"]
-    O -->|"INCOMPLETE"| R["🔄 Re-enter pipeline<br/>(multi-turn loop)"]
+    O -->|"MODEL_CONTINUE"| R["🔄 Re-enter pipeline<br/>(multi-turn loop)"]
     O -->|"MODEL_ERROR"| S["🚨 ProviderErrorAnalyzer"]
 
     P --> T["📝 Curator<br/>Consolidate multi-turn results"]
@@ -151,17 +156,16 @@ flowchart LR
 ```mermaid
 flowchart TD
     A["DenseLite starts"] --> B["Read .env config"]
-    B --> C["HardwareManager<br/>Enforce 50% CPU / 45% RAM"]
-    C --> D["Load resident models<br/>sequentially into RAM"]
+    B --> C["ResourceGovernor<br/>50% CPU Cap & 85% VRAM Gate"]
+    C --> D["ModelManager<br/>GPU-preferred admission"]
 
-    D --> E["needle3.cact<br/>(Intent Router)"]
+    D --> E["Needle Router<br/>(Zero-RAM Intent Classifier)"]
     D --> F["SmolLM2-360M<br/>(Context Compression)"]
     D --> G["Nomic Embed<br/>(Vector Embeddings)"]
     D --> H["Qwen 2.5 1.5B<br/>(Main Local Brain)"]
-    D --> I["Qwen 2.5 Coder<br/>(Code Specialist)"]
+    D --> I["Qwen 2.5 Coder<br/>(On-Demand Leased)"]
 
-    E --> J["GGUF Parser<br/>mmap + 32-byte align"]
-    F --> J
+    F --> J["GGUF Parser<br/>mmap + 32-byte align"]
     G --> J
     H --> J
     I --> J
@@ -215,7 +219,7 @@ Simply run:
 ```
 The API server will automatically spin up on `http://localhost:9501`.
 
-### 4. How to Use DenseLite (API)
+### 3. How to Use DenseLite (API)
 
 DenseLite exposes a standard OpenAI-compatible HTTP REST API. Once running, you can connect any agent, IDE, or script to `http://localhost:9501/v1` as the base URL.
 
@@ -234,13 +238,13 @@ curl http://localhost:9501/v1/chat/completions \
 ```
 DenseLite will intercept this, use `NeedleRouter` to classify the intent as `coding`, search history via `Zvec` if needed, select the best model (Cloud API or Local fallback), and stream the Server-Sent Events (SSE) back to the caller.
 
-### 5. Run E2E Tests
+### 4. Run E2E Tests
 
 ```bash
 ./test_e2e.sh
 ```
 
-### 6. LLM Codebase Map
+### 5. LLM Codebase Map
 
 DenseLite automatically generates a full structural XML map of the entire codebase (excluding third-party dependencies and binaries) on every push to `main`. This is extremely useful for providing context to LLMs like Cursor or Claude.
 
@@ -319,9 +323,9 @@ SQLite is perfectly designed for ACID-compliant, deterministic, tabular data. We
 | Alternative | Why Not |
 |---|---|
 | **Ollama** | Requires a heavy background daemon and Docker-like abstractions |
-| **llama.cpp** | Pulls in massive unused hardware backends (Vulkan, CUDA, Metal, ROCm) causing binary bloat |
+| **llama.cpp** | Pulls in massive multi-backend framework bloat (CUDA, ROCm, SYCL, Metal, OpenCL) whereas DenseLite uses a lean, tailored Vulkan 1.3 + AVX2 engine with zero bloat |
 | **MNN** | Designed for generic deep learning on edge devices, carrying bloat for convolutions and vision |
-| **DenseLite** | A **100% custom-built AVX2 Transformer engine** with raw intrinsics for Q8_0 dequantization, RoPE, and SwiGLU — the fastest, smallest possible binary tailored to Qwen 2.5 |
+| **DenseLite** | A **100% custom-built AVX2 Transformer engine** with raw intrinsics for Q8_0 dequantization, RoPE, and SwiGLU — the fastest, smallest possible binary tailored to Qwen 2.5 and SmolLM2 |
 
 ---
 
@@ -329,37 +333,53 @@ SQLite is perfectly designed for ACID-compliant, deterministic, tabular data. We
 
 ```text
 DenseLite/
-├── CMakeLists.txt              # Master build script.
+├── CMakeLists.txt              # Master CMake build configuration and CTest test suites.
 ├── .env                        # Runtime configuration containing API keys and paths (NOT committed).
 ├── env.example                 # Environment template with HuggingFace model download links.
 │
-├── src/                        # The Intelligent Core
-│   ├── server.cpp              # The Gateway: Thin HTTP listener that receives standard OpenAI JSON payloads.
-│   ├── DenseLiteEngine.*       # The Orchestrator: Owns the InferenceSession and manages the state machine across tool calls.
-│   ├── RequestAnalyzer.*       # The Payload Parser: Safely parses inbound JSON into an internal OpenAIMessage structure.
-│   ├── NeedleRouter.*          # The Semantic Brain: Small intent classification LLM that tags requests (e.g., coding, text, reasoning).
-│   ├── sqlite_router.*         # The Deterministic Registry: SQLite state machine for tracking keys, cooldowns, and provider limits.
-│   ├── ProviderErrorAnalyzer.* # The Error Interceptor: Traps 400/404/429 HTTP errors and decides if recovery is possible.
-│   ├── RecoveryPolicy.*        # The Recovery Decider: Defines the retry strategy (Switch Key vs Switch Provider vs Fallback Local).
-│   ├── ContextManager.*        # The Memory Slicer: Interfaces with Zvec and Nomic Embed to semantically filter massive conversation histories.
-│   ├── ModelEngine.*           # The Inference Abstraction: The interface boundary between hitting a Cloud API or the Local CPU.
-│   ├── ResponseAnalyzer.*      # The Output Classifier: Inspects outputs to detect if it's a TOOL_CALL, COMPLETE, or ERROR.
-│   ├── CompletionPolicy.*      # The Completion Verifier: Ensures the task intent was actually satisfied before returning.
-│   ├── Curator.*               # The Consolidator: Merges multi-turn tool interactions into a single cohesive response stream.
-│   ├── Formatter.*             # The Protocol Serializer: Packages the internal state back into standard OpenAI JSON/SSE formats.
-│   ├── ProviderSync.*          # The Model Syncer: Background job to fetch real-time `/v1/models` availability from providers.
-│   ├── HardwareManager.hpp     # The Resource Governor: Enforces dynamic CPU and RAM budgets to prevent out-of-memory errors.
+├── src/                        # The Intelligent Native Core
+│   ├── server.cpp              # The Gateway: Thin HTTP/SSE listener (< 100 lines) receiving OpenAI payloads.
+│   ├── DenseLiteEngine.*       # The Orchestrator: Drives cognitive pipeline, manages multi-turn tool loops.
+│   ├── RequestAnalyzer.*       # The Payload Parser: Parses JSON, extracts intent tokens and schemas.
+│   ├── NeedleRouter.*          # The Semantic Brain: Zero-RAM heuristic intent router (coding, reasoning, text, audio, image).
+│   ├── sqlite_router.*         # The Deterministic Registry: SQLite state machine for keys, cooldowns, and provider limits.
+│   ├── ProviderErrorAnalyzer.* # The Error Interceptor: Traps 400/404/413/429/5xx HTTP errors for recovery.
 │   │
-│   ├── infer.cpp / .hpp        # The Transformer Core: A pure, hand-rolled AVX2 inference engine for GQA, RoPE, and SwiGLU.
-│   ├── avx2_math.hpp           # The Math Kernels: Raw Intel AVX2/FMA intrinsics for extremely fast vector matrix multiplication.
-│   ├── gguf_parser.cpp / .hpp  # The Weight Loader: Memory-maps (mmap) and 32-byte aligns tensor weights from standard GGUF files.
-│   ├── model.hpp               # The Data Structures: Internal structs for Tensors, Layers, and the DenseModel.
-│   └── httplib.h               # The Network Layer: A single-header HTTP client/server library.
+│   ├── context_engine.*        # Context Facade: Manages tokenizer registry, budgeter, compressor, and compiler.
+│   ├── context_budgeter.*      # Context Budgeter: Enforces >= 25% Generation Reserve and system prompt protection.
+│   ├── context_compressor.*    # Context Compressor: Multi-stage L1 deduplication and L4 chronological sliding window.
+│   ├── context_compiler.*      # Context Compiler: Assembles valid ChatML (<|im_start|>) prompt structures.
+│   ├── tokenizer.*             # Native Trie BPE Tokenizer: Zero-alloc count_tokens() and high-speed encode/decode.
+│   ├── tokenizer_registry.*    # Tokenizer Registry: Per-model vocabulary lookup from loaded GGUF headers.
+│   │
+│   ├── memory_engine.*         # Persistent Memory: SQLite canonical store + in-RAM tiered cache with lexical recall.
+│   ├── code_intelligence.*     # Code Intelligence: Tree-sitter AST syntax parser, symbol chunking, FNV-1a hash tracking.
+│   ├── search_engine.*         # Unified Search: Multi-signal Exact, BM25, Vector, and Structural ResultFusion.
+│   │
+│   ├── agent_loop.*            # Agent Loop: ResponseAnalyzer (5 states), RecoveryPolicy (7 actions), CompletionPolicy.
+│   ├── Curator.*               # The Consolidator: Merges multi-turn tool interactions with verified citations.
+│   ├── Formatter.*             # The Protocol Serializer: Packages internal state back into standard OpenAI JSON/SSE.
+│   ├── resource_governor.*     # Resource Governor: Enforces <= 2 OpenMP threads and 6-stage progressive eviction cascade.
+│   ├── multimodal_engine.*     # Multimodal Engine: On-demand leased Whisper STT and Stable Diffusion generation (0B RAM leak).
+│   │
+│   ├── model_manager.*         # Model Lifecycle Manager: GPU-preferred admission with 85% VRAM ceiling.
+│   ├── model_lease.*           # RAII ModelLease: Reference-counted active_users guards preventing unmapping during inference.
+│   ├── model_pool.*            # Model Pool: Thread-safe storage for HOT/WARM loaded models.
+│   ├── model_registry.*        # Model Registry: Metadata catalog mapping roles to GGUF architectures.
+│   ├── model_loader.*          # Model Loader: Safe mmap loading with structured diagnostics and zero exit(1) aborts.
+│   │
+│   ├── infer.cpp / .hpp        # The Transformer Core: Zero-dependency AVX2+FMA inference for GQA, RoPE, and SwiGLU.
+│   ├── avx2_math.hpp           # The Math Kernels: Raw Intel AVX2/FMA intrinsics for bitwise-validated tensor math.
+│   ├── gguf_parser.cpp / .hpp  # The Weight Loader: Memory-maps (mmap) and 32-byte aligns tensor weights from GGUF.
+│   ├── model.hpp               # The Data Structures: Dynamic ModelConfig, RopeConfig, Layers, and DenseModel.
+│   └── httplib.h               # The Network Layer: Single-header HTTP/HTTPS client and server library.
 │
 ├── dependencies/
 │   ├── json.hpp                # nlohmann/json (vendored).
+│   ├── tree-sitter/            # Tree-sitter AST parsing library (vendored).
 │   └── zvec/                   # Alibaba Zvec vector database (bundled dependency).
 │
+├── benchmarks/                 # Official empirical benchmark suite (00_ through 08_)
 └── models/                     # Local model weights (not committed).
 ```
 

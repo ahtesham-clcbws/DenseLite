@@ -46,7 +46,7 @@ behavior via [GitHub Issues](https://github.com/ahtesham-clcbws/DenseLite/issues
 
 | Requirement | Minimum Version |
 |---|---|
-| C++ Compiler | GCC 10+ or Clang 14+ (C++17 required) |
+| C++ Compiler | GCC 10+ or Clang 14+ (C++20 required) |
 | CMake | 3.15+ |
 | CPU | x86_64 with AVX2, FMA, and F16C support |
 | RAM | 8 GB minimum (32 GB recommended for all models) |
@@ -103,8 +103,10 @@ code:**
 Every request flows through these stages in order:
 
 ```
-HTTP Gateway → RequestAnalyzer → NeedleRouter → ContextManager
-    → ModelEngine → ResponseAnalyzer → CompletionPolicy → Curator → Formatter
+HTTP Gateway → RequestAnalyzer → NeedleRouter → MemoryEngine (Recall)
+    → SearchEngine (Multi-Signal) → ContextEngine (BPE + ChatML)
+    → ModelEngine → AgentLoop (ResponseAnalyzer + Recovery + Completion)
+    → Curator → Formatter
 ```
 
 Each stage is a separate class. Do not merge stages or add cross-cutting concerns.
@@ -122,7 +124,7 @@ Each stage is a separate class. Do not merge stages or add cross-cutting concern
 
 ### General
 
-- **C++17** standard. No C++20 or later features.
+- **C++20** standard (`-std=c++20`).
 - **No raw `new`/`delete`** — use RAII, `std::unique_ptr`, or mmap.
 - **No `std::regex`** — use `nlohmann/json` (already vendored in
   `dependencies/json.hpp`) or simple string operations.

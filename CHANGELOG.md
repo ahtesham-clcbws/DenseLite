@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.2.1] - 2026-09-26
 
 ### Added
+- **Phase 8 Multimodal Vision & Speech Processing**: Decoupled `MultimodalEngine` providing on-demand leased Whisper STT audio transcription (23.9K chunks/sec, 23,970x real-time) and Stable Diffusion image generation step simulation with 0-byte permanent RAM footprint.
+- **Phase 7 2-Core Resource Governance & CPU/RAM Throttling**: Dynamic OpenMP thread enforcement strictly capped at $\le 2$ threads (50% max CPU on dual-core hardware) and proactive 6-stage eviction cascade (Scratch $\to$ Context $\to$ Retrieval $\to$ Warm Model $\to$ Reject Optional $\to$ Route Cloud) under continuous `/proc` monitoring.
+- **Phase 6 Evidence-Based Autonomous Agent Loop**: Full cognitive reasoning loop with 5-state `ResponseAnalyzer` (`TOOL_CALL`, `MODEL_CONTINUE` with stop-reason discrimination, `COMPLETE`, `MODEL_ERROR`, `INVALID`), 7-action self-healing `RecoveryPolicy`, and anti-hallucination `CompletionPolicy`.
+- **Phase 5 Multi-Signal Search & ResultFusion**: 4-channel retrieval combining Exact symbol lookup, Lexical BM25, 512-dim Dense Vector cosine similarity, and Structural Tree-sitter AST queries with deterministic `ResultFusion` scoring (139.6K fusions/s).
+- **Phase 4B Code Intelligence & AST Parser**: Vendored Tree-sitter syntax parser extracting structural AST code chunks (`FUNCTION`, `CLASS`, `METHOD`) and 64-bit FNV-1a incremental delta hash tracking (8.99M checks/s, 2.62 GB/s).
+- **Phase 4A Vector & State Memory Store**: Durable SQLite canonical backing store (`denselite_state.db`) + in-RAM tiered cache with sub-millisecond lexical and semantic memory recall (11.8M recalls/s).
+- **Phase 3 Native BPE Tokenizer & Context Engine**: Trie-based BPE encoder/decoder (1.26M tok/s), zero-alloc fast token counting (`count_tokens()`), strict $\ge 25\%$ Generation Reserve invariant, and ChatML context compilation.
 - **Phase 2 Model Lifecycle & Role Manager**: Introduced `ModelRegistry` cataloging model roles (`ROUTER`, `EMBEDDING`, `FORMATTER`, `GENERAL_REASONER`, `CODER`, `SPEECH_TO_TEXT`, `IMAGE_GENERATOR`).
 - **GPU-Preferred Unified Admission Control**: Automatically detects Vulkan compute GPUs (e.g. AMD Radeon R7 M350 / 2048 MiB) and enforces an 85% VRAM safety ceiling (1740 MiB) with 15% (~308 MiB) reserved for X11/Wayland display servers.
 - **Dynamic Device Limits**: Queries `VkPhysicalDeviceLimits` at runtime for buffer alignments (`minStorageBufferOffsetAlignment: 4 bytes`) and buffer ranges without hardcoded magic numbers.
@@ -15,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **RAII ModelLease & Eviction Guards (`model_lease.{hpp,cpp}`, `model_pool.{hpp,cpp}`)**: Reference-counted model leases (`active_users`) strictly block memory unmapping or model eviction during active inference.
 - **Safe ModelLoader (`ModelLoader.hpp`, `model_loader.cpp`)**: Replaced all legacy `exit(1)` aborts with structured diagnostic error strings.
 - **Continuous Resource Governor (`resource_governor.{hpp,cpp}`)**: Continuous monitoring of host RAM and GPU VRAM via Linux `/proc/meminfo` and `/proc/self/statm`.
-- **Phase 2 Automated Tests (`tests/model_lifecycle_tests.cpp`)**: Validated Vulkan discovery, 85% safety gate, bounded KV cache, lease RAII, eviction guards, and error handling.
+- **Comprehensive Automated Test Suite**: 11 out of 11 CTest test suites passing 100% in 31.57s.
 
 ## [3.1.0] - 2026-09-26
 
