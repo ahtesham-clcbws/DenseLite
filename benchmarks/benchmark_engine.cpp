@@ -21,6 +21,7 @@
 #include "context_engine.hpp"
 #include "memory_engine.hpp"
 #include "code_indexer.hpp"
+#include "search_engine.hpp"
 #include <filesystem>
 
 using Clock = std::chrono::high_resolution_clock;
@@ -403,11 +404,115 @@ void benchmark_phase4b_code_intel() {
     std::cout << "======================================================\n\n";
 }
 
+void benchmark_phase5_search_fusion() {
+    std::cout << "\n======================================================\n";
+    std::cout << " BENCHMARK: Phase 5 Multi-Signal Search & Result Fusion\n";
+    std::cout << "======================================================\n";
+
+    std::vector<StructuralChunk> test_chunks;
+    for (int i = 0; i < 50; ++i) {
+        test_chunks.push_back({
+            "src/controllers/Controller" + std::to_string(i) + ".cpp",
+            "Controller" + std::to_string(i),
+            "Controller" + std::to_string(i),
+            "cpp", 1, 100, static_cast<uint64_t>(1000 + i),
+            "class Controller" + std::to_string(i) + " { void handle_request() { auth_check(); } };"
+        });
+    }
+
+    // 1. ExactSearch Throughput
+    const int EXACT_ITERS = 50000;
+    auto start = Clock::now();
+    for (int i = 0; i < EXACT_ITERS; ++i) {
+        auto hits = ExactSearch::search_code("Controller25", test_chunks);
+        (void)hits;
+    }
+    auto end = Clock::now();
+    double exact_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[1] ExactSearch Code Lookup:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (EXACT_ITERS / exact_sec) << " queries/sec\n";
+    std::cout << "    - Latency per query: " << std::setprecision(2) << (exact_sec * 1e6 / EXACT_ITERS) << " us\n";
+
+    // 2. LexicalSearch / BM25 Token Matching Throughput
+    const int LEX_ITERS = 20000;
+    start = Clock::now();
+    for (int i = 0; i < LEX_ITERS; ++i) {
+        auto hits = LexicalSearch::search_chunks("auth handle request", test_chunks);
+        (void)hits;
+    }
+    end = Clock::now();
+    double lex_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[2] LexicalSearch BM25 Token Matching:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (LEX_ITERS / lex_sec) << " queries/sec\n";
+    std::cout << "    - Latency per query: " << std::setprecision(2) << (lex_sec * 1e6 / LEX_ITERS) << " us\n";
+
+    // 3. VectorSearch Cosine Similarity
+    const int VEC_ITERS = 100000;
+    std::vector<float> v1(512, 0.05f), v2(512, 0.04f);
+    start = Clock::now();
+    for (int i = 0; i < VEC_ITERS; ++i) {
+        float sim = VectorSearch::cosine_similarity(v1, v2);
+        (void)sim;
+    }
+    end = Clock::now();
+    double vec_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[3] VectorSearch 512-dim Cosine Similarity:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (VEC_ITERS / vec_sec) << " ops/sec\n";
+    std::cout << "    - Latency per dot product: " << std::setprecision(3) << (vec_sec * 1e9 / VEC_ITERS) << " ns\n";
+
+    // 4. ResultFusion Deduplication & Weighted Scoring
+    std::vector<SearchResult> raw_candidates;
+    for (int i = 0; i < 40; ++i) {
+        raw_candidates.push_back({
+            "chunk_" + std::to_string(i % 10),
+            SearchSource::CODE,
+            "src/file" + std::to_string(i % 10) + ".cpp",
+            "symbol" + std::to_string(i % 10),
+            "content for symbol " + std::to_string(i % 10),
+            1, 20, 100,
+            0.8f, 0.7f, 0.9f, 0.5f, 0.0f, 0.0f, 0.0f
+        });
+    }
+
+    const int FUSION_ITERS = 20000;
+    start = Clock::now();
+    for (int i = 0; i < FUSION_ITERS; ++i) {
+        auto fused = ResultFusion::fuse(raw_candidates, 5);
+        (void)fused;
+    }
+    end = Clock::now();
+    double fusion_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[4] ResultFusion Deduplication & Deterministic Scoring (40 candidates -> top 5):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (FUSION_ITERS / fusion_sec) << " fusions/sec\n";
+    std::cout << "    - Latency per fusion: " << std::setprecision(2) << (fusion_sec * 1e6 / FUSION_ITERS) << " us\n";
+
+    // 5. End-to-End SearchEngine Pipeline
+    SearchEngine engine;
+    for (const auto& chk : test_chunks) {
+        engine.add_custom_chunk(chk);
+    }
+
+    const int E2E_ITERS = 5000;
+    start = Clock::now();
+    for (int i = 0; i < E2E_ITERS; ++i) {
+        auto results = engine.search("Controller15 handle auth");
+        (void)results;
+    }
+    end = Clock::now();
+    double e2e_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[5] End-to-End Multi-Signal SearchEngine Pipeline:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (E2E_ITERS / e2e_sec) << " queries/sec\n";
+    std::cout << "    - Latency per query: " << std::setprecision(2) << (e2e_sec * 1e6 / E2E_ITERS) << " us\n";
+    std::cout << "======================================================\n\n";
+}
+
 int main() {
     benchmark_vulkan_lifecycle();
     benchmark_phase3_tokenizer_context();
     benchmark_phase4a_memory();
     benchmark_phase4b_code_intel();
+    benchmark_phase5_search_fusion();
     return 0;
 }
+
 

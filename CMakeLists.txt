@@ -59,6 +59,12 @@ add_executable(DenseLite
     src/symbol_index.cpp
     src/code_change_tracker.cpp
     src/code_indexer.cpp
+    src/exact_search.cpp
+    src/lexical_search.cpp
+    src/vector_search.cpp
+    src/structural_search.cpp
+    src/result_fusion.cpp
+    src/search_engine.cpp
 )
 
 # Tree-sitter Core Runtime & Multi-Language Grammars
@@ -174,6 +180,12 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/symbol_index.cpp
     src/code_change_tracker.cpp
     src/code_indexer.cpp
+    src/exact_search.cpp
+    src/lexical_search.cpp
+    src/vector_search.cpp
+    src/structural_search.cpp
+    src/result_fusion.cpp
+    src/search_engine.cpp
 )
 target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
 target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
@@ -201,6 +213,37 @@ add_executable(test_code_intel tests/code_indexer_tests.cpp
 target_link_libraries(test_code_intel PRIVATE Threads::Threads sqlite3 treesitter_static)
 target_include_directories(test_code_intel PRIVATE src dependencies/tree-sitter/lib/include)
 add_test(NAME CodeIntelligence COMMAND test_code_intel)
+
+add_executable(test_search tests/search_engine_tests.cpp
+    src/exact_search.cpp
+    src/lexical_search.cpp
+    src/vector_search.cpp
+    src/structural_search.cpp
+    src/result_fusion.cpp
+    src/search_engine.cpp
+    src/language_registry.cpp
+    src/ast_chunker.cpp
+    src/symbol_index.cpp
+    src/code_change_tracker.cpp
+    src/code_indexer.cpp
+    src/working_memory.cpp
+    src/session_memory.cpp
+    src/persistent_memory.cpp
+    src/memory_store.cpp
+    src/memory_recall.cpp
+    src/memory_consolidator.cpp
+    src/memory_engine.cpp
+    src/tokenizer.cpp
+    src/tokenizer_registry.cpp
+    src/context_budgeter.cpp
+    src/context_compressor.cpp
+    src/context_compiler.cpp
+    src/context_engine.cpp
+)
+target_link_libraries(test_search PRIVATE Threads::Threads sqlite3 treesitter_static)
+target_include_directories(test_search PRIVATE src dependencies/tree-sitter/lib/include)
+add_test(NAME SearchEngine COMMAND test_search)
+
 
 
 

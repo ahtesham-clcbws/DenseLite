@@ -58,3 +58,40 @@ ContextOptimizationResult ContextEngine::optimize_and_compile(
 
     return result;
 }
+
+ContextOptimizationResult ContextEngine::optimize_and_compile(
+    const OpenAIRequest& req,
+    const std::vector<SearchResult>& search_evidence,
+    const std::string& target_model,
+    size_t total_context_limit) {
+
+    if (search_evidence.empty()) {
+        return optimize_and_compile(req, target_model, total_context_limit);
+    }
+
+    OpenAIRequest enriched_req = req;
+    std::string evidence_block = "\n[Retrieved Context Evidence]\n";
+    for (const auto& ev : search_evidence) {
+        if (!ev.symbol_name.empty()) {
+            evidence_block += "Symbol: " + ev.symbol_name + " (" + ev.file_path + ")\n";
+        } else if (!ev.file_path.empty()) {
+            evidence_block += "File: " + ev.file_path + "\n";
+        }
+        evidence_block += ev.content + "\n---\n";
+    }
+
+    bool injected = false;
+    for (auto& msg : enriched_req.messages) {
+        if (msg.role == "system") {
+            msg.content += "\n" + evidence_block;
+            injected = true;
+            break;
+        }
+    }
+    if (!injected) {
+        enriched_req.messages.insert(enriched_req.messages.begin(), OpenAIMessage{"system", evidence_block, "", ""});
+    }
+
+    return optimize_and_compile(enriched_req, target_model, total_context_limit);
+}
+

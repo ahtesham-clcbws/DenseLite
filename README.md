@@ -30,9 +30,20 @@ With V3.2.1, DenseLite features a pure C++ AVX2 forward pass, GPU-preferred unif
 
 ---
 
-## Project Status: Phase 0, 1, 2, 3, 4A & 4B — 🟢 COMPLETED & VERIFIED
+## Project Status: Phase 0, 1, 2, 3, 4A, 4B & 5 — 🟢 COMPLETED & VERIFIED
 
-DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Transformer Runtime**, **Phase 2 Model Lifecycle & Role Manager**, **Phase 3 Native BPE Tokenizer & Context Engine**, **Phase 4A Vector & State Memory Store**, and **Phase 4B Code Intelligence & AST Parser** under automated CTest validation (100% pass rate across 7 test suites).
+DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Transformer Runtime**, **Phase 2 Model Lifecycle & Role Manager**, **Phase 3 Native BPE Tokenizer & Context Engine**, **Phase 4A Vector & State Memory Store**, **Phase 4B Code Intelligence & AST Parser**, and **Phase 5 Unified Search & Deterministic Reranking** under automated CTest validation (100% pass rate across 8 test suites).
+
+### Phase 5: Multi-Signal Search & Result Fusion (🟢 COMPLETED 2026-09-26)
+
+| Subsystem | Status | Verified Implementation Details |
+|---|:---:|---|
+| **ExactSearch** | 🟢 VERIFIED | Exact and case-insensitive symbol & substring code lookup running at **42,726 queries/sec** (23.40 µs/query). |
+| **LexicalSearch** | 🟢 VERIFIED | Tokenized BM25 keyword matching and stack-trace error parsing at **28,522 queries/sec** (35.06 µs/query). |
+| **VectorSearch** | 🟢 VERIFIED | 512-dimensional dense embedding cosine similarity running at **1,339,750 ops/sec** (746.41 ns/dot product). |
+| **ResultFusion (No Neural Reranker)** | 🟢 VERIFIED | Multi-signal deduplication and 6-parameter deterministic scoring ($w_1\text{semantic} + w_2\text{lexical} + w_3\text{structural} + w_4\text{symbol} + w_5\text{recency} + w_6\text{task}$) at **182,884 fusions/sec** (5.47 µs/fusion). |
+| **SearchEngine Pipeline** | 🟢 VERIFIED | End-to-end multi-channel code and memory search executing at **13,425 queries/sec** (74.49 µs/query). |
+| **ContextEngine Evidence Wiring** | 🟢 VERIFIED | Retrieved code symbols and memory facts directly injected into contextual prompt generation with sectional token budget protection. |
 
 ### Phase 4A & 4B: Memory Engine & Code Intelligence (🟢 COMPLETED 2026-09-26)
 
@@ -80,6 +91,7 @@ DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Trans
 ### Phase 0: Reality Audit & Baseline Verification (🟢 COMPLETED 2026-09-25)
 
 Detailed empirical logs, hardware configuration, and benchmark reports:
+- [P5_UNIFIED_SEARCH_BENCHMARK.md](benchmarks/P5_UNIFIED_SEARCH_BENCHMARK.md): Phase 5 multi-signal search, Exact/Lexical/Vector/Structural, and ResultFusion metrics.
 - [P4_MEMORY_AND_CODE_INTEL_BENCHMARK.md](benchmarks/P4_MEMORY_AND_CODE_INTEL_BENCHMARK.md): Phase 4A/4B memory store, recall, Tree-sitter AST, and symbol indexing metrics.
 - [P3_CONTEXT_ENGINE_BENCHMARK.md](benchmarks/P3_CONTEXT_ENGINE_BENCHMARK.md): Phase 3 BPE tokenizer, counting, and context compiler metrics.
 - [P2_LIFECYCLE_BENCHMARK.md](benchmarks/P2_LIFECYCLE_BENCHMARK.md): Phase 2 Vulkan hardware, lease RAII, and KV cache metrics.
@@ -88,7 +100,7 @@ Detailed empirical logs, hardware configuration, and benchmark reports:
 - [P0_MODEL_RESULTS.md](benchmarks/P0_MODEL_RESULTS.md): Per-model execution results and residency status.
 - [P0_INFERENCE_RESULTS.md](benchmarks/P0_INFERENCE_RESULTS.md): Throughput, latency, and memory metrics.
 - [P0_NETWORK_RESULTS.md](benchmarks/P0_NETWORK_RESULTS.md): WAN transport, HTTPS API handshakes, and provider failover.
-- [P0_REGRESSIONS.md](benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues resolved across Phase 1–4.
+- [P0_REGRESSIONS.md](benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues resolved across Phase 1–5.
 
 ---
 
@@ -102,9 +114,9 @@ Detailed empirical logs, hardware configuration, and benchmark reports:
   Persistent hybrid memory combining SQLite (metadata, conversation state, rate limits) and in-RAM tiered cache with lexical scoring.
 - **Phase 4B: Code Intelligence & AST Parser (Tree-sitter)** — ✅ **COMPLETED**
   Tree-sitter syntax-aware code parsing, AST symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and FNV-1a delta hash change tracking.
-- **Phase 5: Hybrid Search & Evidence Reranking** — ⬜ READY
-  Multi-channel retrieval combining keyword BM25/FTS5 search with dense embeddings and deterministic reranking.
-- **Phase 6: Evidence-Based Autonomous Agent Loop** — ⬜ BLOCKED (Depends on P5)
+- **Phase 5: Hybrid Search & Evidence Reranking** — ✅ **COMPLETED**
+  Multi-channel retrieval combining Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter search with deterministic ResultFusion.
+- **Phase 6: Evidence-Based Autonomous Agent Loop** — ⬜ READY
   Multi-turn reasoning and tool action loop (Read, Edit, Command execution) with self-healing recovery.
 - **Phase 7: 2-Core Resource Governance & CPU/RAM Throttling** — ⬜ BLOCKED (Depends on P6)
   Strict 2-thread CPU cap (50% max) and 14 GB RAM ceiling for stable execution on edge laptops.
