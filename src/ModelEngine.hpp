@@ -20,5 +20,5 @@ private:
     SQLiteRouter& sqlite_router;
 
     int infer_cloud(const std::string& model_name, const std::string& provider_url, const std::string& api_key, const OpenAIRequest& req, std::string& output);
-    int infer_local(const std::string& model_name, const std::string& prompt, std::string& output);
+    int infer_local(const std::string& model_name, const std::string& prompt, std::string& output, const std::string& session_id = "");
 };

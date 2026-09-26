@@ -147,3 +147,26 @@ bool ResourceGovernor::should_route_to_cloud() const {
 bool ResourceGovernor::should_reject_optional_load() const {
     return assess_eviction_stage() >= EvictionStage::REJECT_OPTIONAL;
 }
+
+size_t ResourceGovernor::calculate_dynamic_context_tokens() {
+    size_t total_ram = get_host_total_ram_bytes();
+    size_t avail_ram = get_host_available_ram_bytes();
+    size_t base_model_ceiling = static_cast<size_t>(total_ram * 0.45);
+
+    // Balance RAM headroom available for dynamic KV cache (up to 90% of balance)
+    size_t balance_ram = (avail_ram > base_model_ceiling) ? (avail_ram - base_model_ceiling) : (avail_ram / 2);
+    size_t dynamic_kv_budget = static_cast<size_t>(balance_ram * 0.90);
+
+    // Qwen 2.5 1.5B (GQA 2 KV heads, 128 head_dim, 28 layers, FP32) = 57,344 bytes/token
+    constexpr size_t BYTES_PER_TOKEN = 57344;
+    constexpr size_t REQ_64K = 65536ULL * BYTES_PER_TOKEN; // ~3.50 GB
+    constexpr size_t REQ_32K = 32768ULL * BYTES_PER_TOKEN; // ~1.75 GB
+
+    if (dynamic_kv_budget >= REQ_64K) {
+        return 65536;
+    } else if (dynamic_kv_budget >= REQ_32K) {
+        return 32768;
+    } else {
+        return 16384;
+    }
+}

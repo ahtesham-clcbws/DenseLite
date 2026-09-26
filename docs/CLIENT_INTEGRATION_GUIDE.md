@@ -118,6 +118,12 @@ Add the following provider specification:
 - **In Chat:** Type `/models` and select `denselite/denselite` or any configured model.
 - **In Config:** Set `"model": "denselite/denselite"` or `"denselite/qwen_coder"` as your default.
 
+### MCP Tools & 600 KB Schema Acceleration (v3.3.0)
+DenseLite v3.3.0 includes native **Session Tool Registry** and **Persistent Session KV Cache**:
+- **Zero-Timeout Chat:** When OpenCode attaches massive MCP tool collections (e.g., 600 KB `laravel-boost` schema), DenseLite caches the tools on the first handshake. General conversational messages (`"hi"`, `"how are you?"`) bypass schema injection completely, executing in sub-5ms instead of timing out.
+- **Instant Turn 2+ Responses:** The persistent KV cache matches prompt prefixes with previous turns and performs **delta prefill only**, skipping redundant history evaluations.
+- **Disk Resumption:** Sessions are checkpointed to `denselite_kv_cache/*.kv` at 2.1 GB/s, allowing conversations to resume across server reboots.
+
 ---
 
 ## 3. VS Code Setup (Continue / Cline / Roo Code)

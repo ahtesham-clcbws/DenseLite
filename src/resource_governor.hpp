@@ -60,6 +60,9 @@ public:
     bool should_route_to_cloud() const;
     bool should_reject_optional_load() const;
 
+    // Dynamic RAM-Aware Context Sizing
+    static size_t calculate_dynamic_context_tokens();
+
 private:
     VulkanDevice* gpu_device_ = nullptr;
     size_t max_allowed_ram_bytes_ = 0;

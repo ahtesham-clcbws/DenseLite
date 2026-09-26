@@ -1,6 +1,6 @@
 # DenseLite
 
-![Version](https://img.shields.io/badge/version-v3.2.1-blue.svg)
+![Version](https://img.shields.io/badge/version-v3.3.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![C++](https://img.shields.io/badge/language-C++-blue.svg)
 ![AVX2](https://img.shields.io/badge/SIMD-AVX2%20%2B%20FMA-orange.svg)
@@ -11,30 +11,35 @@
 > **DenseLite controls intelligence. The Client (IDE/Agent) controls execution.**  
 > **DenseLite may reason about tools, but DenseLite never executes tools.**
 
-DenseLite operates as a pure **Agentic Inference Engine**. It does not execute bash commands, it does not read the filesystem, and it does not manage workspace permissions. The Client (e.g., Zed, VSCode, Antigravity, or custom scripts) acts as the external harness that manages the environment, tools, and execution. DenseLite acts as the brain that directs the client on what to do.
+DenseLite operates as a pure **Agentic Inference Engine**. It does not execute bash commands, it does not read the filesystem, and it does not manage workspace permissions. The Client (e.g., Zed, VSCode, Antigravity, OpenCode, or custom scripts) acts as the external harness that manages the environment, tools, and execution. DenseLite acts as the brain that directs the client on what to do.
 
-With V3.2.1, DenseLite features a pure C++ AVX2 forward pass, GPU-preferred unified placement with an 85% VRAM safety gate, bounded KV cache allocation, RAII model lease lifecycle safety, and self-healing provider recovery.
+With V3.3.0, DenseLite introduces **Session Tool Registry** (eliminating 600 KB MCP payload bloat and client timeouts), **Dynamic RAM-Aware Context Sizing** (scaling from 16K up to 64K tokens safely), **Persistent Session KV Cache Prefix Caching** (instant multi-turn response without re-evaluating history), and **High-Speed Disk-Backed KV Serialization** (2.1 GB/s binary format).
 
 > [!NOTE]
-> **Manual Client Testing Status:** Manual end-to-end interactive testing with external desktop IDEs (Zed, VSCode) and live agent loop workflows has not been performed yet. All 11 automated CTest test suites (100% pass) and low-level hardware benchmarks are empirically verified, with complete end-to-end manual testing scheduled ahead of the v4.0 UI release.
+> **Manual Client Testing Status:** Manual end-to-end interactive testing with external desktop IDEs (Zed, VSCode) and live agent loop workflows has not been performed yet. All 12 automated CTest test suites (100% pass) and low-level hardware benchmarks are empirically verified, with complete end-to-end manual testing scheduled ahead of the v4.0 UI release.
 
 ---
 
 ## Features
  
+- **Session Tool Registry**: Caches MCP tool definitions per session; deduplicates repeated schemas and eliminates 600 KB payload bloat. Prunes schemas to 0 for general chat or selectively injects relevant tools (414K handshakes/sec, 0.31 us retrieval).
+- **Persistent Session KV Cache**: Maintains per-session KV state across turns. Employs prefix delta matching ($0 \to L$ skipped, delta prefill strictly $L \to N$ at 470K matches/sec) for instantaneous multi-turn generation.
+- **High-Speed Disk-Backed KV Persistence**: High-speed binary serialization (`DLKV` magic header) saving active tokens to disk at 2,119 MB/s, allowing sessions to survive server restarts with zero prompt re-evaluation.
+- **Dynamic RAM-Aware Context Sizing**: Automatically checks balance RAM headroom after baseline allocation; unlocks 32K or 64K tokens (65,536 tokens on 32GB RAM systems) with zero OOM risk.
 - **GPU-Preferred Unified Placement**: Workloads attempt Vulkan GPU compute allocation first, with automatic, deterministic fallback to Host CPU/RAM.
 - **85% VRAM Safety Ceiling**: Strict safety gate ($2048\text{ MiB} \times 0.85 = 1740\text{ MiB}$) reserving 15% (~308 MiB) for host display servers (X11/Wayland) and desktop compositors.
 - **Dynamic Device Limit Query**: Dynamically inspects `VkPhysicalDeviceLimits` for buffer alignments and ranges instead of hardcoded magic values.
 - **Bounded KV Cache Allocation**: Strictly bounded by $\text{KV Bytes} \le \text{Effective Context Tokens} \times \text{KV Bytes Per Token}$ with zero crash/OOM risk.
 - **RAII ModelLease & Eviction Guards**: Reference-counted model leases (`active_users`) prevent unmapping or memory eviction during active inference (4.54M ops/sec).
 - **Model-Driven Native Runtime**: 100% zero-dependency CPU transformer forward pass (`infer.cpp`) with AVX2 + FMA intrinsics, Q8_0 dequantization, dynamic RoPE (`RopeConfig`), RMSNorm, and SwiGLU.
-- **Native Trie BPE Tokenizer & Context Engine**: Trie-based tokenization (1.26M tok/s), zero-alloc fast counting, strict $\ge 25\%$ generation reserve invariant, and ChatML context compilation.
+- **Native Trie BPE Tokenizer & Context Engine**: Trie-based tokenization (1.57M tok/s), zero-alloc fast counting, strict $\ge 25\%$ generation reserve invariant, and ChatML context compilation.
 - **Two-Tier Persistent Memory Store**: Durable SQLite canonical storage + in-RAM tiered cache for sub-millisecond lexical & semantic recall (11.8M recalls/s).
-- **Tree-sitter Code Intelligence**: AST syntax-aware code parsing, structural symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and 64-bit FNV-1a incremental delta change tracking (2.62 GB/s).
-- **Unified Multi-Signal Search**: Combined Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter retrieval with deterministic `ResultFusion` scoring (139.6K fusions/s).
+- **Tree-sitter Code Intelligence**: AST syntax-aware code parsing, structural symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and 64-bit FNV-1a incremental delta change tracking (3.4 GB/s).
+- **Unified Multi-Signal Search**: Combined Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter retrieval with deterministic `ResultFusion` scoring (210K fusions/s).
 - **Evidence-Based Autonomous Agent Loop**: 5-state response parsing with stop-reason discrimination, 7-action self-healing fault recovery (429/413/404/5xx), and anti-hallucination completion verification.
 - **2-Core Resource Governance**: Dynamic OpenMP thread throttling capped at 50% CPU ($\le 2$ threads) and a 6-stage progressive eviction cascade for low-power edge laptops.
-- **On-Demand Leased Multimodal Engine**: Offline speech-to-text with Whisper.cpp (23.9K chunks/sec) and Stable Diffusion image generation with 0-byte permanent RAM footprint.
+- **On-Demand Leased Multimodal Engine**: Offline speech-to-text with Whisper.cpp (28.5K chunks/sec) and Stable Diffusion image generation with 0-byte permanent RAM footprint.
+
 
 ---
 

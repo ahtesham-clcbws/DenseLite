@@ -9,6 +9,8 @@
 #include "ProviderErrorAnalyzer.hpp"
 #include "RecoveryPolicy.hpp"
 #include "CompletionPolicy.hpp"
+#include "SessionToolRegistry.hpp"
+#include "SessionKVCache.hpp"
 #include <iostream>
 #include <chrono>
 #include <mutex>
@@ -86,6 +88,10 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     memory_engine_.working().set_current_task(user_query);
 
     // 2. CONTEXT SANITIZATION & TOOL PRUNING
+    if (!parsed_req.tools.empty()) {
+        SessionToolRegistry::instance().register_tools(session.session_id, parsed_req.tools);
+    }
+
     bool requires_tools = false;
     std::string lower_query = user_query;
     std::transform(lower_query.begin(), lower_query.end(), lower_query.begin(), ::tolower);
@@ -108,6 +114,9 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
                 msg.content = "You are DenseLite, a fast, concise programming and chat assistant.";
             }
         }
+    } else if (requires_tools && parsed_req.tools.empty() && SessionToolRegistry::instance().has_tools(session.session_id)) {
+        // Restore cached session tools if needed
+        parsed_req.tools = SessionToolRegistry::instance().get_all_tools(session.session_id);
     }
 
     // 3. TARGET MODEL SELECTION & CLOUD OFFLOADING

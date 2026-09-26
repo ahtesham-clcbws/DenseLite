@@ -1,6 +1,8 @@
 #include "ModelEngine.hpp"
 #include "httplib.h"
 #include "infer.hpp" // For AVX2 inference
+#include "SessionKVCache.hpp"
+#include "resource_governor.hpp"
 #include <iostream>
 
 ModelEngine::ModelEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router)
@@ -15,7 +17,7 @@ int ModelEngine::infer(const std::string& model_name, const OpenAIRequest& req, 
     std::string provider = sqlite_router.get_provider_for_model(model_name);
 
     if (provider == "local" || provider.empty()) {
-        return infer_local(model_name, compiled_prompt, output);
+        return infer_local(model_name, compiled_prompt, output, req.session_id);
     } else {
         APIKeyStatus key_status = sqlite_router.get_next_available_key(provider);
         std::string api_key = key_status.key_value;
@@ -124,7 +126,7 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
 
 #include "Formatter.hpp"
 
-int ModelEngine::infer_local(const std::string& model_name, const std::string& prompt, std::string& output) {
+int ModelEngine::infer_local(const std::string& model_name, const std::string& prompt, std::string& output, const std::string& session_id) {
     std::cout << "[ModelEngine] Routing inference to Local AVX2 engine for model: " << model_name << "\n";
     
     auto it = local_models.find(model_name);
@@ -141,7 +143,14 @@ int ModelEngine::infer_local(const std::string& model_name, const std::string& p
         // In a real stream, we'd chunk this back to the client.
     };
     
-    generate(it->second, tokens, stream_cb, 512, 0.7f, 1.15f);
+    auto session_kv = SessionKVCacheManager::instance().get_or_create(session_id, &it->second.config);
+    size_t dynamic_budget = ResourceGovernor::calculate_dynamic_context_tokens();
+    generate(it->second, tokens, stream_cb, 512, 0.7f, 1.15f, session_kv.get(), static_cast<int>(dynamic_budget));
+
+    // Persist updated KV state to disk alongside RAM
+    if (!session_id.empty()) {
+        SessionKVCacheManager::instance().save_to_disk(session_id);
+    }
     
     json response = json::object();
     json message = json::object();

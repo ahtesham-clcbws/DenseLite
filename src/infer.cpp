@@ -1,5 +1,6 @@
 #include "infer.hpp"
 #include "avx2_math.hpp"
+#include "SessionKVCache.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -299,15 +300,43 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
 }
 
 void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCallback callback,
-              int max_tokens, float temperature, float repetition_penalty) {
-    InferenceState state;
-    int base_ctx_len = model.config.context_length > 0 ? model.config.context_length : 4096;
-    int ctx_len = std::min(base_ctx_len, 8192); // Cap at 8192 to prevent OOM
-    init_inference_state(model.config, ctx_len, state);
-    
-    std::vector<float> logits(model.config.vocab_size);
-    
+              int max_tokens, float temperature, float repetition_penalty,
+              SessionKVState* session_kv, int context_budget) {
     if (prompt_tokens.empty()) return;
+
+    InferenceState local_state;
+    InferenceState* state_ptr = nullptr;
+
+    int base_ctx = context_budget > 0 ? context_budget : (model.config.context_length > 0 ? model.config.context_length : 4096);
+    int ctx_len = std::min(base_ctx, 65536);
+
+    size_t start_prefill_idx = 0;
+
+    if (session_kv) {
+        if (!session_kv->is_initialized || session_kv->max_context_allocated < ctx_len) {
+            init_inference_state(model.config, ctx_len, session_kv->state);
+            session_kv->max_context_allocated = ctx_len;
+            session_kv->is_initialized = true;
+            session_kv->cached_tokens.clear();
+        } else {
+            // Match common prefix with previous conversation turn
+            size_t common_len = 0;
+            while (common_len < session_kv->cached_tokens.size() &&
+                   common_len < prompt_tokens.size() - 1 &&
+                   session_kv->cached_tokens[common_len] == prompt_tokens[common_len]) {
+                common_len++;
+            }
+            start_prefill_idx = common_len;
+            session_kv->state.current_pos = static_cast<int>(common_len);
+        }
+        state_ptr = &session_kv->state;
+    } else {
+        init_inference_state(model.config, ctx_len, local_state);
+        state_ptr = &local_state;
+    }
+
+    InferenceState& state = *state_ptr;
+    std::vector<float> logits(model.config.vocab_size);
     
     // RNG for sampling
     std::mt19937 rng(std::random_device{}());
@@ -316,10 +345,14 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
     std::vector<int> generated_tokens;
     generated_tokens.reserve(max_tokens);
     
-    // 1. Prefill: process all prompt tokens except the last
-    for (size_t i = 0; i < prompt_tokens.size() - 1; ++i) {
+    // 1. Delta Prefill: process only un-cached prompt tokens
+    for (size_t i = start_prefill_idx; i < prompt_tokens.size() - 1; ++i) {
         forward_pass(model, state, prompt_tokens[i], logits);
         state.current_pos++;
+    }
+
+    if (session_kv) {
+        session_kv->cached_tokens = prompt_tokens;
     }
     
     // 2. Start generation from the last prompt token
@@ -406,6 +439,9 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         }
         
         generated_tokens.push_back(next_token);
+        if (session_kv) {
+            session_kv->cached_tokens.push_back(next_token);
+        }
         
         std::string text = detokenize(model.vocab, next_token);
         callback(text);

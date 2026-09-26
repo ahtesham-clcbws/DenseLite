@@ -29,7 +29,10 @@ std::string detokenize(const Vocab& vocab, int token_id);
 // Takes the input token ID and returns the logits for the next token prediction
 void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits);
 
-// Generate text (sampling loop) with a streaming callback
+struct SessionKVState;
+
+// Generate text (sampling loop) with optional persistent Session KV Cache
 using StreamCallback = std::function<void(const std::string&)>;
 void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCallback callback,
-              int max_tokens = 512, float temperature = 0.7f, float repetition_penalty = 1.15f);
+              int max_tokens = 512, float temperature = 0.7f, float repetition_penalty = 1.15f,
+              SessionKVState* session_kv = nullptr, int context_budget = 0);

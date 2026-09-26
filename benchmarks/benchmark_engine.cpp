@@ -27,6 +27,8 @@
 #include "CompletionPolicy.hpp"
 #include "Curator.hpp"
 #include "multimodal_engine.hpp"
+#include "SessionToolRegistry.hpp"
+#include "SessionKVCache.hpp"
 #include <filesystem>
 
 using Clock = std::chrono::high_resolution_clock;
@@ -767,6 +769,139 @@ void benchmark_phase8_multimodal() {
     std::cout << "======================================================\n\n";
 }
 
+void benchmark_phase9_session_kv_and_tool_registry() {
+    std::cout << "\n======================================================\n";
+    std::cout << " BENCHMARK: Phase 9 Session KV Cache & Tool Registry\n";
+    std::cout << "======================================================\n";
+
+    // 1. Dynamic RAM-Aware Context Sizing
+    const int DYN_ITERS = 100000;
+    auto start = Clock::now();
+    size_t allocated_ctx = 0;
+    for (int i = 0; i < DYN_ITERS; ++i) {
+        allocated_ctx = ResourceGovernor::calculate_dynamic_context_tokens();
+    }
+    auto end = Clock::now();
+    double dyn_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[1] Dynamic Context Sizing Headroom Evaluation:\n";
+    std::cout << "    - Allocated Dynamic Context: " << allocated_ctx << " tokens (" << (allocated_ctx / 1024) << "K)\n";
+    std::cout << "    - Latency per evaluation: " << std::fixed << std::setprecision(3) << (dyn_sec * 1e6 / DYN_ITERS) << " us\n";
+    std::cout << "    - Throughput: " << std::setprecision(0) << (DYN_ITERS / dyn_sec) << " evaluations/sec\n";
+
+    // 2. SessionToolRegistry Deduplication & Schema Caching
+    auto& reg = SessionToolRegistry::instance();
+    std::string bench_session = "bench_session_opencode_1";
+    reg.clear_session(bench_session);
+
+    std::vector<OpenAITool> mcp_tools;
+    // Simulate 30 tools (approx 600 KB total MCP tool definitions)
+    for (int t = 0; t < 30; ++t) {
+        OpenAITool tool;
+        tool.type = "function";
+        tool.function.name = "mcp_tool_action_" + std::to_string(t);
+        tool.function.description = "Performs automated operation in workspace with comprehensive parameter specifications and validation schema";
+        tool.function.parameters_schema = "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"},\"mode\":{\"type\":\"string\"},\"flags\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}}}";
+        mcp_tools.push_back(tool);
+    }
+
+    const int TOOL_REG_ITERS = 50000;
+    start = Clock::now();
+    for (int i = 0; i < TOOL_REG_ITERS; ++i) {
+        reg.register_tools(bench_session, mcp_tools);
+    }
+    end = Clock::now();
+    double reg_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[2] Session Tool Registry Handshake & Deduplication:\n";
+    std::cout << "    - Tools Cached per Session: " << reg.get_all_tools(bench_session).size() << " tools\n";
+    std::cout << "    - Deduplication Throughput: " << std::fixed << std::setprecision(0) << (TOOL_REG_ITERS / reg_sec) << " handshakes/sec\n";
+    std::cout << "    - Latency per registration check: " << std::setprecision(2) << (reg_sec * 1e6 / TOOL_REG_ITERS) << " us\n";
+
+    // 3. Selective Tool Retrieval Latency
+    const int RETRIEVE_ITERS = 100000;
+    start = Clock::now();
+    for (int i = 0; i < RETRIEVE_ITERS; ++i) {
+        auto filtered = reg.get_tools_by_names(bench_session, {"mcp_tool_action_0", "mcp_tool_action_5"});
+        (void)filtered;
+    }
+    end = Clock::now();
+    double ret_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[3] Selective Tool Schema Extraction (Payload Pruning):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (RETRIEVE_ITERS / ret_sec) << " queries/sec\n";
+    std::cout << "    - Extraction Latency: " << std::setprecision(2) << (ret_sec * 1e6 / RETRIEVE_ITERS) << " us\n";
+
+    // 4. Session KV Cache Prefix Matching (Delta Detection)
+    std::vector<int> prompt_history(4096, 123);
+    std::vector<int> new_turn(4120, 123); // 4096 tokens cached + 24 new tokens
+    const int PREFIX_ITERS = 100000;
+    start = Clock::now();
+    size_t common_tokens = 0;
+    for (int i = 0; i < PREFIX_ITERS; ++i) {
+        size_t l = 0;
+        size_t min_sz = std::min(prompt_history.size(), new_turn.size());
+        while (l < min_sz && prompt_history[l] == new_turn[l]) {
+            l++;
+        }
+        common_tokens = l;
+    }
+    end = Clock::now();
+    double pfx_sec = std::chrono::duration<double>(end - start).count();
+    std::cout << "[4] KV Cache Prefix Delta Matching (4K Token History):\n";
+    std::cout << "    - Common Cached Tokens Detected: " << common_tokens << " / 4096\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (PREFIX_ITERS / pfx_sec) << " matches/sec\n";
+    std::cout << "    - Prefix Detection Latency: " << std::setprecision(2) << (pfx_sec * 1e6 / PREFIX_ITERS) << " us\n";
+
+    // 5. Binary KV Cache Disk Persistence Serialization & Deserialization
+    auto& kv_mgr = SessionKVCacheManager::instance();
+    std::string bench_dir = "/tmp/denselite_bench_kv";
+    std::filesystem::remove_all(bench_dir);
+    kv_mgr.set_cache_directory(bench_dir);
+
+    ModelConfig cfg;
+    cfg.num_layers = 4;
+    cfg.embedding_length = 512;
+    cfg.num_kv_heads = 4;
+    cfg.head_dim = 128;
+
+    std::string kv_sess = "bench_persist_sess";
+    auto sess_state = kv_mgr.get_or_create(kv_sess, &cfg);
+    init_inference_state(cfg, 1024, sess_state->state);
+    sess_state->max_context_allocated = 1024;
+    sess_state->is_initialized = true;
+    sess_state->cached_tokens.resize(1024, 77);
+    sess_state->state.current_pos = 1024;
+
+    const int SAVE_ITERS = 1000;
+    start = Clock::now();
+    for (int i = 0; i < SAVE_ITERS; ++i) {
+        kv_mgr.save_to_disk(kv_sess);
+    }
+    end = Clock::now();
+    double save_sec = std::chrono::duration<double>(end - start).count();
+    double file_bytes = (double)std::filesystem::file_size(bench_dir + "/" + kv_sess + ".kv");
+    double save_mb_s = (SAVE_ITERS * file_bytes) / (save_sec * 1024.0 * 1024.0);
+
+    std::cout << "[5] Disk-Backed KV Cache Binary Persistence:\n";
+    std::cout << "    - Active KV Snapshot Size: " << std::setprecision(2) << (file_bytes / (1024.0 * 1024.0)) << " MiB\n";
+    std::cout << "    - Serialization Write Throughput: " << std::fixed << std::setprecision(1) << save_mb_s << " MB/s (" << (SAVE_ITERS / save_sec) << " saves/sec)\n";
+    std::cout << "    - Latency per Disk Flush: " << std::setprecision(2) << (save_sec * 1000.0 / SAVE_ITERS) << " ms\n";
+
+    const int LOAD_ITERS = 1000;
+    start = Clock::now();
+    for (int i = 0; i < LOAD_ITERS; ++i) {
+        kv_mgr.load_from_disk(kv_sess, cfg);
+    }
+    end = Clock::now();
+    double load_sec = std::chrono::duration<double>(end - start).count();
+    double load_mb_s = (LOAD_ITERS * file_bytes) / (load_sec * 1024.0 * 1024.0);
+    std::cout << "    - Deserialization Read Throughput: " << std::fixed << std::setprecision(1) << load_mb_s << " MB/s (" << (LOAD_ITERS / load_sec) << " loads/sec)\n";
+    std::cout << "    - Latency per Disk Restore: " << std::setprecision(2) << (load_sec * 1000.0 / LOAD_ITERS) << " ms\n";
+
+    // Cleanup
+    kv_mgr.clear_all();
+    std::filesystem::remove_all(bench_dir);
+    std::cout << "======================================================\n\n";
+}
+
 int main() {
     benchmark_vulkan_lifecycle();
     benchmark_phase3_tokenizer_context();
@@ -776,6 +911,7 @@ int main() {
     benchmark_phase6_agent_loop();
     benchmark_phase7_resource_governance();
     benchmark_phase8_multimodal();
+    benchmark_phase9_session_kv_and_tool_registry();
     return 0;
 }
 

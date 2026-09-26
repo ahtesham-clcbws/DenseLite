@@ -64,12 +64,20 @@ void test_eviction_stages_and_headroom() {
     std::cout << "[PASS] test_eviction_stages_and_headroom\n";
 }
 
+void test_dynamic_context_sizing() {
+    size_t ctx = ResourceGovernor::calculate_dynamic_context_tokens();
+    assert(ctx == 65536 || ctx == 32768 || ctx == 16384 || ctx == 8192);
+    std::cout << "[PASS] test_dynamic_context_sizing (allocated_tokens=" << ctx << ")\n";
+}
+
 int main() {
     std::cout << "--- Running Phase 7 Resource Governance Tests ---\n";
     test_system_queries();
     test_thread_enforcement();
     test_component_memory_tracking();
     test_eviction_stages_and_headroom();
+    test_dynamic_context_sizing();
     std::cout << "--- All Phase 7 Resource Governance Tests Passed! ---\n";
     return 0;
 }
+

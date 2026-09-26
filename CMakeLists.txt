@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(DenseLite LANGUAGES C CXX)
+project(DenseLite VERSION 3.3.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -66,6 +66,8 @@ add_executable(DenseLite
     src/result_fusion.cpp
     src/search_engine.cpp
     src/multimodal_engine.cpp
+    src/SessionToolRegistry.cpp
+    src/SessionKVCache.cpp
 )
 
 # Tree-sitter Core Runtime & Multi-Language Grammars
@@ -193,6 +195,9 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/CompletionPolicy.cpp
     src/Curator.cpp
     src/multimodal_engine.cpp
+    src/SessionToolRegistry.cpp
+    src/SessionKVCache.cpp
+    src/infer.cpp
 )
 target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
 target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
@@ -285,6 +290,17 @@ add_executable(test_multimodal tests/multimodal_tests.cpp
 target_link_libraries(test_multimodal PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
 target_include_directories(test_multimodal PRIVATE src dependencies/vulkan/include)
 add_test(NAME MultimodalEngine COMMAND test_multimodal)
+
+add_executable(test_session_kv tests/session_kv_tests.cpp
+    src/SessionToolRegistry.cpp
+    src/SessionKVCache.cpp
+    src/infer.cpp
+    src/gguf_parser.cpp
+)
+target_link_libraries(test_session_kv PRIVATE Threads::Threads OpenMP::OpenMP_CXX)
+target_include_directories(test_session_kv PRIVATE src)
+add_test(NAME SessionKVCache COMMAND test_session_kv)
+
 
 
 

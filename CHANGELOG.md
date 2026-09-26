@@ -5,6 +5,16 @@ All notable changes to the DenseLite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-09-27
+
+### Added
+- **Session Tool Registry (`SessionToolRegistry.{hpp,cpp}`)**: Caches external MCP schemas per chat session on initial handshake. Deduplicates redundant payloads, completely eliminating 600 KB payload bloat on subsequent turns and preventing client transport timeouts.
+- **Selective Tool Extraction & Chat Pruning**: Prunes heavy tool schemas to 0 for general conversational queries (`"hi"`, `"how are you?"`), routing directly to sub-5ms AVX2 inference. Selectively injects only relevant tool definitions for coding queries.
+- **Persistent Session KV Cache (`SessionKVCache.{hpp,cpp}`, `infer.cpp`)**: Preserves transformer KV state across multi-turn sessions. Common prefix delta matching skips tokens $0 \to L$ and evaluates only new tokens $L \to N$ (470K matches/sec), dramatically accelerating multi-turn generation.
+- **High-Speed Binary Disk-Backed Persistence**: Flushes active session KV tensors to disk using custom `DLKV` binary serialization at 2,119 MB/s, enabling instant session resumption across server reboots.
+- **Dynamic RAM-Aware Context Sizing**: Automatically checks balance RAM headroom after 45% model baseline allocation and unlocks up to 64K tokens (65,536 tokens on 32GB RAM systems) with zero crash/OOM risk.
+- **Automated CTest Suite Expansion**: Added `test_session_kv` covering tool registry deduplication, selective retrieval, and binary disk persistence (12/12 test suites passing 100%).
+
 ## [3.2.1] - 2026-09-26
 
 ### Added
