@@ -39,6 +39,12 @@ add_executable(DenseLite
     src/RecoveryPolicy.cpp
     src/CompletionPolicy.cpp
     src/ProviderSync.cpp
+    src/tokenizer.cpp
+    src/tokenizer_registry.cpp
+    src/context_budgeter.cpp
+    src/context_compressor.cpp
+    src/context_compiler.cpp
+    src/context_engine.cpp
 )
 
 # Disable massive Zvec submodules building to keep DenseLite fast
@@ -91,6 +97,41 @@ add_test(NAME MathCorrectness COMMAND test_math)
 add_test(NAME ModelConfigValidation COMMAND test_config)
 add_test(NAME GoldenInference COMMAND test_golden)
 add_test(NAME ModelLifecycle COMMAND test_lifecycle)
+
+add_executable(test_context tests/context_engine_tests.cpp
+    src/tokenizer.cpp
+    src/tokenizer_registry.cpp
+    src/context_budgeter.cpp
+    src/context_compressor.cpp
+    src/context_compiler.cpp
+    src/context_engine.cpp
+    src/RequestAnalyzer.cpp
+)
+target_link_libraries(test_context PRIVATE Threads::Threads)
+target_include_directories(test_context PRIVATE src)
+add_test(NAME ContextEngine COMMAND test_context)
+
+add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
+    src/vulkan_device.cpp
+    src/model_registry.cpp
+    src/model_pool.cpp
+    src/model_lease.cpp
+    src/kv_cache.cpp
+    src/model_loader.cpp
+    src/resource_governor.cpp
+    src/gguf_parser.cpp
+    src/tokenizer.cpp
+    src/tokenizer_registry.cpp
+    src/context_budgeter.cpp
+    src/context_compressor.cpp
+    src/context_compiler.cpp
+    src/context_engine.cpp
+    src/RequestAnalyzer.cpp
+)
+target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
+target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include)
+
+
 
 
 

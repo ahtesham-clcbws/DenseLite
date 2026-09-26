@@ -30,9 +30,20 @@ With V3.2.1, DenseLite features a pure C++ AVX2 forward pass, GPU-preferred unif
 
 ---
 
-## Project Status: Phase 0, 1 & 2 — 🟢 COMPLETED & VERIFIED
+## Project Status: Phase 0, 1, 2 & 3 — 🟢 COMPLETED & VERIFIED
 
-DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Transformer Runtime**, and **Phase 2 Model Lifecycle & Role Manager** under automated CTest validation (100% pass rate).
+DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Transformer Runtime**, **Phase 2 Model Lifecycle & Role Manager**, and **Phase 3 Native BPE Tokenizer & Context Engine** under automated CTest validation (100% pass rate).
+
+### Phase 3: Native BPE Tokenizer & Context Engine (🟢 COMPLETED 2026-09-26)
+
+| Subsystem | Status | Verified Implementation Details |
+|---|:---:|---|
+| **Native Trie BPE Tokenizer** | 🟢 VERIFIED | Exact BPE tokenization/detokenization running at **1,594,094 tokens/sec** encoding and **38,845,617 tokens/sec** decoding. |
+| **Fast Token Counting** | 🟢 VERIFIED | Zero-allocation `count_tokens()` running at **1,759,479 tokens/sec** (replaces crude `chars / 4` heuristics). |
+| **Generation Reserve Invariant** | 🟢 VERIFIED | Strictly preserves $\ge 25\%$ or $\ge 1024$ tokens for model output generation; never consumed by input prompts. |
+| **System Prompt Protection** | 🟢 VERIFIED | Root system instructions and latest user query preserved 100% against truncation. |
+| **Multi-Stage Compressor** | 🟢 VERIFIED | L1 deduplication and L4 chronological sliding window executed in **158.86 µs** (6,295 passes/sec). |
+| **ChatML Context Compiler** | 🟢 VERIFIED | End-to-end prompt compilation and sectional budget verification executed in **558.39 µs** (1,791 requests/sec). |
 
 ### Phase 2: Model Lifecycle & Role Manager (🟢 COMPLETED 2026-09-26)
 
@@ -41,8 +52,8 @@ DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Trans
 | **Vulkan GPU Discovery** | 🟢 VERIFIED | Detects discrete GPU `AMD Radeon R7 M350 (RADV OLAND)` with 2048 MiB dedicated VRAM and 1.3 compute support. |
 | **85% Safety Gate** | 🟢 VERIFIED | Limits VRAM allocation to 1740 MiB; rejects over-budget workloads and triggers CPU/RAM fallback. |
 | **Model Registry & Roles** | 🟢 VERIFIED | Canonical catalog for `ROUTER`, `EMBEDDING`, `FORMATTER`, `GENERAL_REASONER`, `CODER`, `SPEECH_TO_TEXT`, and `IMAGE_GENERATOR`. |
-| **ModelLease RAII** | 🟢 VERIFIED | Lease acquisition increments `active_users`; destruction decrements. Eviction guard strictly blocks `unload()` while in use. |
-| **Bounded KV Cache** | 🟢 VERIFIED | Evaluated per layer/head; allocates on GPU if under 85% budget, else Host RAM fallback. |
+| **ModelLease RAII** | 🟢 VERIFIED | Lease acquisition increments `active_users`; destruction decrements. Eviction guard strictly blocks `unload()` while in use (3.68M ops/sec). |
+| **Bounded KV Cache** | 🟢 VERIFIED | Evaluated per layer/head; allocates on GPU if under 85% budget, else Host RAM fallback (224 MiB @ FP16, 0.00 ms alloc). |
 | **Safe Error Handling** | 🟢 VERIFIED | Missing or malformed GGUF files yield structured error diagnostics without aborting the process. |
 
 ### Phase 1: Pure C++ AVX2 Model Execution Engine (🟢 COMPLETED 2026-09-26)
@@ -56,13 +67,15 @@ DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Trans
 
 ### Phase 0: Reality Audit & Baseline Verification (🟢 COMPLETED 2026-09-25)
 
-Detailed empirical logs, hardware configuration, and test outputs are recorded in the repository:
+Detailed empirical logs, hardware configuration, and benchmark reports:
+- [P3_CONTEXT_ENGINE_BENCHMARK.md](benchmarks/P3_CONTEXT_ENGINE_BENCHMARK.md): Phase 3 BPE tokenizer, counting, and context compiler metrics.
+- [P2_LIFECYCLE_BENCHMARK.md](benchmarks/P2_LIFECYCLE_BENCHMARK.md): Phase 2 Vulkan hardware, lease RAII, and KV cache metrics.
 - [P0_REALITY_MATRIX.md](benchmarks/P0_REALITY_MATRIX.md): Complete reality audit matrix.
 - [P0_HARDWARE.md](benchmarks/P0_HARDWARE.md): Frozen machine hardware and compiler flags.
 - [P0_MODEL_RESULTS.md](benchmarks/P0_MODEL_RESULTS.md): Per-model execution results and residency status.
 - [P0_INFERENCE_RESULTS.md](benchmarks/P0_INFERENCE_RESULTS.md): Throughput, latency, and memory metrics.
 - [P0_NETWORK_RESULTS.md](benchmarks/P0_NETWORK_RESULTS.md): WAN transport, HTTPS API handshakes, and provider failover.
-- [P0_REGRESSIONS.md](benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues queued for Phase 1–3.
+- [P0_REGRESSIONS.md](benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues resolved across Phase 1–3.
 
 ---
 
@@ -71,11 +84,10 @@ Detailed empirical logs, hardware configuration, and test outputs are recorded i
 - **Phase 0: Baseline & Reality Audit** — ✅ **COMPLETED**
 - **Phase 1: Pure C++ AVX2 Model Execution Engine** — ✅ **COMPLETED**
 - **Phase 2: Model Lifecycle & Role Manager** — ✅ **COMPLETED**
-- **Phase 3: Native BPE Tokenizer & Context Window Engine** — ⬜ **READY**
-  Trie-based Byte-Pair Encoding (BPE) tokenization/detokenization, token budgeting, and rolling KV cache management.
-- **Phase 4A: Vector & State Memory Store (Zvec + SQLite)** — ⬜ BLOCKED (Depends on P3)
+- **Phase 3: Native BPE Tokenizer & Context Window Engine** — ✅ **COMPLETED**
+- **Phase 4A: Vector & State Memory Store (Zvec + SQLite)** — ⬜ READY
   Persistent hybrid memory combining SQLite (metadata, conversation state, rate limits) and Zvec/RocksDB.
-- **Phase 4B: Code Intelligence & AST Parser (Tree-sitter)** — ⬜ BLOCKED (Depends on P2)
+- **Phase 4B: Code Intelligence & AST Parser (Tree-sitter)** — ⬜ READY
   Tree-sitter syntax-aware code parsing, AST symbol extraction, and scope navigation for codebases.
 - **Phase 5: Hybrid Search & Evidence Reranking** — ⬜ BLOCKED (Depends on P4A + P4B)
   Multi-channel retrieval combining keyword BM25/FTS5 search with dense embeddings and deterministic reranking.

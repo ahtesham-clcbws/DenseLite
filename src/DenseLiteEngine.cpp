@@ -17,7 +17,11 @@ static std::mutex engine_mutex;
 static std::map<std::string, InferenceSession> active_sessions;
 
 DenseLiteEngine::DenseLiteEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router)
-    : models(resident_models), router(router) {}
+    : models(resident_models), router(router), context_engine_(&tokenizer_registry_) {
+    for (const auto& pair : models) {
+        tokenizer_registry_.register_tokenizer(pair.first, &pair.second.vocab, pair.second.config.eos_token_id);
+    }
+}
 
 InferenceSession DenseLiteEngine::get_or_create_session(const std::string& session_id) {
     std::lock_guard<std::mutex> lock(engine_mutex);
@@ -74,20 +78,7 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     session.task_type = decision.intent;
     std::cout << "[Engine] Intent: " << session.task_type << "\n";
 
-    // 2. CONTEXT MANAGEMENT
-    DenseModel* nomic = nullptr;
-    if (models.find("nomic") != models.end()) {
-        nomic = &models.at("nomic");
-    }
-    ContextManager::optimize_context(parsed_req, 8192, true, nomic);
-
-    // 3. MODEL SELECTION & INFERRING
-    session.status = SessionStatus::INFERRING;
-    std::string prompt = RequestAnalyzer::compile_prompt(parsed_req);
-    
-    ModelEngine model_engine(models, router);
-    
-    // Choose model based on request model or intent
+    // 2. MODEL SELECTION
     std::string target_model;
     if (parsed_req.model == "qwen_main" || parsed_req.model == "qwen_coder" || parsed_req.model == "smollm2") {
         target_model = parsed_req.model;
@@ -96,6 +87,17 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     } else {
         target_model = parsed_req.model;
     }
+
+    // 3. CONTEXT MANAGEMENT & COMPILATION
+    auto opt_result = context_engine_.optimize_and_compile(parsed_req, target_model, 8192);
+    std::string prompt = opt_result.compiled_prompt;
+    std::cout << "[Engine] Context tokens: " << opt_result.compiled_context.prompt_tokens 
+              << " / " << opt_result.budget_plan.max_input_tokens 
+              << " (Reserve: " << opt_result.budget_plan.generation_reserve << ")\n";
+
+    // 4. INFERRING
+    session.status = SessionStatus::INFERRING;
+    ModelEngine model_engine(models, router);
 
     std::string output;
     int status_code = 0;

@@ -7,6 +7,8 @@
 #include "sqlite_router.hpp"
 #include "Curator.hpp"
 #include "RequestAnalyzer.hpp"
+#include "context_engine.hpp"
+#include "tokenizer_registry.hpp"
 
 struct InferenceSession {
     std::string session_id;
@@ -26,9 +28,14 @@ public:
     // Process the incoming generation request
     void process(const std::string& request_body, httplib::Response& res);
 
+    TokenizerRegistry& get_tokenizer_registry() { return tokenizer_registry_; }
+    ContextEngine& get_context_engine() { return context_engine_; }
+
 private:
     std::map<std::string, DenseModel>& models;
     SQLiteRouter& router;
+    TokenizerRegistry tokenizer_registry_;
+    ContextEngine context_engine_;
 
     InferenceSession get_or_create_session(const std::string& session_id);
     void execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res);
