@@ -18,6 +18,14 @@ add_executable(DenseLite
     src/server.cpp
     src/gguf_parser.cpp
     src/infer.cpp
+    src/vulkan_device.cpp
+    src/model_registry.cpp
+    src/model_pool.cpp
+    src/model_lease.cpp
+    src/kv_cache.cpp
+    src/model_loader.cpp
+    src/resource_governor.cpp
+    src/model_manager.cpp
     src/RequestAnalyzer.cpp
     src/Formatter.cpp
     src/NeedleRouter.cpp
@@ -45,13 +53,13 @@ find_package(OpenMP REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 target_compile_definitions(DenseLite PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
-target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto vulkan)
 
 # Add include directory for headers
-target_include_directories(DenseLite PRIVATE src)
+target_include_directories(DenseLite PRIVATE src dependencies/vulkan/include)
 
 # ============================================================================
-# Phase 1 Test Targets
+# Test Targets (Phase 1 & Phase 2)
 # ============================================================================
 enable_testing()
 
@@ -65,8 +73,24 @@ add_executable(test_golden tests/golden_inference_tests.cpp src/infer.cpp src/gg
 target_link_libraries(test_golden PRIVATE OpenMP::OpenMP_CXX)
 target_include_directories(test_golden PRIVATE src)
 
+add_executable(test_lifecycle tests/model_lifecycle_tests.cpp 
+    src/vulkan_device.cpp
+    src/model_registry.cpp
+    src/model_pool.cpp
+    src/model_lease.cpp
+    src/kv_cache.cpp
+    src/model_loader.cpp
+    src/resource_governor.cpp
+    src/model_manager.cpp
+    src/gguf_parser.cpp
+)
+target_link_libraries(test_lifecycle PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
+target_include_directories(test_lifecycle PRIVATE src dependencies/vulkan/include)
+
 add_test(NAME MathCorrectness COMMAND test_math)
 add_test(NAME ModelConfigValidation COMMAND test_config)
 add_test(NAME GoldenInference COMMAND test_golden)
+add_test(NAME ModelLifecycle COMMAND test_lifecycle)
+
 
 
