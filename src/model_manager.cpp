@@ -40,6 +40,8 @@ void ModelManager::initialize_from_env(const std::string& base_dir, const std::m
     register_def("smollm2", ModelRole::FORMATTER, "MODEL_SMOLLM2_FILE", PlacementPolicy::GPU_PREFERRED, true);
     register_def("qwen_main", ModelRole::GENERAL_REASONER, "MODEL_QWEN_MAIN_FILE", PlacementPolicy::GPU_PREFERRED, true);
     register_def("qwen_coder", ModelRole::CODER, "MODEL_QWEN_CODER_FILE", PlacementPolicy::GPU_PREFERRED, true);
+    register_def("whisper", ModelRole::SPEECH_TO_TEXT, "MODEL_WHISPER_FILE", PlacementPolicy::GPU_PREFERRED, true);
+    register_def("stable_diffusion", ModelRole::IMAGE_GENERATOR, "MODEL_SD_FILE", PlacementPolicy::GPU_PREFERRED, true);
 }
 
 ModelLease ModelManager::acquire(ModelRole role) {
@@ -152,7 +154,9 @@ void ModelManager::enforce_budget(std::chrono::seconds idle_timeout) {
     for (const auto& id : evictable) {
         // Evict idle leased models under memory pressure
         const ModelDescriptor* desc = registry_.get(id);
-        if (desc && desc->role == ModelRole::CODER) {
+        if (desc && (desc->role == ModelRole::CODER || 
+                     desc->role == ModelRole::SPEECH_TO_TEXT || 
+                     desc->role == ModelRole::IMAGE_GENERATOR)) {
             std::string err;
             unload(id, err);
         }

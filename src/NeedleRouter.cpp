@@ -41,7 +41,7 @@ RoutingDecision NeedleRouter::analyze_request(const OpenAIRequest& req, DenseMod
         return {RequestAnalyzer::categorize_request(req), "general", "low", "none"};
     }
 
-    std::string system_prompt = "You are an internal routing model. Analyze the following user message and output a JSON object strictly adhering to this schema: {\"intent\": \"string (reasoning|coding|image|text)\", \"domain\": \"string\", \"complexity\": \"string (low|high)\", \"required_capabilities\": \"string\"}. DO NOT output anything except valid JSON.";
+    std::string system_prompt = "You are an internal routing model. Analyze the following user message and output a JSON object strictly adhering to this schema: {\"intent\": \"string (reasoning|coding|image|audio|text)\", \"domain\": \"string\", \"complexity\": \"string (low|high)\", \"required_capabilities\": \"string\"}. DO NOT output anything except valid JSON.";
     
     std::string user_message = "";
     if (!req.messages.empty()) {
@@ -63,7 +63,7 @@ RoutingDecision NeedleRouter::analyze_request(const OpenAIRequest& req, DenseMod
     
     // Fallback if LLM hallucinates an invalid intent
     if (decision.intent != "reasoning" && decision.intent != "coding" && 
-        decision.intent != "image" && decision.intent != "text") {
+        decision.intent != "image" && decision.intent != "audio" && decision.intent != "text") {
         std::cout << "[NeedleRouter] Hallucinated intent '" << decision.intent << "', falling back to regex." << std::endl;
         decision.intent = RequestAnalyzer::categorize_request(req);
     }

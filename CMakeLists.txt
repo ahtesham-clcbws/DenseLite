@@ -65,6 +65,7 @@ add_executable(DenseLite
     src/structural_search.cpp
     src/result_fusion.cpp
     src/search_engine.cpp
+    src/multimodal_engine.cpp
 )
 
 # Tree-sitter Core Runtime & Multi-Language Grammars
@@ -159,6 +160,7 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/model_lease.cpp
     src/kv_cache.cpp
     src/model_loader.cpp
+    src/model_manager.cpp
     src/resource_governor.cpp
     src/gguf_parser.cpp
     src/tokenizer.cpp
@@ -190,6 +192,7 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/RecoveryPolicy.cpp
     src/CompletionPolicy.cpp
     src/Curator.cpp
+    src/multimodal_engine.cpp
 )
 target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
 target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
@@ -265,6 +268,23 @@ add_executable(test_governor tests/resource_governor_tests.cpp
 target_link_libraries(test_governor PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
 target_include_directories(test_governor PRIVATE src dependencies/vulkan/include)
 add_test(NAME ResourceGovernor COMMAND test_governor)
+
+add_executable(test_multimodal tests/multimodal_tests.cpp
+    src/multimodal_engine.cpp
+    src/resource_governor.cpp
+    src/vulkan_device.cpp
+    src/RequestAnalyzer.cpp
+    src/model_manager.cpp
+    src/model_registry.cpp
+    src/model_pool.cpp
+    src/model_lease.cpp
+    src/kv_cache.cpp
+    src/model_loader.cpp
+    src/gguf_parser.cpp
+)
+target_link_libraries(test_multimodal PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
+target_include_directories(test_multimodal PRIVATE src dependencies/vulkan/include)
+add_test(NAME MultimodalEngine COMMAND test_multimodal)
 
 
 

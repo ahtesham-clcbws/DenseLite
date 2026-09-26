@@ -26,6 +26,7 @@
 #include "RecoveryPolicy.hpp"
 #include "CompletionPolicy.hpp"
 #include "Curator.hpp"
+#include "multimodal_engine.hpp"
 #include <filesystem>
 
 using Clock = std::chrono::high_resolution_clock;
@@ -690,6 +691,82 @@ void benchmark_phase7_resource_governance() {
     std::cout << "======================================================\n\n";
 }
 
+void benchmark_phase8_multimodal() {
+    std::cout << "\n======================================================\n";
+    std::cout << " BENCHMARK: Phase 8 Multimodal Vision & Speech Engine\n";
+    std::cout << "======================================================\n";
+
+    ResourceGovernor gov;
+    MultimodalEngine engine(nullptr, &gov);
+
+    // 1. Audio Transcription Throughput (1s @ 16kHz PCM = 16,000 samples)
+    std::vector<float> sample_audio(16000, 0.2f);
+    const int AUDIO_ITERS = 10000;
+    auto start = Clock::now();
+    for (int i = 0; i < AUDIO_ITERS; ++i) {
+        auto res = engine.transcribe_audio(sample_audio, 16000);
+        (void)res;
+    }
+    auto end = Clock::now();
+    double audio_sec = std::chrono::duration<double>(end - start).count();
+    double audio_ops = AUDIO_ITERS / audio_sec;
+    double simulated_audio_seconds_processed = AUDIO_ITERS * 1.0f / audio_sec;
+
+    std::cout << "[1] Audio Transcription Throughput (1-sec 16kHz PCM chunks):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << audio_ops << " chunks/sec (" << simulated_audio_seconds_processed << "x real-time)\n";
+    std::cout << "    - Latency per 1s audio chunk: " << std::setprecision(2) << (audio_sec * 1e6 / AUDIO_ITERS) << " us\n";
+
+    // 2. 16-bit PCM Audio Byte Stream Decoding Throughput
+    std::vector<uint8_t> pcm_bytes(32000, 0x20); // 1-sec 16-bit PCM = 32 KB
+    const int PCM_ITERS = 10000;
+    start = Clock::now();
+    for (int i = 0; i < PCM_ITERS; ++i) {
+        auto res = engine.transcribe_pcm_bytes(pcm_bytes);
+        (void)res;
+    }
+    end = Clock::now();
+    double pcm_sec = std::chrono::duration<double>(end - start).count();
+    double pcm_ops = PCM_ITERS / pcm_sec;
+    double pcm_mb_s = (PCM_ITERS * 32000.0) / (pcm_sec * 1024.0 * 1024.0);
+
+    std::cout << "[2] 16-bit PCM Byte Stream Decoding & Transcription:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << pcm_ops << " passes/sec (" << pcm_mb_s << " MB/s)\n";
+    std::cout << "    - Latency per 32KB buffer: " << std::setprecision(2) << (pcm_sec * 1e6 / PCM_ITERS) << " us\n";
+
+    // 3. Image Generation Pipeline (512x512, 10 diffusion steps)
+    const int IMG_ITERS = 10000;
+    start = Clock::now();
+    for (int i = 0; i < IMG_ITERS; ++i) {
+        auto res = engine.generate_image("A majestic mountain range at sunrise", 512, 512, 10, 42);
+        (void)res;
+    }
+    end = Clock::now();
+    double img_sec = std::chrono::duration<double>(end - start).count();
+    double img_ops = IMG_ITERS / img_sec;
+
+    std::cout << "[3] On-Demand Image Generation Latency (512x512 @ 10 steps):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << img_ops << " passes/sec\n";
+    std::cout << "    - Latency per image pass: " << std::setprecision(2) << (img_sec * 1e6 / IMG_ITERS) << " us\n";
+
+    // 4. Multimodal Memory Headroom Admission Gate
+    const int ADMIT_ITERS = 100000;
+    start = Clock::now();
+    for (int i = 0; i < ADMIT_ITERS; ++i) {
+        bool can_img = engine.can_generate_image(512, 512);
+        bool can_stt = engine.can_transcribe_audio(10.0f);
+        (void)can_img;
+        (void)can_stt;
+    }
+    end = Clock::now();
+    double admit_sec = std::chrono::duration<double>(end - start).count();
+    double admit_ops = (ADMIT_ITERS * 2) / admit_sec;
+
+    std::cout << "[4] Multimodal Memory Headroom & Admission Check:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << admit_ops << " checks/sec\n";
+    std::cout << "    - Latency per check: " << std::setprecision(3) << (admit_sec * 1e6 / (ADMIT_ITERS * 2)) << " us\n";
+    std::cout << "======================================================\n\n";
+}
+
 int main() {
     benchmark_vulkan_lifecycle();
     benchmark_phase3_tokenizer_context();
@@ -698,8 +775,10 @@ int main() {
     benchmark_phase5_search_fusion();
     benchmark_phase6_agent_loop();
     benchmark_phase7_resource_governance();
+    benchmark_phase8_multimodal();
     return 0;
 }
+
 
 
 

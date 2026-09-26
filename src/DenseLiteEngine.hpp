@@ -13,6 +13,7 @@
 #include "code_indexer.hpp"
 #include "search_engine.hpp"
 #include "resource_governor.hpp"
+#include "multimodal_engine.hpp"
 
 struct InferenceSession {
     std::string session_id;
@@ -38,6 +39,7 @@ public:
     CodeIndexer& get_code_indexer() { return code_indexer_; }
     SearchEngine& get_search_engine() { return search_engine_; }
     ResourceGovernor& get_resource_governor() { return resource_governor_; }
+    MultimodalEngine& get_multimodal_engine() { return multimodal_engine_; }
 
 private:
     std::map<std::string, DenseModel>& models;
@@ -48,6 +50,7 @@ private:
     CodeIndexer code_indexer_;
     SearchEngine search_engine_;
     ResourceGovernor resource_governor_;
+    MultimodalEngine multimodal_engine_;
 
     InferenceSession get_or_create_session(const std::string& session_id);
     void execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res);

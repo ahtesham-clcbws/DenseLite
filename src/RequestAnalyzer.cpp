@@ -82,7 +82,8 @@ std::string RequestAnalyzer::compile_prompt(const OpenAIRequest& req, const std:
 }
 
 std::string RequestAnalyzer::categorize_request(const OpenAIRequest& req) {
-    const std::vector<std::string> image_keywords = {"\"image_url\"", "data:image"};
+    const std::vector<std::string> image_keywords = {"\"image_url\"", "data:image", "generate image", "create picture", "draw", "illustration"};
+    const std::vector<std::string> audio_keywords = {"transcribe", "speech to text", "voice", "recording", "audio"};
     const std::vector<std::string> reasoning_keywords = {"architect", "plan", "calculate", "solve", "design"};
     const std::vector<std::string> coding_keywords = {"code", "function", "script", "c++", "python", "implement"};
 
@@ -90,12 +91,23 @@ std::string RequestAnalyzer::categorize_request(const OpenAIRequest& req) {
         for (const auto& kw : image_keywords) {
             if (msg.content.find(kw) != std::string::npos) return "image";
         }
+        for (const auto& kw : audio_keywords) {
+            if (msg.content.find(kw) != std::string::npos) return "audio";
+        }
     }
 
     if (!req.messages.empty()) {
         std::string last_msg = req.messages.back().content;
         std::string lower_msg = last_msg;
         std::transform(lower_msg.begin(), lower_msg.end(), lower_msg.begin(), ::tolower);
+
+        for (const auto& kw : image_keywords) {
+            if (lower_msg.find(kw) != std::string::npos) return "image";
+        }
+
+        for (const auto& kw : audio_keywords) {
+            if (lower_msg.find(kw) != std::string::npos) return "audio";
+        }
 
         for (const auto& kw : reasoning_keywords) {
             if (lower_msg.find(kw) != std::string::npos) return "reasoning";

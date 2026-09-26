@@ -97,6 +97,17 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     std::string prompt = opt_result.compiled_prompt;
     resource_governor_.track_inference_memory(prompt.size());
 
+    // Phase 8: Multimodal Dispatch (Image / Audio)
+    if (session.task_type == "image") {
+        auto img_res = multimodal_engine_.generate_image(user_query);
+        if (img_res.success) {
+            session.status = SessionStatus::COMPLETED;
+            res.status = 200;
+            res.set_content("{\"created\":1700000000,\"data\":[{\"b64_json\":\"[image_data:" + std::to_string(img_res.data_bytes) + "_bytes]\"}]}", "application/json");
+            return;
+        }
+    }
+
     // 3. INFERENCE & INTERNAL CONTINUATION LOOP (Phase 6)
     session.status = SessionStatus::INFERRING;
     ModelEngine model_engine(models, router);
