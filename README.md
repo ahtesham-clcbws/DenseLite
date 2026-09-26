@@ -45,26 +45,7 @@ Official hardware-level empirical benchmarks recorded on host Intel Core i7-6500
 
 ---
 
-## Roadmap & Architecture Queue (v3.2.1 Frozen Contract)
-
-- **Phase 0: Baseline & Reality Audit** — ✅ **COMPLETED**
-- **Phase 1: Pure C++ AVX2 Model Execution Engine** — ✅ **COMPLETED**
-- **Phase 2: Model Lifecycle & Role Manager** — ✅ **COMPLETED**
-- **Phase 3: Native BPE Tokenizer & Context Window Engine** — ✅ **COMPLETED**
-- **Phase 4A: Vector & State Memory Store (Zvec + SQLite)** — ✅ **COMPLETED**
-  Persistent hybrid memory combining SQLite (metadata, conversation state, rate limits) and in-RAM tiered cache with lexical scoring.
-- **Phase 4B: Code Intelligence & AST Parser (Tree-sitter)** — ✅ **COMPLETED**
-  Tree-sitter syntax-aware code parsing, AST symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and FNV-1a delta hash change tracking.
-- **Phase 5: Hybrid Search & Evidence Reranking** — ✅ **COMPLETED**
-  Multi-channel retrieval combining Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter search with deterministic ResultFusion.
-- **Phase 6: Evidence-Based Autonomous Agent Loop** — ✅ **COMPLETED**
-  Multi-turn reasoning and tool action loop (Read, Edit, Command execution) with 5-state response parsing, 7-action self-healing recovery, and evidence-based completion.
-- **Phase 7: 2-Core Resource Governance & CPU/RAM Throttling** — ✅ **COMPLETED**
-  Strict 2-thread CPU cap (50% max) and 14 GB RAM ceiling for stable execution on edge laptops.
-- **Phase 8: Multimodal Vision & Speech Processing** — ✅ **COMPLETED**
-  Offline speech-to-text with Whisper.cpp and lightweight image generation pipelines.
-
-### Upcoming Release: DenseLite v4.0 (Target: October 2026)
+## Roadmap: DenseLite v4.0 (Target: October 2026)
 
 - **DenseLite v4.0 Native UI & Management Dashboard** — 🚀 **IN DESIGN (Delivering October 2026)**
   Comprehensive visual desktop interface and developer dashboard:
