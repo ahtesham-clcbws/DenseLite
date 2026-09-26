@@ -36,18 +36,19 @@ RoutingDecision NeedleRouter::parse_decision_json(const std::string& json_output
 }
 
 RoutingDecision NeedleRouter::analyze_request(const OpenAIRequest& req, DenseModel* needle_model) {
-    if (!needle_model) {
-        std::cout << "[NeedleRouter] Needle model not available. Falling back to keyword classifier." << std::endl;
-        return {RequestAnalyzer::categorize_request(req), "general", "low", "none"};
-    }
-
-    std::string system_prompt = "You are an internal routing model. Analyze the following user message and output a JSON object strictly adhering to this schema: {\"intent\": \"string (reasoning|coding|image|audio|text)\", \"domain\": \"string\", \"complexity\": \"string (low|high)\", \"required_capabilities\": \"string\"}. DO NOT output anything except valid JSON.";
-    
     std::string user_message = "";
     if (!req.messages.empty()) {
         user_message = req.messages.back().content;
     }
 
+    // Fast Path (Sub-millisecond): Avoid CPU generation for obvious/short queries
+    std::string fast_cat = RequestAnalyzer::categorize_request(req);
+    if (!needle_model || user_message.size() < 120 || fast_cat == "image" || fast_cat == "audio") {
+        return {fast_cat, "general", "low", "none"};
+    }
+
+    std::string system_prompt = "You are an internal routing model. Analyze the following user message and output a JSON object strictly adhering to this schema: {\"intent\": \"string (reasoning|coding|image|audio|text)\", \"domain\": \"string\", \"complexity\": \"string (low|high)\", \"required_capabilities\": \"string\"}. DO NOT output anything except valid JSON.";
+    
     std::string prompt = "<|im_start|>system\n" + system_prompt + "\n<|im_end|>\n<|im_start|>user\n" + user_message + "\n<|im_end|>\n<|im_start|>assistant\n{";
     
     std::vector<int> tokens = tokenize(needle_model->vocab, prompt);

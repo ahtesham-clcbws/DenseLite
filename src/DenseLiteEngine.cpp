@@ -12,6 +12,8 @@
 #include <iostream>
 #include <chrono>
 #include <mutex>
+#include <algorithm>
+#include <cctype>
 
 static std::mutex engine_mutex;
 static std::map<std::string, InferenceSession> active_sessions;
@@ -75,16 +77,59 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     // 1. ROUTING & RECALL
     session.status = SessionStatus::ROUTING;
     DenseModel* needle = (models.find("needle") != models.end()) ? &models.at("needle") : nullptr;
+    if (!needle && models.find("smollm2") != models.end()) {
+        needle = &models.at("smollm2");
+    }
     RoutingDecision decision = NeedleRouter::analyze_request(parsed_req, needle);
     session.task_type = decision.intent;
     memory_engine_.working().set_objective(session.task_type);
     memory_engine_.working().set_current_task(user_query);
 
-    // 2. SEARCH & CONTEXT COMPILATION
-    auto search_hits = search_engine_.search(user_query, session.task_type, 5);
+    // 2. CONTEXT SANITIZATION & TOOL PRUNING
+    bool requires_tools = false;
+    std::string lower_query = user_query;
+    std::transform(lower_query.begin(), lower_query.end(), lower_query.begin(), ::tolower);
+    const std::vector<std::string> tool_keywords = {
+        "artisan", "run", "execute", "migrate", "database", "query", "schema", 
+        "tool", "search_symbols", "fetch", "bash", "command", "mcp"
+    };
+    for (const auto& kw : tool_keywords) {
+        if (lower_query.find(kw) != std::string::npos) {
+            requires_tools = true;
+            break;
+        }
+    }
+
+    // If query is conversational / simple text without explicit tool demand, strip tool bloat
+    if (!requires_tools && (session.task_type == "text" || user_query.size() < 160)) {
+        parsed_req.tools.clear();
+        for (auto& msg : parsed_req.messages) {
+            if (msg.role == "system" && msg.content.size() > 400) {
+                msg.content = "You are DenseLite, a fast, concise programming and chat assistant.";
+            }
+        }
+    }
+
+    // 3. TARGET MODEL SELECTION & CLOUD OFFLOADING
     std::string target_model = parsed_req.model;
     if (target_model == "denselite" || target_model.empty()) {
         target_model = (session.task_type == "coding") ? "qwen_coder" : "qwen_main";
+    }
+
+    // Calculate total character footprint
+    size_t total_payload_chars = 0;
+    for (const auto& msg : parsed_req.messages) total_payload_chars += msg.content.size();
+
+    // If payload is heavy (> 4000 chars) or requires tools, and requested model is auto (denselite),
+    // offload to Cloud to prevent freezing the dual-core CPU
+    if ((total_payload_chars > 4000 || requires_tools) && (parsed_req.model == "denselite" || parsed_req.model.empty())) {
+        std::string cloud_model = router.get_provider_for_model("openai/gpt-oss-20b").empty() ? "" : "openai/gpt-oss-20b";
+        if (cloud_model.empty()) cloud_model = router.get_provider_for_model("gemini-2.5-flash").empty() ? "" : "gemini-2.5-flash";
+        if (!cloud_model.empty()) {
+            std::cout << "[Engine] Heavy context / tool payload detected (" << total_payload_chars 
+                      << " chars). Offloading to cloud: " << cloud_model << " to protect CPU." << std::endl;
+            target_model = cloud_model;
+        }
     }
 
     // Phase 7: Proactive Resource Throttling & Cloud Fallback
@@ -93,6 +138,7 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         if (!cloud_fallback.empty()) target_model = cloud_fallback;
     }
 
+    auto search_hits = search_engine_.search(user_query, session.task_type, 5);
     size_t ctx_cap = (resource_governor_.assess_eviction_stage() >= EvictionStage::SHRINK_CONTEXT) ? 4096 : 8192;
     auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, ctx_cap);
     std::string prompt = opt_result.compiled_prompt;
