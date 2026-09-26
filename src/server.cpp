@@ -52,7 +52,12 @@ int main(int argc, char** argv) {
     });
     
     std::cout << "[API] Server listening on http://localhost:9501" << std::endl;
-    svr.listen("0.0.0.0", 9501);
+    if (!svr.listen("0.0.0.0", 9501)) {
+        std::cerr << "\n[DenseLite Error] Failed to bind to http://localhost:9501!\n"
+                  << "Port 9501 is already occupied by an existing process.\n"
+                  << "To stop the running instance, run: pkill -9 -f DenseLite\n"
+                  << "Or check the active process with: lsof -i :9501\n" << std::endl;
+    }
     
     std::cout << "Shutting down..." << std::endl;
     for (auto& pair : resident_models) {

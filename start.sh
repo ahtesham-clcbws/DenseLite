@@ -143,6 +143,12 @@ if [ -f "$LOG_FILE" ]; then
 fi
 
 # 5. Run the engine and pipe output to the log
+if lsof -i :9501 >/dev/null 2>&1; then
+    echo "[!] Port 9501 is currently occupied. Cleaning up existing instance..." | tee -a "$LOG_FILE"
+    pkill -9 -f "./build/DenseLite" 2>/dev/null || true
+    sleep 1
+fi
+
 echo "[+] Starting DenseLite engine..." | tee -a "$LOG_FILE"
 echo "    API will be available at http://localhost:9501" | tee -a "$LOG_FILE"
 echo "--------------------------------------" >> "$LOG_FILE"
