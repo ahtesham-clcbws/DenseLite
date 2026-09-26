@@ -57,10 +57,12 @@ DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Trans
 ### Phase 0: Reality Audit & Baseline Verification (🟢 COMPLETED 2026-09-25)
 
 Detailed empirical logs, hardware configuration, and test outputs are recorded in the repository:
-- [P0_REALITY_MATRIX.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_REALITY_MATRIX.md): Complete reality audit matrix.
-- [P0_HARDWARE.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_HARDWARE.md): Frozen machine hardware and compiler flags.
-- [P0_MODEL_RESULTS.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_MODEL_RESULTS.md): Per-model execution results and residency status.
-- [P0_INFERENCE_RESULTS.md](file:///mnt/apollo/Apollo4/DenseLite/benchmarks/P0_INFERENCE_RESULTS.md): Throughput, latency, and memory metrics.
+- [P0_REALITY_MATRIX.md](benchmarks/P0_REALITY_MATRIX.md): Complete reality audit matrix.
+- [P0_HARDWARE.md](benchmarks/P0_HARDWARE.md): Frozen machine hardware and compiler flags.
+- [P0_MODEL_RESULTS.md](benchmarks/P0_MODEL_RESULTS.md): Per-model execution results and residency status.
+- [P0_INFERENCE_RESULTS.md](benchmarks/P0_INFERENCE_RESULTS.md): Throughput, latency, and memory metrics.
+- [P0_NETWORK_RESULTS.md](benchmarks/P0_NETWORK_RESULTS.md): WAN transport, HTTPS API handshakes, and provider failover.
+- [P0_REGRESSIONS.md](benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues queued for Phase 1–3.
 
 ---
 
