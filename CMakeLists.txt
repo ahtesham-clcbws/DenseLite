@@ -258,6 +258,15 @@ target_link_libraries(test_agent_loop PRIVATE Threads::Threads)
 target_include_directories(test_agent_loop PRIVATE src)
 add_test(NAME AgentLoop COMMAND test_agent_loop)
 
+add_executable(test_governor tests/resource_governor_tests.cpp
+    src/resource_governor.cpp
+    src/vulkan_device.cpp
+)
+target_link_libraries(test_governor PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
+target_include_directories(test_governor PRIVATE src dependencies/vulkan/include)
+add_test(NAME ResourceGovernor COMMAND test_governor)
+
+
 
 
 

@@ -605,6 +605,91 @@ void benchmark_phase6_agent_loop() {
     std::cout << "======================================================\n\n";
 }
 
+void benchmark_phase7_resource_governance() {
+    std::cout << "\n======================================================\n";
+    std::cout << " BENCHMARK: Phase 7 2-Core Resource Governance & CPU/RAM\n";
+    std::cout << "======================================================\n";
+
+    ResourceGovernor gov;
+
+    // 1. Snapshot Latency & Overhead
+    const int SNAP_ITERS = 10000;
+    auto start = Clock::now();
+    for (int i = 0; i < SNAP_ITERS; ++i) {
+        auto snap = gov.get_snapshot();
+        (void)snap;
+    }
+    auto end = Clock::now();
+    double snap_sec = std::chrono::duration<double>(end - start).count();
+    double snap_ops = SNAP_ITERS / snap_sec;
+
+    std::cout << "[1] ResourceGovernor Snapshot Query (/proc/meminfo + statm):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << snap_ops << " queries/sec\n";
+    std::cout << "    - Latency per snapshot: " << std::setprecision(2) << (snap_sec * 1e6 / SNAP_ITERS) << " us\n";
+
+    // 2. OpenMP Dynamic Thread Throttling Enforcement
+    const int THREAD_ITERS = 50000;
+    start = Clock::now();
+    for (int i = 0; i < THREAD_ITERS; ++i) {
+        ResourceGovernor::enforce_thread_limits();
+    }
+    end = Clock::now();
+    double thread_sec = std::chrono::duration<double>(end - start).count();
+    double thread_ops = THREAD_ITERS / thread_sec;
+
+    std::cout << "[2] OpenMP Thread Limit Enforcement (Capped at 50% CPU / 2 Threads):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << thread_ops << " enforcements/sec\n";
+    std::cout << "    - Latency per enforcement: " << std::setprecision(3) << (thread_sec * 1e6 / THREAD_ITERS) << " us\n";
+
+    // 3. Proactive 6-Stage Eviction Cascade Assessment
+    const int STAGE_ITERS = 100000;
+    start = Clock::now();
+    for (int i = 0; i < STAGE_ITERS; ++i) {
+        auto stage = gov.assess_eviction_stage();
+        (void)stage;
+    }
+    end = Clock::now();
+    double stage_sec = std::chrono::duration<double>(end - start).count();
+    double stage_ops = STAGE_ITERS / stage_sec;
+
+    std::cout << "[3] Proactive 6-Stage Eviction Cascade Assessment:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << stage_ops << " assessments/sec\n";
+    std::cout << "    - Latency per assessment: " << std::setprecision(2) << (stage_sec * 1e6 / STAGE_ITERS) << " us\n";
+
+    // 4. Memory Pressure & Headroom Evaluation
+    const int HEADROOM_ITERS = 100000;
+    start = Clock::now();
+    for (int i = 0; i < HEADROOM_ITERS; ++i) {
+        bool ok = gov.can_admit_host_ram(1024 * 1024 * 512);
+        (void)ok;
+    }
+    end = Clock::now();
+    double headroom_sec = std::chrono::duration<double>(end - start).count();
+    double headroom_ops = HEADROOM_ITERS / headroom_sec;
+
+    std::cout << "[4] Memory Headroom & Admission Evaluation:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << headroom_ops << " evaluations/sec\n";
+    std::cout << "    - Latency per check: " << std::setprecision(2) << (headroom_sec * 1e6 / HEADROOM_ITERS) << " us\n";
+
+    // 5. Component Memory Cost Accounting
+    const int TRACK_ITERS = 1000000;
+    start = Clock::now();
+    for (int i = 0; i < TRACK_ITERS; ++i) {
+        gov.track_inference_memory(i * 1024);
+        gov.track_kv_cache(224 * 1024 * 1024);
+        size_t total = gov.get_total_tracked_bytes();
+        (void)total;
+    }
+    end = Clock::now();
+    double track_sec = std::chrono::duration<double>(end - start).count();
+    double track_ops = TRACK_ITERS / track_sec;
+
+    std::cout << "[5] Component Memory Accounting Overhead:\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << track_ops << " updates/sec\n";
+    std::cout << "    - Latency per accounting cycle: " << std::setprecision(3) << (track_sec * 1e9 / TRACK_ITERS) << " ns\n";
+    std::cout << "======================================================\n\n";
+}
+
 int main() {
     benchmark_vulkan_lifecycle();
     benchmark_phase3_tokenizer_context();
@@ -612,8 +697,10 @@ int main() {
     benchmark_phase4b_code_intel();
     benchmark_phase5_search_fusion();
     benchmark_phase6_agent_loop();
+    benchmark_phase7_resource_governance();
     return 0;
 }
+
 
 
 

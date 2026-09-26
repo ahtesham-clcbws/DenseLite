@@ -30,9 +30,19 @@ With V3.2.1, DenseLite features a pure C++ AVX2 forward pass, GPU-preferred unif
 
 ---
 
-## Project Status: Phase 0, 1, 2, 3, 4A, 4B, 5 & 6 — 🟢 COMPLETED & VERIFIED
+## Project Status: Phase 0, 1, 2, 3, 4A, 4B, 5, 6 & 7 — 🟢 COMPLETED & VERIFIED
 
-DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Transformer Runtime**, **Phase 2 Model Lifecycle & Role Manager**, **Phase 3 Native BPE Tokenizer & Context Engine**, **Phase 4A Vector & State Memory Store**, **Phase 4B Code Intelligence & AST Parser**, **Phase 5 Unified Search & Deterministic Reranking**, and **Phase 6 Evidence-Based Autonomous Agent Loop** under automated CTest validation (100% pass rate across 9 test suites).
+DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Transformer Runtime**, **Phase 2 Model Lifecycle & Role Manager**, **Phase 3 Native BPE Tokenizer & Context Engine**, **Phase 4A Vector & State Memory Store**, **Phase 4B Code Intelligence & AST Parser**, **Phase 5 Unified Search & Deterministic Reranking**, **Phase 6 Evidence-Based Autonomous Agent Loop**, and **Phase 7 2-Core Resource Governance & CPU/RAM Throttling** under automated CTest validation (100% pass rate across 10 test suites).
+
+### Phase 7: 2-Core Resource Governance & CPU/RAM Throttling (🟢 COMPLETED 2026-09-26)
+
+| Subsystem | Status | Verified Implementation Details |
+|---|:---:|---|
+| **Dynamic Thread Throttling (50% CPU)** | 🟢 VERIFIED | Limits OpenMP execution strictly to $\le 2$ threads on dual-core hardware at **152,236 enforcements/sec** (6.57 µs/op). |
+| **Proactive 6-Stage Eviction Cascade** | 🟢 VERIFIED | Evaluates system memory pressure and executes multi-tier cascade (Scratch $\to$ Context $\to$ Retrieval $\to$ Warm Model $\to$ Reject Optional $\to$ Route Cloud) at **29,022 assessments/sec** (34.46 µs/op). |
+| **Memory Headroom & Admission Gate** | 🟢 VERIFIED | Evaluates host RAM headroom against allocations at **82,455 evaluations/sec** (12.13 µs/op). |
+| **Component Memory Accounting** | 🟢 VERIFIED | Zero-overhead atomic tracking across Context, KV cache, Vector store, and Weights running at **52,812,679 updates/sec** (18.94 ns/op). |
+| **Continuous Snapshot Polling** | 🟢 VERIFIED | Non-blocking Linux `/proc/meminfo` and `/proc/self/statm` snapshot acquisition executing at **9,636 queries/sec** (103.77 µs/op). |
 
 ### Phase 6: Evidence-Based Autonomous Agent Loop (🟢 COMPLETED 2026-09-26)
 
@@ -101,6 +111,7 @@ DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Trans
 ### Phase 0: Reality Audit & Baseline Verification (🟢 COMPLETED 2026-09-25)
 
 Detailed empirical logs, hardware configuration, and benchmark reports:
+- [P7_RESOURCE_GOVERNANCE_BENCHMARK.md](benchmarks/P7_RESOURCE_GOVERNANCE_BENCHMARK.md): Phase 7 2-core dynamic CPU throttling, proactive 6-stage eviction cascade, and component memory tracking metrics.
 - [P6_AGENT_LOOP_BENCHMARK.md](benchmarks/P6_AGENT_LOOP_BENCHMARK.md): Phase 6 evidence-based autonomous agent loop, 5-state response analyzer, 7-action recovery policy, and multi-turn curation metrics.
 - [P5_UNIFIED_SEARCH_BENCHMARK.md](benchmarks/P5_UNIFIED_SEARCH_BENCHMARK.md): Phase 5 multi-signal search, Exact/Lexical/Vector/Structural, and ResultFusion metrics.
 - [P4_MEMORY_AND_CODE_INTEL_BENCHMARK.md](benchmarks/P4_MEMORY_AND_CODE_INTEL_BENCHMARK.md): Phase 4A/4B memory store, recall, Tree-sitter AST, and symbol indexing metrics.
@@ -111,7 +122,7 @@ Detailed empirical logs, hardware configuration, and benchmark reports:
 - [P0_MODEL_RESULTS.md](benchmarks/P0_MODEL_RESULTS.md): Per-model execution results and residency status.
 - [P0_INFERENCE_RESULTS.md](benchmarks/P0_INFERENCE_RESULTS.md): Throughput, latency, and memory metrics.
 - [P0_NETWORK_RESULTS.md](benchmarks/P0_NETWORK_RESULTS.md): WAN transport, HTTPS API handshakes, and provider failover.
-- [P0_REGRESSIONS.md](benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues resolved across Phase 1–6.
+- [P0_REGRESSIONS.md](benchmarks/P0_REGRESSIONS.md): Documented regression tests and issues resolved across Phase 1–7.
 
 ---
 
@@ -129,9 +140,9 @@ Detailed empirical logs, hardware configuration, and benchmark reports:
   Multi-channel retrieval combining Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter search with deterministic ResultFusion.
 - **Phase 6: Evidence-Based Autonomous Agent Loop** — ✅ **COMPLETED**
   Multi-turn reasoning and tool action loop (Read, Edit, Command execution) with 5-state response parsing, 7-action self-healing recovery, and evidence-based completion.
-- **Phase 7: 2-Core Resource Governance & CPU/RAM Throttling** — ⬜ READY
+- **Phase 7: 2-Core Resource Governance & CPU/RAM Throttling** — ✅ **COMPLETED**
   Strict 2-thread CPU cap (50% max) and 14 GB RAM ceiling for stable execution on edge laptops.
-- **Phase 8: Multimodal Vision & Speech Processing** — ⬜ FUTURE
+- **Phase 8: Multimodal Vision & Speech Processing** — ⬜ READY
   Offline speech-to-text with Whisper.cpp and lightweight image generation pipelines.
 
 ---

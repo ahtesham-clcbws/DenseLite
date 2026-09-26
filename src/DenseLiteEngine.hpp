@@ -12,6 +12,7 @@
 #include "memory_engine.hpp"
 #include "code_indexer.hpp"
 #include "search_engine.hpp"
+#include "resource_governor.hpp"
 
 struct InferenceSession {
     std::string session_id;
@@ -36,6 +37,7 @@ public:
     MemoryEngine& get_memory_engine() { return memory_engine_; }
     CodeIndexer& get_code_indexer() { return code_indexer_; }
     SearchEngine& get_search_engine() { return search_engine_; }
+    ResourceGovernor& get_resource_governor() { return resource_governor_; }
 
 private:
     std::map<std::string, DenseModel>& models;
@@ -45,6 +47,7 @@ private:
     MemoryEngine memory_engine_;
     CodeIndexer code_indexer_;
     SearchEngine search_engine_;
+    ResourceGovernor resource_governor_;
 
     InferenceSession get_or_create_session(const std::string& session_id);
     void execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res);

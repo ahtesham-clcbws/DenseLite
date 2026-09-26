@@ -68,6 +68,7 @@ void DenseLiteEngine::process(const std::string& request_body, httplib::Response
 }
 
 void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res) {
+    ResourceGovernor::enforce_thread_limits();
     session.status = SessionStatus::ANALYZING;
     std::string user_query = parsed_req.messages.empty() ? "" : parsed_req.messages.back().content;
 
@@ -85,8 +86,16 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         target_model = (session.task_type == "coding") ? "qwen_coder" : "qwen_main";
     }
 
-    auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, 8192);
+    // Phase 7: Proactive Resource Throttling & Cloud Fallback
+    if (resource_governor_.should_route_to_cloud()) {
+        std::string cloud_fallback = router.get_cheapest_model_for_provider("OPENROUTER", "text");
+        if (!cloud_fallback.empty()) target_model = cloud_fallback;
+    }
+
+    size_t ctx_cap = (resource_governor_.assess_eviction_stage() >= EvictionStage::SHRINK_CONTEXT) ? 4096 : 8192;
+    auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, ctx_cap);
     std::string prompt = opt_result.compiled_prompt;
+    resource_governor_.track_inference_memory(prompt.size());
 
     // 3. INFERENCE & INTERNAL CONTINUATION LOOP (Phase 6)
     session.status = SessionStatus::INFERRING;
