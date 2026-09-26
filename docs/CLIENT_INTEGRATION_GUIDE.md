@@ -72,49 +72,51 @@ Add the following snippet directly to `~/.config/zed/settings.json`:
 
 ---
 
-## 2. OpenCode Setup
+## 2. OpenCode Setup (OpenCode v2)
 
-### Method A: Via OpenCode UI
-1. Open OpenCode Settings and select **Custom Providers** (`Add Provider`).
-2. Configure provider fields:
-   * **Provider ID:** `denselite`
-   * **Display name:** `DenseLite Local Brain`
-   * **Base URL:** `http://localhost:9501/v1`
-   * **API key:** `denselite` *(or leave blank)*
-3. Under **Models**, add your target models:
-   * `model-id`: `denselite` | **Display Name:** `DenseLite Auto Router`
-   * `model-id`: `qwen_coder` | **Display Name:** `Qwen 2.5 Coder 1.5B (Local)`
-   * `model-id`: `openai/gpt-oss-20b` | **Display Name:** `Groq GPT OSS 20B (Cloud)`
+> **Important Note for OpenCode v2 Users:**
+> When running OpenCode Desktop or the `opencode-cli serve --service` daemon, adding custom providers through the UI modal triggers:
+> `Request failed: Custom providers are unavailable on this server`
+> OpenCode v2 requires custom OpenAI-compatible providers to be defined declaratively in your configuration file (`opencode.json` / `opencode.jsonc`), not via the UI modal.
 
-### Method B: Via `config.json`
-In your OpenCode settings configuration (`~/.config/opencode/config.json`):
+### Configuration (`~/.config/opencode/opencode.json` or `./opencode.json`)
+OpenCode v2 automatically searches and merges configuration from `~/.config/opencode/opencode.json` (global) and `./opencode.json` (project workspace).
+
+Add the following provider specification:
 
 ```json
 {
+  "$schema": "https://opencode.ai/config.json",
+  "model": "denselite/denselite",
   "providers": {
     "denselite": {
-      "id": "denselite",
       "name": "DenseLite Local Brain",
-      "baseUrl": "http://localhost:9501/v1",
-      "apiKey": "denselite",
-      "models": [
-        {
-          "id": "denselite",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "http://localhost:9501/v1"
+      },
+      "models": {
+        "denselite": {
           "name": "DenseLite Auto Router"
         },
-        {
-          "id": "qwen_coder",
-          "name": "Qwen 2.5 Coder 1.5B (Local)"
+        "qwen_coder": {
+          "name": "Qwen 2.5 Coder 1.5B"
         },
-        {
-          "id": "openai/gpt-oss-20b",
+        "qwen_main": {
+          "name": "Qwen 2.5 Main 1.5B"
+        },
+        "openai/gpt-oss-20b": {
           "name": "Groq GPT OSS 20B (Cloud)"
         }
-      ]
+      }
     }
   }
 }
 ```
+
+### Selecting Models in OpenCode
+- **In Chat:** Type `/models` and select `denselite/denselite` or any configured model.
+- **In Config:** Set `"model": "denselite/denselite"` or `"denselite/qwen_coder"` as your default.
 
 ---
 
