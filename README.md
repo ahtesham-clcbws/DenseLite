@@ -30,94 +30,6 @@ With V3.2.1, DenseLite features a pure C++ AVX2 forward pass, GPU-preferred unif
 
 ---
 
-## Project Status: Phase 0, 1, 2, 3, 4A, 4B, 5, 6, 7 & 8 — 🟢 COMPLETED & VERIFIED
-
-DenseLite has successfully verified **Phase 0 Baseline**, **Phase 1 Native Transformer Runtime**, **Phase 2 Model Lifecycle & Role Manager**, **Phase 3 Native BPE Tokenizer & Context Engine**, **Phase 4A Vector & State Memory Store**, **Phase 4B Code Intelligence & AST Parser**, **Phase 5 Unified Search & Deterministic Reranking**, **Phase 6 Evidence-Based Autonomous Agent Loop**, **Phase 7 2-Core Resource Governance & CPU/RAM Throttling**, and **Phase 8 Multimodal Vision & Speech Processing** under automated CTest validation (100% pass rate across 11 test suites).
-
-### Phase 8: Multimodal Vision & Speech Engine (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **Audio Speech-to-Text Pipeline** | 🟢 VERIFIED | On-demand leased Whisper audio processing running at **24,747 chunks/sec** (40.41 µs/chunk, 24,747x real-time) for 16kHz PCM audio. |
-| **16-bit PCM Byte Stream Decoding** | 🟢 VERIFIED | High-speed acoustic decoding and normalization achieving **25,388 passes/sec** (39.39 µs/op, 775 MB/s). |
-| **Image Generation Pipeline** | 🟢 VERIFIED | Parameterized latent diffusion step progression with memory headroom safety running at **14,764 passes/sec** (67.73 µs/op). |
-| **On-Demand Leased Lifecycle** | 🟢 VERIFIED | Dedicated `ModelRole::SPEECH_TO_TEXT` and `ModelRole::IMAGE_GENERATOR` leases; zero permanent RAM residency, evicted promptly when idle. |
-| **Core Runtime Isolation** | 🟢 VERIFIED | Multimodal logic fully decoupled in `src/multimodal_engine.{hpp,cpp}`; core text transformer runtime remains 100% uncontaminated. |
-
-### Phase 7: 2-Core Resource Governance & CPU/RAM Throttling (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **Dynamic Thread Throttling (50% CPU)** | 🟢 VERIFIED | Limits OpenMP execution strictly to $\le 2$ threads on dual-core hardware at **152,236 enforcements/sec** (6.57 µs/op). |
-| **Proactive 6-Stage Eviction Cascade** | 🟢 VERIFIED | Evaluates system memory pressure and executes multi-tier cascade (Scratch $\to$ Context $\to$ Retrieval $\to$ Warm Model $\to$ Reject Optional $\to$ Route Cloud) at **29,022 assessments/sec** (34.46 µs/op). |
-| **Memory Headroom & Admission Gate** | 🟢 VERIFIED | Evaluates host RAM headroom against allocations at **82,455 evaluations/sec** (12.13 µs/op). |
-| **Component Memory Accounting** | 🟢 VERIFIED | Zero-overhead atomic tracking across Context, KV cache, Vector store, and Weights running at **52,812,679 updates/sec** (18.94 ns/op). |
-| **Continuous Snapshot Polling** | 🟢 VERIFIED | Non-blocking Linux `/proc/meminfo` and `/proc/self/statm` snapshot acquisition executing at **9,636 queries/sec** (103.77 µs/op). |
-
-### Phase 6: Evidence-Based Autonomous Agent Loop (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **ResponseAnalyzer (5 States)** | 🟢 VERIFIED | Response parser detecting `TOOL_CALL`, `MODEL_CONTINUE` (with stop-reason discrimination `length`/`MAX_TOKENS`), `COMPLETE`, `MODEL_ERROR`, and `INVALID` across OpenAI/Gemini/Anthropic schemas at **481,540 analyses/sec** (2.08 µs/op). |
-| **RecoveryPolicy (7 Actions)** | 🟢 VERIFIED | Deterministic recovery engine for 429, 413, 502, 500, and 404 faults (`RETRY_SAME`, `SWITCH_KEY`, `SWITCH_PROVIDER`, `SWITCH_MODEL`, `REDUCE_CONTEXT`, `FALLBACK_LOCAL`, `FAIL_SESSION`) running at **7,928,125 decisions/sec** (0.13 µs/op). |
-| **CompletionPolicy (Evidence Gate)** | 🟢 VERIFIED | Anti-hallucination policy enforcing "Done is not evidence" on coding tasks; verified at **95,702,297 evaluations/sec** (0.01 µs/op). |
-| **Curator (Multi-Turn Stitching)** | 🟢 VERIFIED | Iteration consolidation synthesizing turn steps and appending code citation blocks with exact file paths and symbols at **173,313 consolidations/sec** (5.77 µs/op). |
-| **End-to-End Agent Loop** | 🟢 VERIFIED | Full cognitive loop executed in `DenseLiteEngine::execute_pipeline`: `Request` → `Analyze` → `Route` → `Recall` → `Search` → `Context` → `Model` → `Analyze Response` → `Tool/Continue/Complete/Recover` → `Curate` → `Formatter`. |
-
-### Phase 5: Multi-Signal Search & Result Fusion (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **ExactSearch** | 🟢 VERIFIED | Exact and case-insensitive symbol & substring code lookup running at **42,726 queries/sec** (23.40 µs/query). |
-| **LexicalSearch** | 🟢 VERIFIED | Tokenized BM25 keyword matching and stack-trace error parsing at **28,522 queries/sec** (35.06 µs/query). |
-| **VectorSearch** | 🟢 VERIFIED | 512-dimensional dense embedding cosine similarity running at **1,339,750 ops/sec** (746.41 ns/dot product). |
-| **ResultFusion (No Neural Reranker)** | 🟢 VERIFIED | Multi-signal deduplication and 6-parameter deterministic scoring ($w_1\text{semantic} + w_2\text{lexical} + w_3\text{structural} + w_4\text{symbol} + w_5\text{recency} + w_6\text{task}$) at **182,884 fusions/sec** (5.47 µs/fusion). |
-| **SearchEngine Pipeline** | 🟢 VERIFIED | End-to-end multi-channel code and memory search executing at **13,425 queries/sec** (74.49 µs/query). |
-| **ContextEngine Evidence Wiring** | 🟢 VERIFIED | Retrieved code symbols and memory facts directly injected into contextual prompt generation with sectional token budget protection. |
-
-### Phase 4A & 4B: Memory Engine & Code Intelligence (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **Multi-Tier Memory Architecture** | 🟢 VERIFIED | In-RAM `WorkingMemory` (zero-allocation state tracking), `SessionMemory` (turn history), and `PersistentMemory` (project rules/conventions). |
-| **Canonical SQLite Store** | 🟢 VERIFIED | Thread-safe SQLite backing store (`memories`, `sessions`, `session_turns`, `consolidated_archives`) achieving **12,309 writes/sec** and **53,958 reads/sec**. |
-| **Deterministic Fact Compaction** | 🟢 VERIFIED | Amendment 5 deterministic extraction (`[fact]`, `[decision]`, `[constraint]`, `KEY: VALUE`) and archival in **2,596.80 µs** without LLM token waste. |
-| **Memory Recall Engine** | 🟢 VERIFIED | Sub-millisecond top-K lexical similarity ranking executing at **10,804 queries/sec** (92.56 µs/query). |
-| **Tree-sitter AST Parser** | 🟢 VERIFIED | Vendored Tree-sitter runtime parsing C++, Python, PHP, and JavaScript into structural chunks (`FUNCTION`, `CLASS`, `METHOD`) at **7,190 files/sec** (139.08 µs/file). |
-| **64-bit FNV-1a Change Tracker** | 🟢 VERIFIED | Ultra-fast file change detection running at **21,206,146 checks/sec** (6,188.47 MB/s) to skip unchanged files during indexing. |
-| **Code Symbol Index** | 🟢 VERIFIED | SQLite-backed `code_symbols` index with end-to-end file parsing, AST chunking, and symbol indexing in **1,119.94 µs**. |
-
-### Phase 3: Native BPE Tokenizer & Context Engine (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **Native Trie BPE Tokenizer** | 🟢 VERIFIED | Exact BPE tokenization/detokenization running at **1,594,094 tokens/sec** encoding and **38,845,617 tokens/sec** decoding. |
-| **Fast Token Counting** | 🟢 VERIFIED | Zero-allocation `count_tokens()` running at **1,759,479 tokens/sec** (replaces crude `chars / 4` heuristics). |
-| **Generation Reserve Invariant** | 🟢 VERIFIED | Strictly preserves $\ge 25\%$ or $\ge 1024$ tokens for model output generation; never consumed by input prompts. |
-| **System Prompt Protection** | 🟢 VERIFIED | Root system instructions and latest user query preserved 100% against truncation. |
-| **Multi-Stage Compressor** | 🟢 VERIFIED | L1 deduplication and L4 chronological sliding window executed in **158.86 µs** (6,295 passes/sec). |
-| **ChatML Context Compiler** | 🟢 VERIFIED | End-to-end prompt compilation and sectional budget verification executed in **558.39 µs** (1,791 requests/sec). |
-
-### Phase 2: Model Lifecycle & Role Manager (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **Vulkan GPU Discovery** | 🟢 VERIFIED | Detects discrete GPU `AMD Radeon R7 M350 (RADV OLAND)` with 2048 MiB dedicated VRAM and 1.3 compute support. |
-| **85% Safety Gate** | 🟢 VERIFIED | Limits VRAM allocation to 1740 MiB; rejects over-budget workloads and triggers CPU/RAM fallback. |
-| **Model Registry & Roles** | 🟢 VERIFIED | Canonical catalog for `ROUTER`, `EMBEDDING`, `FORMATTER`, `GENERAL_REASONER`, `CODER`, `SPEECH_TO_TEXT`, and `IMAGE_GENERATOR`. |
-| **ModelLease RAII** | 🟢 VERIFIED | Lease acquisition increments `active_users`; destruction decrements. Eviction guard strictly blocks `unload()` while in use (3.68M ops/sec). |
-| **Bounded KV Cache** | 🟢 VERIFIED | Evaluated per layer/head; allocates on GPU if under 85% budget, else Host RAM fallback (224 MiB @ FP16, 0.00 ms alloc). |
-| **Safe Error Handling** | 🟢 VERIFIED | Missing or malformed GGUF files yield structured error diagnostics without aborting the process. |
-
-### Phase 1: Pure C++ AVX2 Model Execution Engine (🟢 COMPLETED 2026-09-26)
-
-| Subsystem | Status | Verified Implementation Details |
-|---|:---:|---|
-| **Dynamic ModelConfig** | 🟢 VERIFIED | Removed all hardcoded Qwen dimensions; dynamically parses `intermediate_size`, `head_dim`, and shapes from GGUF. |
-| **Explicit RopeConfig** | 🟢 VERIFIED | Dynamically initializes RoPE base ($100{,}000$ for SmolLM2, $1{,}000{,}000$ for Qwen2.5) and frequency factors. |
-| **AVX2 Math Correctness** | 🟢 VERIFIED | `dot_product_q8_fp32` (rel_err < 1e-5), `rmsnorm`, `rope`, and `swiglu` bitwise verified against scalar references. |
-| **Multi-Model Parity** | 🟢 VERIFIED | Main, Coder, and SmolLM2 run through identical native transformer code paths without segfaults. |
-
 ### Comprehensive System Benchmarks (🟢 EMPIRICALLY VERIFIED 2026-09-26)
 
 Official hardware-level empirical benchmarks recorded on host Intel Core i7-6500U:
@@ -151,6 +63,15 @@ Official hardware-level empirical benchmarks recorded on host Intel Core i7-6500
   Strict 2-thread CPU cap (50% max) and 14 GB RAM ceiling for stable execution on edge laptops.
 - **Phase 8: Multimodal Vision & Speech Processing** — ✅ **COMPLETED**
   Offline speech-to-text with Whisper.cpp and lightweight image generation pipelines.
+
+### Upcoming Release: DenseLite v4.0 (Target: October 2026)
+
+- **DenseLite v4.0 Native UI & Management Dashboard** — 🚀 **IN DESIGN (Delivering October 2026)**
+  Comprehensive visual desktop interface and developer dashboard:
+  - **Real-Time Telemetry & Token Streaming:** Live visualization of AVX2 forward pass throughput, TTFT latency, active KV cache expansion, and SSE chunk output.
+  - **Memory & AST Visual Explorer:** Interactive inspection of canonical SQLite memory, active working sessions, and Tree-sitter AST syntax symbol trees.
+  - **Resource Governance Console:** Visual dials for OpenMP thread allocation, host RAM headroom gauges, and live multi-stage eviction cascade monitors.
+  - **Direct Workspace UI:** Integrated chat canvas, multimodal voice input monitor, and local image generation gallery.
 
 ---
 
