@@ -49,7 +49,7 @@ void SQLiteRouter::seed_default_models() {
 
     // Option 1: Schema Versioning. 
     // We only wipe and update the DB if the C++ version is higher than the DB version.
-    const int CURRENT_SEED_VERSION = 1;
+    const int CURRENT_SEED_VERSION = 2;
 
     // Check current version in DB
     int db_version = 0;
@@ -77,14 +77,13 @@ void SQLiteRouter::seed_default_models() {
     const char* insert_sql = "INSERT INTO provider_models (provider, model_name, model_type, priority) VALUES "
         "('GEMINI', 'gemini-2.5-flash-image', 'image', 1), "
         "('GEMINI', 'gemini-2.5-flash', 'text', 1), "
-        "('GEMINI', 'gemini-1.5-pro', 'text', 2), "
-        "('GROQ', 'llama-3.1-8b-instant', 'text', 1), "
-        "('GROQ', 'llama-3.1-70b-versatile', 'text', 2), "
-        "('NOVITA', 'ling-3.0-flash-fin', 'text', 1), "
-        "('OPENROUTER', 'meta-llama/llama-3-8b-instruct:free', 'text', 1), "
-        "('HUGGINGFACE', 'meta-llama/Meta-Llama-3-8B-Instruct', 'text', 1), "
-        "('MISTRAL', 'open-mistral-nemo', 'text', 1), "
-        "('COHERE', 'command-r', 'text', 1);";
+        "('GROQ', 'openai/gpt-oss-20b', 'text', 1), "
+        "('OPENROUTER', 'liquid/lfm-2.5-2.6b:free', 'text', 1), "
+        "('OPENROUTER', 'inclusionai/ling-3.0-flash-fin:free', 'text', 2), "
+        "('MISTRAL', 'ministral-8b-2512', 'text', 1), "
+        "('MISTRAL', 'open-mistral-nemo', 'text', 2), "
+        "('COHERE', 'command-r-08-2024', 'text', 1), "
+        "('NOVITA', 'zai-org/glm-5.3-flash', 'text', 1);";
 
     char* err_msg = nullptr;
     if (sqlite3_exec(db, insert_sql, 0, 0, &err_msg) != SQLITE_OK) {

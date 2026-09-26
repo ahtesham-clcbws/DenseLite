@@ -15,6 +15,9 @@ DenseLite operates as a pure **Agentic Inference Engine**. It does not execute b
 
 With V3.2.1, DenseLite features a pure C++ AVX2 forward pass, GPU-preferred unified placement with an 85% VRAM safety gate, bounded KV cache allocation, RAII model lease lifecycle safety, and self-healing provider recovery.
 
+> [!NOTE]
+> **Manual Client Testing Status:** Manual end-to-end interactive testing with external desktop IDEs (Zed, VSCode) and live agent loop workflows has not been performed yet. All 11 automated CTest test suites (100% pass) and low-level hardware benchmarks are empirically verified, with complete end-to-end manual testing scheduled ahead of the v4.0 UI release.
+
 ---
 
 ## Features

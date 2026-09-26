@@ -108,10 +108,11 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
         auto res = cli.Post(endpoint.c_str(), headers, payload.dump(), "application/json");
         
         if (!res) {
+            std::cout << "[ModelEngine] Connection failed with error: " << httplib::to_string(res.error()) << std::endl;
             output = "{\"error\": \"Connection failed\"}";
             return 503;
         }
-        
+        std::cout << "[ModelEngine] Cloud response status: " << res->status << std::endl;
         output = res->body;
         return res->status;
     } catch (const std::exception& e) {

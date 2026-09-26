@@ -77,7 +77,8 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     DenseModel* needle = (models.find("needle") != models.end()) ? &models.at("needle") : nullptr;
     RoutingDecision decision = NeedleRouter::analyze_request(parsed_req, needle);
     session.task_type = decision.intent;
-    memory_engine_.working().set_task(session.task_type, user_query);
+    memory_engine_.working().set_objective(session.task_type);
+    memory_engine_.working().set_current_task(user_query);
 
     // 2. SEARCH & CONTEXT COMPILATION
     auto search_hits = search_engine_.search(user_query, session.task_type, 5);
