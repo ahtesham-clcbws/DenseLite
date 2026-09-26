@@ -50,3 +50,23 @@ target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared Ope
 # Add include directory for headers
 target_include_directories(DenseLite PRIVATE src)
 
+# ============================================================================
+# Phase 1 Test Targets
+# ============================================================================
+enable_testing()
+
+add_executable(test_math tests/math_correctness.cpp)
+target_include_directories(test_math PRIVATE src)
+
+add_executable(test_config tests/model_config_tests.cpp src/gguf_parser.cpp)
+target_include_directories(test_config PRIVATE src)
+
+add_executable(test_golden tests/golden_inference_tests.cpp src/infer.cpp src/gguf_parser.cpp)
+target_link_libraries(test_golden PRIVATE OpenMP::OpenMP_CXX)
+target_include_directories(test_golden PRIVATE src)
+
+add_test(NAME MathCorrectness COMMAND test_math)
+add_test(NAME ModelConfigValidation COMMAND test_config)
+add_test(NAME GoldenInference COMMAND test_golden)
+
+

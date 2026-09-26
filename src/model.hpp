@@ -44,16 +44,30 @@ struct Tensor {
     void* data;                  // Aligned pointer (validated to 32-byte boundary)
 };
 
+// Explicit RoPE Configuration struct (Phase 1 / Amendment 2)
+struct RopeConfig {
+    float base = 10000.0f;           // e.g. 10000.0 or 1000000.0
+    float scale = 1.0f;              // default 1.0
+    std::string type = "default";    // "default", "linear", "yarn", etc.
+    float frequency_factor = 0.0f;   // for extended context variants
+    float low_freq_factor = 0.0f;    // YaRN low-frequency cutoff
+    float high_freq_factor = 0.0f;   // YaRN high-frequency cutoff
+};
+
 struct ModelConfig {
-    uint32_t context_length;
-    uint32_t embedding_length;
-    uint32_t num_layers;
-    uint32_t num_heads;
-    uint32_t num_kv_heads;
-    uint32_t head_dim;
-    uint32_t vocab_size;
-    float rms_norm_eps;
-    uint32_t alignment; // Defaults to 32 in GGUF
+    std::string architecture;        // e.g. "qwen2", "llama"
+    uint32_t context_length = 0;
+    uint32_t embedding_length = 0;
+    uint32_t num_layers = 0;
+    uint32_t num_heads = 0;
+    uint32_t num_kv_heads = 0;
+    uint32_t head_dim = 0;
+    uint32_t intermediate_dim = 0;   // Feed-forward hidden dimension (feed_forward_length)
+    uint32_t vocab_size = 0;
+    int eos_token_id = -1;           // Dynamic EOS token ID
+    float rms_norm_eps = 1e-6f;
+    uint32_t alignment = 32;         // Defaults to 32 in GGUF
+    RopeConfig rope;
 };
 
 // Tokenizer Trie Node

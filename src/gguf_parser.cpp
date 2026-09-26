@@ -135,11 +135,23 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
                         curr = curr->children[c].get();
                     }
                     curr->token_id = j;
+                    
+                    // Identify EOS token dynamically
+                    if (t_str == "<|im_end|>" || t_str == "<|endoftext|>" || t_str == "</s>") {
+                        if (out_model.config.eos_token_id == -1 || t_str == "<|im_end|>") {
+                            out_model.config.eos_token_id = (int)j;
+                        }
+                    }
                 } else {
                     skip_value(arr_type);
                 }
             }
             out_model.config.vocab_size = arr_len;
+        } else if (key.find(".eos_token_id") != std::string::npos && (type == 4 || type == 5)) {
+            uint32_t eos_val = 0;
+            std::memcpy(&eos_val, ptr, sizeof(uint32_t));
+            ptr += sizeof(uint32_t);
+            out_model.config.eos_token_id = (int)eos_val;
         } else if (key == "tokenizer.ggml.scores" && type == 9 /* ARRAY */) {
             uint32_t arr_type;
             std::memcpy(&arr_type, ptr, sizeof(arr_type));
@@ -159,11 +171,16 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
                     skip_value(arr_type);
                 }
             }
+        } else if (key == "general.architecture" && type == 8 /* STRING */) {
+            out_model.config.architecture = read_string();
         } else if (key.find(".context_length") != std::string::npos && type == 4 /* UINT32 */) {
             std::memcpy(&out_model.config.context_length, ptr, sizeof(uint32_t));
             ptr += sizeof(uint32_t);
         } else if (key.find(".embedding_length") != std::string::npos && type == 4 /* UINT32 */) {
             std::memcpy(&out_model.config.embedding_length, ptr, sizeof(uint32_t));
+            ptr += sizeof(uint32_t);
+        } else if (key.find(".feed_forward_length") != std::string::npos && type == 4 /* UINT32 */) {
+            std::memcpy(&out_model.config.intermediate_dim, ptr, sizeof(uint32_t));
             ptr += sizeof(uint32_t);
         } else if (key.find(".block_count") != std::string::npos && type == 4 /* UINT32 */) {
             std::memcpy(&out_model.config.num_layers, ptr, sizeof(uint32_t));
@@ -174,6 +191,17 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
         } else if (key.find(".attention.head_count_kv") != std::string::npos && type == 4 /* UINT32 */) {
             std::memcpy(&out_model.config.num_kv_heads, ptr, sizeof(uint32_t));
             ptr += sizeof(uint32_t);
+        } else if ((key.find(".attention.key_length") != std::string::npos || key.find(".rope.dimension_count") != std::string::npos) && type == 4 /* UINT32 */) {
+            std::memcpy(&out_model.config.head_dim, ptr, sizeof(uint32_t));
+            ptr += sizeof(uint32_t);
+        } else if (key.find(".rope.freq_base") != std::string::npos && type == 6 /* FLOAT32 */) {
+            std::memcpy(&out_model.config.rope.base, ptr, sizeof(float));
+            ptr += sizeof(float);
+        } else if (key.find(".rope.scale") != std::string::npos && type == 6 /* FLOAT32 */) {
+            std::memcpy(&out_model.config.rope.scale, ptr, sizeof(float));
+            ptr += sizeof(float);
+        } else if (key.find(".rope.scaling.type") != std::string::npos && type == 8 /* STRING */) {
+            out_model.config.rope.type = read_string();
         } else if (key.find(".attention.layer_norm_rms_epsilon") != std::string::npos && type == 6 /* FLOAT32 */) {
             std::memcpy(&out_model.config.rms_norm_eps, ptr, sizeof(float));
             ptr += sizeof(float);
@@ -183,10 +211,12 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
         }
     }
     
-    
     // Compute derived dims
-    if (out_model.config.num_heads > 0) {
+    if (out_model.config.head_dim == 0 && out_model.config.num_heads > 0) {
         out_model.config.head_dim = out_model.config.embedding_length / out_model.config.num_heads;
+    }
+    if (out_model.config.rope.base == 0.0f) {
+        out_model.config.rope.base = (out_model.config.architecture == "qwen2") ? 1000000.0f : 10000.0f;
     }
     
     // 5. Parse Tensors
@@ -236,6 +266,17 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
         }
         
         t.data = static_cast<uint8_t*>(out_model.mmap_data) + absolute_offset;
+    }
+
+    // Ensure intermediate_dim is derived if missing from metadata
+    if (out_model.config.intermediate_dim == 0) {
+        if (out_model.tensors.count("blk.0.ffn_gate.weight")) {
+            const auto& s = out_model.tensors.at("blk.0.ffn_gate.weight").shape;
+            if (s.size() >= 2) out_model.config.intermediate_dim = s[1];
+        } else if (out_model.tensors.count("blk.0.ffn_down.weight")) {
+            const auto& s = out_model.tensors.at("blk.0.ffn_down.weight").shape;
+            if (s.size() >= 1) out_model.config.intermediate_dim = s[0];
+        }
     }
 
     // Example tensor alignment validation logic:

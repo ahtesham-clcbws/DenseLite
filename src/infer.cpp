@@ -85,12 +85,13 @@ void init_inference_state(const ModelConfig& config, int max_context, InferenceS
     state.v_cache.resize(config.num_layers, std::vector<float>(max_context * config.num_kv_heads * config.head_dim, 0.0f));
     
     state.inv_freq.resize(config.head_dim / 2);
-    float base = 1000000.0f; // Qwen2.5 base
+    float base = (config.rope.base > 0.0f) ? config.rope.base : 10000.0f;
     for (int i = 0; i < (int)config.head_dim; i += 2) {
         state.inv_freq[i / 2] = 1.0f / std::pow(base, (float)i / config.head_dim);
     }
     
-    std::cout << "[Infer] Initializing KV Cache for max context: " << max_context << std::endl;
+    std::cout << "[Infer] Initializing KV Cache for max context: " << max_context 
+              << " | RoPE Base: " << base << " | Intermediate Dim: " << config.intermediate_dim << std::endl;
 }
 
 inline float fp16_to_fp32(uint16_t h) {
@@ -130,11 +131,11 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
     int embd_blocks = config.embedding_length / 32;
     dequantize_q8_row(&embd_data[token_id * embd_blocks], state.x.data(), embd_blocks);
     
-    // Qwen2.5 1.5B specific dims
-    int head_dim = config.head_dim;       // 128
-    int num_kv_features = config.num_kv_heads * head_dim; // 2 * 128 = 256
-    int mlp_hidden_dim = 8960;
-    int kv_groups = config.num_heads / config.num_kv_heads; // 12 / 2 = 6
+    // Model-driven transformer layer dimensions (Level 1: Qwen2/Llama family)
+    int head_dim = config.head_dim;
+    int num_kv_features = config.num_kv_heads * head_dim;
+    int mlp_hidden_dim = config.intermediate_dim;
+    int kv_groups = (config.num_kv_heads > 0) ? (config.num_heads / config.num_kv_heads) : 1;
     
     // Pre-allocate per-token working buffers
     std::vector<float> q(config.embedding_length);
@@ -327,9 +328,7 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
     constexpr int TOP_K = 40;
     std::vector<std::pair<float, int>> candidates(model.config.vocab_size);
     
-    constexpr int QWEN_EOS_TOKEN   = 151643;
-    constexpr int QWEN_IM_START    = 151644;
-    constexpr int QWEN_IM_END      = 151645;
+
 
     
     for (int step = 0; step < max_tokens; ++step) {
@@ -393,8 +392,16 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
             next_token = candidates[sampled_idx].second;
         }
         
-        // Stop on EOS tokens before streaming them
-        if (next_token == QWEN_EOS_TOKEN || next_token == QWEN_IM_END || next_token == QWEN_IM_START) {
+        // Stop on EOS tokens before streaming them (model-driven detection)
+        bool is_eos = (next_token == model.config.eos_token_id);
+        if (!is_eos && next_token >= 0 && next_token < (int)model.vocab.tokens.size()) {
+            const std::string& tok_str = model.vocab.tokens[next_token];
+            if (tok_str == "<|im_end|>" || tok_str == "<|endoftext|>" || tok_str == "</s>" || 
+                tok_str == "<eos>" || tok_str == "<|im_start|>") {
+                is_eos = true;
+            }
+        }
+        if (is_eos) {
             break;
         }
         
