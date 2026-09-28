@@ -116,6 +116,42 @@ target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared Ope
 target_include_directories(DenseLite PRIVATE src src/settings src/databases dependencies/vulkan/include dependencies/tree-sitter/lib/include)
 
 # ============================================================================
+# Native System Tray & Control Plane (DenseLiteTray)
+# ============================================================================
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(AYATANA REQUIRED ayatana-appindicator3-0.1 gtk+-3.0)
+
+add_executable(DenseLiteTray
+    src/tray/main_tray.cpp
+    src/tray/tray_app.cpp
+    src/tray/tray_process.cpp
+    src/tray/tray_server.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
+    src/settings/model_registry_db.cpp
+    src/databases/database_migrator.cpp
+    src/model_inspector.cpp
+)
+target_include_directories(DenseLiteTray PRIVATE 
+    src 
+    src/settings 
+    src/databases 
+    src/tray
+    dependencies
+    ${AYATANA_INCLUDE_DIRS}
+)
+target_compile_definitions(DenseLiteTray PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+target_link_libraries(DenseLiteTray PRIVATE 
+    Threads::Threads 
+    sqlite3 
+    OpenSSL::SSL 
+    OpenSSL::Crypto
+    ${AYATANA_LIBRARIES}
+)
+target_compile_options(DenseLiteTray PRIVATE ${AYATANA_CFLAGS_OTHER})
+
+# ============================================================================
 # Test Targets (Phase 1 & Phase 2)
 # ============================================================================
 enable_testing()

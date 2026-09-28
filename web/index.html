@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DenseLite Control Plane</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <div class="logo-core"></div>
+        </div>
+        <div class="brand-text">
+          <h1>DenseLite</h1>
+          <span class="version-tag">v3.3.0 Control Plane</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="inference">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Inference & Needle
+        </button>
+        <button class="nav-item" data-tab="models">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Models & Roles
+        </button>
+        <button class="nav-item" data-tab="storage">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          Storage & Paths
+        </button>
+        <button class="nav-item" data-tab="server">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5M17 12H3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><circle cx="17" cy="12" r="3"/></svg>
+          Server & Resource
+        </button>
+        <button class="nav-item" data-tab="logs">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+          Live Console
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-summary">
+          <span class="status-dot" id="status-dot"></span>
+          <span class="status-label" id="status-label">STOPPED</span>
+        </div>
+        <div class="metrics-mini" id="metrics-mini">PID: -- | Port: 9501</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Master Control Header Bar -->
+      <header class="top-bar">
+        <div class="engine-banner">
+          <div class="engine-info">
+            <h2 id="engine-title">DenseLite Engine</h2>
+            <p id="engine-subtitle">C++ Edge AI Runtime (AVX2 / 2-Core Optimized)</p>
+          </div>
+          <div class="engine-actions">
+            <button id="btn-start" class="btn btn-primary">
+              <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Engine
+            </button>
+            <button id="btn-stop" class="btn btn-danger" disabled>
+              <svg class="icon" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>
+              Stop Engine
+            </button>
+            <button id="btn-restart" class="btn btn-secondary" disabled>
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              Restart
+            </button>
+          </div>
+        </div>
+
+        <div class="live-telemetry">
+          <div class="telemetry-card">
+            <span class="tel-label">RAM Usage</span>
+            <span class="tel-value" id="tel-ram">0.0 MB</span>
+          </div>
+          <div class="telemetry-card">
+            <span class="tel-label">CPU Load</span>
+            <span class="tel-value" id="tel-cpu">0.0%</span>
+          </div>
+          <div class="telemetry-card">
+            <span class="tel-label">Uptime</span>
+            <span class="tel-value" id="tel-uptime">0s</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Tab 1: Inference & Needle -->
+      <section class="tab-pane active" id="pane-inference">
+        <div class="pane-header">
+          <h3>Inference Routing & Context Controls</h3>
+          <button class="btn btn-save" onclick="saveInferenceSettings()">Save Changes</button>
+        </div>
+        <div class="card-grid">
+          <div class="card">
+            <h4>Needle3 Intent Routing</h4>
+            <p class="card-desc">Control cognitive routing and 0 ms bypass behavior.</p>
+            <div class="form-group">
+              <label for="inf-needle-mode">Needle3 Routing Mode</label>
+              <select id="inf-needle-mode" class="form-control">
+                <option value="hybrid">hybrid (Default - Cognitive Intent Analysis)</option>
+                <option value="deep">deep (Thorough multi-layer intent profiling)</option>
+                <option value="fast">fast (Lexical keyword heuristic)</option>
+                <option value="off">off (0 ms Bypass - Zero CPU Intent Overhead)</option>
+              </select>
+            </div>
+            <div class="form-group toggle-group">
+              <label class="switch">
+                <input type="checkbox" id="inf-tool-dedup">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-text">
+                <strong>Enable Tool Schema Deduplication</strong>
+                <span>Caches client MCP schemas once per session (OpenCode optimization)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4>Dynamic Context Control</h4>
+            <p class="card-desc">Govern dynamic client-only context and internal search RAG.</p>
+            <div class="form-group toggle-group">
+              <label class="switch">
+                <input type="checkbox" id="inf-context-injection">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-text">
+                <strong>Internal Context Injection (RAG & Code Intelligence)</strong>
+                <span>When disabled, DenseLite skips AST indexing and uses strictly client-sent context</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="inf-context-window">Context Window Limit: <span id="val-context-window">65536</span> tokens</label>
+              <input type="range" id="inf-context-window" min="2048" max="65536" step="2048" value="65536" class="form-range" oninput="document.getElementById('val-context-window').innerText = this.value">
+            </div>
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="inf-temperature">Temperature</label>
+                <input type="number" id="inf-temperature" step="0.05" min="0" max="2" value="0.7" class="form-control">
+              </div>
+              <div class="form-group half">
+                <label for="inf-top-p">Top-P</label>
+                <input type="number" id="inf-top-p" step="0.05" min="0" max="1" value="0.9" class="form-control">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Models & Roles -->
+      <section class="tab-pane" id="pane-models">
+        <div class="pane-header">
+          <h3>Local Models & Dynamic Role Assignments</h3>
+          <button class="btn btn-primary" onclick="openRegisterModal()">+ Register Local GGUF</button>
+        </div>
+        <div class="section-block">
+          <h4>Active Role Assignments</h4>
+          <p class="card-desc">Strictly at most one model active per role. A single model can serve multiple roles via in-memory weight deduplication.</p>
+          <div class="roles-grid" id="roles-container">
+            <!-- Dynamic Role Cards -->
+          </div>
+        </div>
+        <div class="section-block">
+          <h4>Registered Local Models</h4>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Model ID</th>
+                  <th>Architecture</th>
+                  <th>Parameters</th>
+                  <th>Quantization</th>
+                  <th>Context</th>
+                  <th>Edge Budget</th>
+                  <th>File Path</th>
+                </tr>
+              </thead>
+              <tbody id="models-table-body">
+                <tr><td colspan="7" class="text-center">Loading registered models...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Storage & Paths -->
+      <section class="tab-pane" id="pane-storage">
+        <div class="pane-header">
+          <h3>Dynamic Storage & User Paths</h3>
+          <button class="btn btn-save" onclick="saveStorageSettings()">Save Paths</button>
+        </div>
+        <div class="card">
+          <p class="card-desc">All paths support POSIX tilde (~) expansion and resolve dynamically from database settings.</p>
+          <div class="form-group">
+            <label for="st-models-dir">Models Directory</label>
+            <input type="text" id="st-models-dir" class="form-control font-mono" placeholder="~/.denselite/models">
+          </div>
+          <div class="form-group">
+            <label for="st-data-dir">User Data Directory (Databases)</label>
+            <input type="text" id="st-data-dir" class="form-control font-mono" placeholder="~/.denselite/data">
+          </div>
+          <div class="form-group">
+            <label for="st-kv-dir">KV Cache Directory</label>
+            <input type="text" id="st-kv-dir" class="form-control font-mono" placeholder="~/.denselite/kv_cache">
+          </div>
+          <div class="form-group">
+            <label for="st-logs-dir">Logs Directory</label>
+            <input type="text" id="st-logs-dir" class="form-control font-mono" placeholder="~/.denselite/logs">
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 4: Server & Hardware -->
+      <section class="tab-pane" id="pane-server">
+        <div class="pane-header">
+          <h3>Server Gateway & Resource Governance</h3>
+          <button class="btn btn-save" onclick="saveServerSettings()">Save Configuration</button>
+        </div>
+        <div class="card-grid">
+          <div class="card">
+            <h4>HTTP Gateway</h4>
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="srv-host">Host</label>
+                <input type="text" id="srv-host" class="form-control font-mono" value="0.0.0.0">
+              </div>
+              <div class="form-group half">
+                <label for="srv-port">Port</label>
+                <input type="number" id="srv-port" class="form-control font-mono" value="9501">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="srv-threads">OpenMP Threads</label>
+                <input type="number" id="srv-threads" class="form-control" value="4">
+              </div>
+              <div class="form-group half">
+                <label for="srv-max-payload">Max Payload (MB)</label>
+                <input type="number" id="srv-max-payload" class="form-control" value="32">
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4>Resource Governor Limits</h4>
+            <div class="form-group">
+              <label for="res-ram-budget">RAM Budget (% of total memory): <span id="val-ram-budget">45%</span></label>
+              <input type="range" id="res-ram-budget" min="10" max="90" step="5" value="45" class="form-range" oninput="document.getElementById('val-ram-budget').innerText = this.value + '%'">
+            </div>
+            <div class="form-group toggle-group">
+              <label class="switch">
+                <input type="checkbox" id="res-enable-gpu">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-text">
+                <strong>Enable GPU Acceleration (if supported)</strong>
+                <span>Falls back to AVX2 CPU execution gracefully</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="res-vram-budget">VRAM Budget (MB)</label>
+              <input type="number" id="res-vram-budget" class="form-control" value="2048">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Live Console -->
+      <section class="tab-pane" id="pane-logs">
+        <div class="pane-header">
+          <h3>Real-time Engine Logs</h3>
+          <div class="log-controls">
+            <button class="btn btn-secondary" onclick="clearLogs()">Clear Screen</button>
+            <label class="log-autoscroll">
+              <input type="checkbox" id="log-autoscroll" checked> Auto-scroll
+            </label>
+          </div>
+        </div>
+        <div class="console-box" id="console-output">
+          <div class="log-entry log-info">[System] Connecting to DenseLite live console...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Register Model Modal -->
+  <div class="modal-overlay" id="modal-register">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h4>Register Local GGUF Model</h4>
+        <button class="btn-close" onclick="closeRegisterModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="reg-filepath">GGUF File Path</label>
+          <div class="input-with-button">
+            <input type="text" id="reg-filepath" class="form-control font-mono" placeholder="~/models/qwen2.5-coder-1.5b.gguf">
+            <button class="btn btn-secondary" onclick="inspectGguf()">Inspect</button>
+          </div>
+        </div>
+        <div id="inspect-result" class="inspect-box hidden"></div>
+        <div class="form-group">
+          <label for="reg-model-id">Model ID (Unique Identifier)</label>
+          <input type="text" id="reg-model-id" class="form-control font-mono" placeholder="qwen25_coder">
+        </div>
+        <div class="form-group">
+          <label>Assign to Roles (Select one or more)</label>
+          <div class="roles-checklist">
+            <label><input type="checkbox" name="reg-roles" value="general"> general</label>
+            <label><input type="checkbox" name="reg-roles" value="coder"> coder</label>
+            <label><input type="checkbox" name="reg-roles" value="compressor"> compressor</label>
+            <label><input type="checkbox" name="reg-roles" value="embedding"> embedding</label>
+            <label><input type="checkbox" name="reg-roles" value="audio_stt"> audio_stt</label>
+            <label><input type="checkbox" name="reg-roles" value="vision_sd"> vision_sd</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRegisterModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitRegisterModel()">Register & Bind</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+  <script src="app.js"></script>
+</body>
+</html>

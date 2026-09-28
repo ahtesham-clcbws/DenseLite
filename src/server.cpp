@@ -27,6 +27,13 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    if (argc > 1 && std::string(argv[1]) == "--tray") {
+        std::string tray_bin = base_dir + "/build/DenseLiteTray";
+        char* const args[] = { const_cast<char*>(tray_bin.c_str()), nullptr };
+        execv(tray_bin.c_str(), args);
+        return 0;
+    }
+
     if (ModelCli::handle_cli(argc, argv, base_dir)) {
         return 0;
     }

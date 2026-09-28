@@ -119,17 +119,12 @@ done
 
 
 # 3. Check if able to run properly (Compile if needed)
-if [ ! -f "build/DenseLite" ]; then
-    echo "[!] Compiled binary not found in build/DenseLite. Starting build process..." | tee -a "$LOG_FILE"
-    mkdir -p build && cd build
-    echo "--> Running CMake..." | tee -a "../$LOG_FILE"
-    cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .. >> "../$LOG_FILE" 2>&1
+if [ ! -f "build/DenseLite" ] || [ ! -f "build/DenseLiteTray" ]; then
+    echo "[!] Compiled binaries not found. Starting build process..." | tee -a "$LOG_FILE"
+    cmake -B build -S . >> "$LOG_FILE" 2>&1
+    cmake --build build -j$(nproc) >> "$LOG_FILE" 2>&1
     
-    echo "--> Compiling with make..." | tee -a "../$LOG_FILE"
-    make -j$(nproc) DenseLite >> "../$LOG_FILE" 2>&1
-    cd ..
-    
-    if [ ! -f "build/DenseLite" ]; then
+    if [ ! -f "build/DenseLite" ] || [ ! -f "build/DenseLiteTray" ]; then
         echo "[!] Compilation failed. Please check $LOG_FILE for details." | tee -a "$LOG_FILE"
         exit 1
     fi
@@ -146,16 +141,11 @@ if [ -f "$LOG_FILE" ]; then
     mv "${LOG_FILE}.tmp" "$LOG_FILE"
 fi
 
-# 5. Run the engine and pipe output to the log
-if lsof -i :9501 >/dev/null 2>&1; then
-    echo "[!] Port 9501 is currently occupied. Cleaning up existing instance..." | tee -a "$LOG_FILE"
-    pkill -9 -f "./build/DenseLite" 2>/dev/null || true
-    sleep 1
-fi
-
-echo "[+] Starting DenseLite engine..." | tee -a "$LOG_FILE"
-echo "    API will be available at http://localhost:9501" | tee -a "$LOG_FILE"
+# 5. Launch the System Tray Supervisor (Inference engine remains idle until commanded)
+echo "[+] Starting DenseLite System Tray & Control Plane..." | tee -a "$LOG_FILE"
+echo "    Control Plane: http://127.0.0.1:9500" | tee -a "$LOG_FILE"
+echo "    (Inference engine remains IDLE until started from Settings Panel or Tray)" | tee -a "$LOG_FILE"
 echo "--------------------------------------" >> "$LOG_FILE"
 
-# Execute the binary, piping stderr and stdout to tee for dual-output (console + limited log file)
-cd build && ./DenseLite 2>&1 | tee -a "../$LOG_FILE"
+# Execute the native Tray supervisor in foreground
+./build/DenseLiteTray
