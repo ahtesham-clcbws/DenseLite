@@ -35,21 +35,26 @@ function renderStatus(s) {
   const portEl = document.getElementById("dash-port");
   const uptimeEl = document.getElementById("dash-uptime");
 
+  const isRunning = Boolean(s && s.running);
   if (badge) {
-    badge.className = `status-pill ${s.running ? "pill-running" : "pill-stopped"}`;
-    badge.textContent = s.running ? "ACTIVE / RUNNING" : "STOPPED";
+    badge.className = `status-pill ${isRunning ? "pill-running" : "pill-stopped"}`;
+    badge.textContent = isRunning ? "ACTIVE / RUNNING" : "STOPPED";
   }
-  if (pidEl) pidEl.textContent = s.running ? s.pid : "--";
-  if (portEl) portEl.textContent = s.port || 9501;
-  if (uptimeEl) uptimeEl.textContent = formatUptime(s.uptime_seconds || 0);
+  if (pidEl) pidEl.textContent = isRunning && s.pid > 0 ? s.pid : "--";
+  if (portEl) portEl.textContent = (s && s.port) || 9501;
+  if (uptimeEl) uptimeEl.textContent = formatUptime((s && s.uptime_seconds) || 0);
 }
 
 function renderModelsOverview(data) {
   const container = document.getElementById("dash-models-matrix");
-  if (!container || !data.roles) return;
+  if (!container) return;
 
-  const roles = data.roles || [];
-  const models = data.models || [];
+  const roles = (data && data.roles) || [];
+  const models = (data && data.models) || [];
+  if (roles.length === 0) {
+    container.innerHTML = `<div style="color:var(--text-dim);grid-column:1/-1;padding:12px">No model roles configured.</div>`;
+    return;
+  }
 
   container.innerHTML = roles.map(r => {
     const m = models.find(mod => mod.model_id === r.model_id);
@@ -71,6 +76,7 @@ function renderModelsOverview(data) {
 }
 
 function renderSettingsOverview(cfg) {
+  if (!cfg) return;
   const needleMode = document.getElementById("dash-needle-mode");
   const ramBudget = document.getElementById("dash-ram-budget");
   const ctxWindow = document.getElementById("dash-ctx-window");
@@ -87,7 +93,8 @@ export async function pingEngine() {
     const t0 = performance.now();
     const res = await apiGet("/api/status");
     const latency = Math.round(performance.now() - t0);
-    showToast(`Control Plane Ping: ${latency}ms (Engine: ${res.running ? "Online" : "Idle"})`, "success");
+    const isRun = res && res.running;
+    showToast(`DenseLite Engine: ${isRun ? "RUNNING (PID " + res.pid + ")" : "STOPPED"} · ${latency}ms latency`, isRun ? "success" : "info");
   } catch (e) {
     showToast("Ping failed: Control plane unresponsive", "error");
   }

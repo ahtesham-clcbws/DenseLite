@@ -12,7 +12,11 @@ export function initRouter(onTabChange) {
       e.preventDefault();
       const tab = link.dataset.tab;
       if (tab) {
-        window.location.hash = `#/${tab}`;
+        if (window.location.hash === `#/${tab}`) {
+          handleRouteChange(onTabChange);
+        } else {
+          window.location.hash = `#/${tab}`;
+        }
         closeDrawer();
       }
     });

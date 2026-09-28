@@ -25,7 +25,7 @@ static std::string read_file_content(const std::string& path) {
 }
 
 void TrayServer::register_routes(httplib::Server& svr, const std::string& base_dir) {
-    svr.set_default_headers({{"Access-Control-Allow-Origin", "*"}, {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"}, {"Access-Control-Allow-Headers", "Content-Type"}});
+    svr.set_default_headers({{"Access-Control-Allow-Origin", "*"}, {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"}, {"Access-Control-Allow-Headers", "Content-Type"}, {"Cache-Control", "no-cache, no-store, must-revalidate"}});
     svr.set_mount_point("/", (base_dir + "/web").c_str());
     svr.Get("/favicon.ico", [base_dir](const auto&, auto& res) {
         res.set_content(read_file_content(base_dir + "/web/icon.svg"), "image/svg+xml");

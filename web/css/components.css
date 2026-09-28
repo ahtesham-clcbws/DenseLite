@@ -108,7 +108,7 @@ input:checked + .slider:before { transform: translateX(18px); }
   backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center;
 }
 .modal-overlay.active { display: flex; animation: fadeIn 0.15s ease-out; }
-.modal-dialog { background: #111726; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; width: 540px; max-width: 90vw; max-height: 90vh; overflow-y: auto; }
+.modal-dialog, .modal-card { background: #111726; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; width: 540px; max-width: 90vw; max-height: 90vh; overflow-y: auto; }
 .modal-header { padding: 18px 24px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; }
 .modal-body { padding: 24px; }
 .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end; gap: 10px; }

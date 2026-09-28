@@ -427,7 +427,7 @@
             <p class="card-desc">Restores all DenseLite settings (server, resource, inference, logging, storage) back to the official database migration defaults. All changes take effect live instantly across both processes.</p>
           </div>
           <div style="margin-top:14px">
-            <button id="btn-open-reset-modal" class="btn btn-danger-solid">
+            <button id="btn-open-reset-modal" class="btn btn-danger-solid" onclick="openResetModal()">
               <svg class="icon" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               Reset DenseLite to Factory Defaults
             </button>
@@ -503,7 +503,7 @@
 
   <!-- Register Model Modal -->
   <div class="modal-overlay" id="modal-register">
-    <div class="modal-card">
+    <div class="modal-dialog">
       <div class="modal-header">
         <h4>Register Local GGUF Model</h4>
         <button class="btn-close" onclick="closeRegisterModal()">&times;</button>
@@ -542,10 +542,10 @@
 
   <!-- Factory Reset Confirmation Modal -->
   <div class="modal-overlay" id="modal-reset-confirm">
-    <div class="modal-card">
+    <div class="modal-dialog">
       <div class="modal-header">
         <h4 style="color:#f87171">Confirm Factory Reset</h4>
-        <button class="btn-close" id="btn-cancel-reset">&times;</button>
+        <button class="btn-close btn-cancel-reset" onclick="closeResetModal()">&times;</button>
       </div>
       <div class="modal-body">
         <p style="margin-bottom:12px; line-height:1.5">
@@ -562,8 +562,8 @@
         </p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" id="btn-cancel-reset">Cancel</button>
-        <button class="btn btn-danger-solid" id="btn-confirm-reset">Yes, Reset to Defaults</button>
+        <button class="btn btn-secondary btn-cancel-reset" onclick="closeResetModal()">Cancel</button>
+        <button class="btn btn-danger-solid" id="btn-confirm-reset" onclick="confirmReset()">Yes, Reset to Defaults</button>
       </div>
     </div>
   </div>

@@ -3,25 +3,27 @@
 import { apiPost, apiGet } from "../api.js";
 import { showToast } from "../toast.js";
 
-export function initSystemPane() {
-  // Setup reset modal handlers
-  const openBtn = document.getElementById("btn-open-reset-modal");
-  const cancelBtn = document.getElementById("btn-cancel-reset");
-  const confirmBtn = document.getElementById("btn-confirm-reset");
-  const modal = document.getElementById("modal-reset-confirm");
+export function openResetModal() {
+  document.getElementById("modal-reset-confirm")?.classList.add("active");
+}
 
-  if (openBtn && modal) {
-    openBtn.addEventListener("click", () => modal.classList.add("active"));
-  }
-  if (cancelBtn && modal) {
-    cancelBtn.addEventListener("click", () => modal.classList.remove("active"));
-  }
-  if (confirmBtn && modal) {
-    confirmBtn.addEventListener("click", async () => {
-      modal.classList.remove("active");
-      await executeFactoryReset();
-    });
-  }
+export function closeResetModal() {
+  document.getElementById("modal-reset-confirm")?.classList.remove("active");
+}
+
+export async function confirmReset() {
+  closeResetModal();
+  await executeFactoryReset();
+}
+
+export function initSystemPane() {
+  const openBtn = document.getElementById("btn-open-reset-modal");
+  const cancelBtns = document.querySelectorAll(".btn-cancel-reset");
+  const confirmBtn = document.getElementById("btn-confirm-reset");
+
+  if (openBtn) openBtn.addEventListener("click", openResetModal);
+  cancelBtns.forEach(btn => btn.addEventListener("click", closeResetModal));
+  if (confirmBtn) confirmBtn.addEventListener("click", confirmReset);
 }
 
 export async function executeFactoryReset() {

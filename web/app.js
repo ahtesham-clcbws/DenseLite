@@ -10,7 +10,7 @@ import { initInferenceForm, saveInferenceSettings } from "./js/panes/inference.j
 import { fetchModels, openRegisterModal, closeRegisterModal, inspectGguf, submitRegisterModel } from "./js/panes/models.js";
 import { initStorageForm, saveStorageSettings } from "./js/panes/storage.js";
 import { initServerForm, saveServerSettings } from "./js/panes/server.js";
-import { initSystemPane, executeFactoryReset, purgeKvCache, vacuumDatabases } from "./js/panes/system.js";
+import { initSystemPane, executeFactoryReset, openResetModal, closeResetModal, confirmReset, purgeKvCache, vacuumDatabases } from "./js/panes/system.js";
 import { startLogsPolling, clearLogs } from "./js/panes/logs.js";
 
 // Expose handlers to window for inline HTML onclick attributes
@@ -20,6 +20,9 @@ Object.assign(window, {
   saveInferenceSettings,
   saveStorageSettings,
   saveServerSettings,
+  openResetModal,
+  closeResetModal,
+  confirmReset,
   executeFactoryReset,
   purgeKvCache,
   vacuumDatabases,
@@ -31,7 +34,7 @@ Object.assign(window, {
   loadAllSettings
 });
 
-document.addEventListener("DOMContentLoaded", async () => {
+function boot() {
   initRouter((activeTab) => {
     if (activeTab === "dashboard") refreshDashboard();
     else if (activeTab === "models") fetchModels();
@@ -48,7 +51,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initial data loading
   fetchModels();
   loadAllSettings();
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", boot);
+} else {
+  boot();
+}
 
 export async function loadAllSettings() {
   try {
