@@ -11,6 +11,7 @@
 #include "CompletionPolicy.hpp"
 #include "SessionToolRegistry.hpp"
 #include "SessionKVCache.hpp"
+#include "database_paths.hpp"
 #include <iostream>
 #include <chrono>
 #include <mutex>
@@ -20,14 +21,14 @@
 static std::mutex engine_mutex;
 static std::map<std::string, InferenceSession> active_sessions;
 
-DenseLiteEngine::DenseLiteEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router)
+DenseLiteEngine::DenseLiteEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router, const std::string& base_dir)
     : models(resident_models), router(router), context_engine_(&tokenizer_registry_),
       search_engine_(&code_indexer_, &memory_engine_) {
     for (const auto& pair : models) {
         tokenizer_registry_.register_tokenizer(pair.first, &pair.second.vocab, pair.second.config.eos_token_id);
     }
-    memory_engine_.init("denselite_memory.db");
-    code_indexer_.init("denselite_symbols.db");
+    memory_engine_.init(DatabasePaths::memory_db(base_dir));
+    code_indexer_.init(DatabasePaths::symbols_db(base_dir));
 }
 
 InferenceSession DenseLiteEngine::get_or_create_session(const std::string& session_id) {

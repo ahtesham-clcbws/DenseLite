@@ -28,7 +28,7 @@ struct InferenceSession {
 
 class DenseLiteEngine {
 public:
-    DenseLiteEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router);
+    DenseLiteEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router, const std::string& base_dir = ".");
     
     // Process the incoming generation request
     void process(const std::string& request_body, httplib::Response& res);

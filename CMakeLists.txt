@@ -68,6 +68,10 @@ add_executable(DenseLite
     src/multimodal_engine.cpp
     src/SessionToolRegistry.cpp
     src/SessionKVCache.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
+    src/databases/database_migrator.cpp
 )
 
 # Tree-sitter Core Runtime & Multi-Language Grammars
@@ -106,7 +110,7 @@ target_compile_definitions(DenseLite PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto vulkan treesitter_static)
 
 # Add include directory for headers
-target_include_directories(DenseLite PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
+target_include_directories(DenseLite PRIVATE src src/settings src/databases dependencies/vulkan/include dependencies/tree-sitter/lib/include)
 
 # ============================================================================
 # Test Targets (Phase 1 & Phase 2)
@@ -300,6 +304,15 @@ add_executable(test_session_kv tests/session_kv_tests.cpp
 target_link_libraries(test_session_kv PRIVATE Threads::Threads OpenMP::OpenMP_CXX)
 target_include_directories(test_session_kv PRIVATE src)
 add_test(NAME SessionKVCache COMMAND test_session_kv)
+
+add_executable(test_settings tests/settings_tests.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
+)
+target_link_libraries(test_settings PRIVATE Threads::Threads sqlite3)
+target_include_directories(test_settings PRIVATE src src/settings src/databases)
+add_test(NAME SettingsEngine COMMAND test_settings)
 
 
 

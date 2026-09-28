@@ -136,6 +136,10 @@ if [ ! -f "build/DenseLite" ]; then
     echo "[+] Build successful." | tee -a "$LOG_FILE"
 fi
 
+# Pre-flight Database Verification & Self-Healing Bootstrap
+echo "[i] Verifying SQLite databases and WAL configuration..." | tee -a "$LOG_FILE"
+./build/DenseLite --init-db >> "$LOG_FILE" 2>&1
+
 # 4. Limit log size (keep last N lines to prevent indefinite growth)
 if [ -f "$LOG_FILE" ]; then
     tail -n $MAX_LOG_LINES "$LOG_FILE" > "${LOG_FILE}.tmp"

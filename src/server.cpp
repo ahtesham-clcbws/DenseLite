@@ -3,6 +3,9 @@
 #include "DenseLiteEngine.hpp"
 #include "HardwareManager.hpp"
 #include "ModelLoader.hpp"
+#include "database_migrator.hpp"
+#include "database_paths.hpp"
+#include "settings_manager.hpp"
 #include <mutex>
 #include <csignal>
 #include <iostream>
@@ -17,12 +20,20 @@ int main(int argc, char** argv) {
     // Resolve the DenseLite base directory dynamically (assumes executable is in build/)
     std::string base_dir = std::filesystem::read_symlink("/proc/self/exe").parent_path().parent_path().string();
 
-    auto env = ModelLoader::load_env(base_dir + "/.env");
-    std::string version = env.count("DENSELITE_VERSION") ? env["DENSELITE_VERSION"] : "Unknown";
+    // Zero-Touch Self-Healing Database Bootstrapper
+    DatabaseMigrator::ensure_all_databases_ready(base_dir);
+    if (argc > 1 && (std::string(argv[1]) == "--init-db" || std::string(argv[1]) == "--migrate")) {
+        std::cout << "[DenseLite] All databases verified and migrated successfully." << std::endl;
+        return 0;
+    }
+
+    SettingsManager::instance().init(DatabasePaths::settings_db(base_dir));
+    std::string version = SettingsManager::instance().get_version();
     
     std::cout << "Starting DenseLite Gateway (V" << version << ")..." << std::endl;
     HardwareManager::enforce_limits();
     
+    auto env = ModelLoader::load_env(base_dir + "/.env");
     std::map<std::string, DenseModel> resident_models;
     ModelLoader::load_resident_models(base_dir, env, resident_models);
     
@@ -37,10 +48,10 @@ int main(int argc, char** argv) {
         if (svr_ptr) svr_ptr->stop();
     });
     
-    SQLiteRouter router(base_dir + "/denselite_state.db");
+    SQLiteRouter router(DatabasePaths::state_db(base_dir));
     router.load_env(base_dir + "/.env");
 
-    DenseLiteEngine engine(resident_models, router);
+    DenseLiteEngine engine(resident_models, router, base_dir);
 
     svr.Post("/v1/chat/completions", [&](const httplib::Request& req, httplib::Response& res) {
         std::cout << "[Gateway] Received request (" << req.body.size() << " bytes)" << std::endl;
