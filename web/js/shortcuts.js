@@ -30,9 +30,9 @@ export function initShortcuts() {
       return;
     }
 
-    // 1-5 Number Keys: Quick tab switching when not in text input
+    // 1-7 Number Keys: Quick tab switching when not in text input
     if (!isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      const keyMap = { "1": "inference", "2": "models", "3": "storage", "4": "server", "5": "logs" };
+      const keyMap = { "1": "dashboard", "2": "inference", "3": "models", "4": "storage", "5": "server", "6": "system", "7": "logs" };
       if (keyMap[e.key]) {
         e.preventDefault();
         window.location.hash = `#/${keyMap[e.key]}`;

@@ -5,6 +5,7 @@
 #include "model_inspector.hpp"
 #include "model_discovery.hpp"
 #include "database_paths.hpp"
+#include "database_migrator.hpp"
 #include "path_service.hpp"
 #include "../dependencies/json.hpp"
 #include <fstream>
@@ -156,42 +157,39 @@ void TrayServer::register_routes(httplib::Server& svr, const std::string& base_d
         }
     });
 
-    svr.Post("/api/roles/bind", [base_dir](const httplib::Request& req, httplib::Response& res) {
-        auto body = json::parse(req.body);
-        std::string db_path = DatabasePaths::settings_db(base_dir);
-        bool ok = ModelRegistryDB::bind_role(db_path, body.value("role", ""), body.value("model_id", ""), true);
-        res.set_content(json({{"success", ok}}).dump(), "application/json");
+    svr.Post("/api/roles/bind", [base_dir](const auto& req, auto& res) {
+        auto b = json::parse(req.body); std::string db = DatabasePaths::settings_db(base_dir);
+        res.set_content(json({{"success", ModelRegistryDB::bind_role(db, b.value("role", ""), b.value("model_id", ""), true)}}).dump(), "application/json");
     });
-
-    svr.Post("/api/roles/toggle", [base_dir](const httplib::Request& req, httplib::Response& res) {
-        auto body = json::parse(req.body);
-        std::string db_path = DatabasePaths::settings_db(base_dir);
-        bool ok = ModelRegistryDB::set_role_active(db_path, body.value("role", ""), body.value("activate", true));
-        res.set_content(json({{"success", ok}}).dump(), "application/json");
+    svr.Post("/api/roles/toggle", [base_dir](const auto& req, auto& res) {
+        auto b = json::parse(req.body); std::string db = DatabasePaths::settings_db(base_dir);
+        res.set_content(json({{"success", ModelRegistryDB::set_role_active(db, b.value("role", ""), b.value("activate", true))}}).dump(), "application/json");
     });
-
-    svr.Get("/api/logs/tail", [base_dir](const httplib::Request&, httplib::Response& res) {
-        auto lines = TrayProcess::instance().get_recent_logs(base_dir, 150);
-        res.set_content(json({{"lines", lines}}).dump(), "application/json");
+    svr.Post("/api/settings/reset", [base_dir](const auto&, auto& res) {
+        bool ok = DatabaseMigrator::reset_settings_to_defaults(base_dir);
+        if (ok) SettingsManager::instance().reload();
+        res.set_content(json({{"success", ok}, {"message", ok ? "Settings reset to defaults" : "Failed to reset"}}).dump(), "application/json");
+    });
+    svr.Post("/api/system/purge-cache", [base_dir](const auto&, auto& res) {
+        res.set_content(json({{"success", DatabaseMigrator::purge_kv_cache(base_dir)}}).dump(), "application/json");
+    });
+    svr.Post("/api/system/vacuum", [base_dir](const auto&, auto& res) {
+        res.set_content(json({{"success", DatabaseMigrator::vacuum_databases(base_dir)}}).dump(), "application/json");
+    });
+    svr.Get("/api/logs/tail", [base_dir](const auto&, auto& res) {
+        res.set_content(json({{"lines", TrayProcess::instance().get_recent_logs(base_dir, 150)}}).dump(), "application/json");
     });
 }
 
 bool TrayServer::start(const std::string& base_dir, int port) {
-    base_dir_ = base_dir;
-    port_ = port;
-    server_ = std::make_unique<httplib::Server>();
+    base_dir_ = base_dir; port_ = port; server_ = std::make_unique<httplib::Server>();
     register_routes(*server_, base_dir_);
-
-    thread_ = std::make_unique<std::thread>([this]() {
-        std::cout << "[TrayServer] Control plane listening at http://127.0.0.1:" << port_ << std::endl;
-        server_->listen("127.0.0.1", port_);
-    });
+    thread_ = std::make_unique<std::thread>([this]() { server_->listen("127.0.0.1", port_); });
     return true;
 }
 
 void TrayServer::stop() {
     if (server_) server_->stop();
     if (thread_ && thread_->joinable()) thread_->join();
-    server_.reset();
-    thread_.reset();
+    server_.reset(); thread_.reset();
 }

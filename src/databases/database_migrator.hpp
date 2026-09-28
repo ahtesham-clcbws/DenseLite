@@ -21,6 +21,11 @@ public:
     static bool bootstrap_memory_db(const std::string& db_path, DatabaseStatus& status);
     static bool bootstrap_symbols_db(const std::string& db_path, DatabaseStatus& status);
 
+    // Maintenance & Factory Reset Operations
+    static bool reset_settings_to_defaults(const std::string& base_dir);
+    static bool purge_kv_cache(const std::string& base_dir);
+    static bool vacuum_databases(const std::string& base_dir);
+
 private:
     static bool execute_sql(const std::string& db_path, const char* sql, std::string& out_journal);
 };

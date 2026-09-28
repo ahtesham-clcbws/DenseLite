@@ -2,7 +2,7 @@
 
 import { closeDrawer } from "./drawer.js";
 
-export const VALID_TABS = ["inference", "models", "storage", "server", "logs"];
+export const VALID_TABS = ["dashboard", "inference", "models", "storage", "server", "system", "logs"];
 
 export function initRouter(onTabChange) {
   window.addEventListener("hashchange", () => handleRouteChange(onTabChange));
@@ -23,7 +23,7 @@ export function initRouter(onTabChange) {
 
 export function handleRouteChange(onTabChange) {
   const hash = window.location.hash.replace(/^#\/?/, "");
-  const activeTab = VALID_TABS.includes(hash) ? hash : "inference";
+  const activeTab = VALID_TABS.includes(hash) ? hash : "dashboard";
 
   document.querySelectorAll(".nav-item").forEach(b => {
     b.classList.toggle("active", b.dataset.tab === activeTab);
@@ -43,5 +43,5 @@ export function handleRouteChange(onTabChange) {
 
 export function getActiveTab() {
   const hash = window.location.hash.replace(/^#\/?/, "");
-  return VALID_TABS.includes(hash) ? hash : "inference";
+  return VALID_TABS.includes(hash) ? hash : "dashboard";
 }

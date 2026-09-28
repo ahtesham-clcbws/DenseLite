@@ -159,3 +159,40 @@ bool DatabaseMigrator::ensure_all_databases_ready(const std::string& base_dir, b
     }
     return ok;
 }
+
+bool DatabaseMigrator::reset_settings_to_defaults(const std::string& base_dir) {
+    std::string db_path = DatabasePaths::settings_db(base_dir);
+    const char* sql =
+        "DELETE FROM system_settings;"
+        "INSERT INTO system_settings (module, key, value, val_type, updated_at) VALUES "
+        "('server', 'host', '0.0.0.0', 'string', 1700000000000), ('server', 'port', '9501', 'int', 1700000000000),"
+        "('server', 'threads', '4', 'int', 1700000000000), ('server', 'max_payload_mb', '32', 'int', 1700000000000),"
+        "('resource', 'ram_budget_percent', '0.45', 'float', 1700000000000), ('resource', 'max_kv_tokens', '65536', 'int', 1700000000000),"
+        "('resource', 'enable_gpu', 'true', 'bool', 1700000000000), ('resource', 'vram_budget_mb', '2048', 'int', 1700000000000),"
+        "('inference', 'default_temperature', '0.7', 'float', 1700000000000), ('inference', 'default_top_p', '0.9', 'float', 1700000000000),"
+        "('inference', 'needle3_mode', 'hybrid', 'string', 1700000000000), ('inference', 'enable_tool_dedup', 'true', 'bool', 1700000000000),"
+        "('inference', 'context_window', '65536', 'int', 1700000000000), ('inference', 'enable_context_injection', 'true', 'bool', 1700000000000),"
+        "('logging', 'level', 'INFO', 'string', 1700000000000), ('logging', 'enable_file_logging', 'true', 'bool', 1700000000000),"
+        "('logging', 'enable_console', 'true', 'bool', 1700000000000), ('logging', 'log_path', 'denselite.log', 'string', 1700000000000),"
+        "('storage', 'models_dir', '~/.denselite/models', 'string', 1700000000000), ('storage', 'data_dir', '~/.denselite/data', 'string', 1700000000000),"
+        "('storage', 'kv_cache_dir', '~/.denselite/kv_cache', 'string', 1700000000000), ('storage', 'logs_dir', '~/.denselite/logs', 'string', 1700000000000);";
+    std::string jm;
+    return execute_sql(db_path, sql, jm);
+}
+
+bool DatabaseMigrator::purge_kv_cache(const std::string&) {
+    std::string kv_dir = PathService::instance().get_kv_cache_dir();
+    std::error_code ec;
+    if (std::filesystem::exists(kv_dir, ec)) {
+        for (const auto& e : std::filesystem::directory_iterator(kv_dir, ec)) std::filesystem::remove_all(e.path(), ec);
+    }
+    return true;
+}
+
+bool DatabaseMigrator::vacuum_databases(const std::string& base_dir) {
+    std::string jm;
+    bool ok = execute_sql(DatabasePaths::settings_db(base_dir), "VACUUM; PRAGMA optimize;", jm);
+    ok &= execute_sql(DatabasePaths::memory_db(base_dir), "VACUUM; PRAGMA optimize;", jm);
+    ok &= execute_sql(DatabasePaths::symbols_db(base_dir), "VACUUM; PRAGMA optimize;", jm);
+    return ok;
+}

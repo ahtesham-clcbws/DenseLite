@@ -30,30 +30,40 @@
       </div>
 
       <nav class="nav-menu">
-        <a href="#/inference" class="nav-item active" data-tab="inference" title="Inference Settings (Key: 1)">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          <span class="nav-text">Inference & Needle</span>
+        <a href="#/dashboard" class="nav-item active" data-tab="dashboard" title="Dashboard (Key: 1)">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span class="nav-text">Dashboard</span>
           <kbd class="nav-kbd">1</kbd>
         </a>
-        <a href="#/models" class="nav-item" data-tab="models" title="Models & Roles (Key: 2)">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          <span class="nav-text">Models & Roles</span>
+        <a href="#/inference" class="nav-item" data-tab="inference" title="Inference Settings (Key: 2)">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          <span class="nav-text">Inference & Needle</span>
           <kbd class="nav-kbd">2</kbd>
         </a>
-        <a href="#/storage" class="nav-item" data-tab="storage" title="Storage & Paths (Key: 3)">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span class="nav-text">Storage & Paths</span>
+        <a href="#/models" class="nav-item" data-tab="models" title="Models & Roles (Key: 3)">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span class="nav-text">Models & Roles</span>
           <kbd class="nav-kbd">3</kbd>
         </a>
-        <a href="#/server" class="nav-item" data-tab="server" title="Server & Resource (Key: 4)">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5M17 12H3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><circle cx="17" cy="12" r="3"/></svg>
-          <span class="nav-text">Server & Resource</span>
+        <a href="#/storage" class="nav-item" data-tab="storage" title="Storage & Paths (Key: 4)">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="nav-text">Storage & Paths</span>
           <kbd class="nav-kbd">4</kbd>
         </a>
-        <a href="#/logs" class="nav-item" data-tab="logs" title="Live Console (Key: 5)">
+        <a href="#/server" class="nav-item" data-tab="server" title="Server & Resource (Key: 5)">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5M17 12H3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><circle cx="17" cy="12" r="3"/></svg>
+          <span class="nav-text">Server & Resource</span>
+          <kbd class="nav-kbd">5</kbd>
+        </a>
+        <a href="#/system" class="nav-item" data-tab="system" title="System & Reset (Key: 6)">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          <span class="nav-text">System & Reset</span>
+          <kbd class="nav-kbd">6</kbd>
+        </a>
+        <a href="#/logs" class="nav-item" data-tab="logs" title="Live Console (Key: 7)">
           <svg class="icon" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
           <span class="nav-text">Live Console</span>
-          <kbd class="nav-kbd">5</kbd>
+          <kbd class="nav-kbd">7</kbd>
         </a>
       </nav>
 
@@ -122,8 +132,108 @@
         </div>
       </header>
 
-      <!-- Tab 1: Inference & Needle -->
-      <section class="tab-pane active" id="pane-inference">
+      <!-- Tab 1: Dashboard -->
+      <section class="tab-pane active" id="pane-dashboard">
+        <div class="pane-header">
+          <div>
+            <h3>System Dashboard</h3>
+            <p class="card-desc">Live engine health, active model topology, and cognitive routing status.</p>
+          </div>
+          <div class="dash-header-actions" style="display:flex; gap:10px">
+            <button class="btn btn-secondary" onclick="pingEngine()">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Ping Engine
+            </button>
+            <button class="btn btn-secondary" onclick="refreshDashboard()">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Runtime Status Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="form-group-row" style="margin-bottom:0">
+                <h4>Runtime Engine Core</h4>
+                <span id="dash-status-badge" class="status-pill pill-stopped">STOPPED</span>
+              </div>
+            </div>
+            <div class="grid-3" style="margin-bottom:0">
+              <div>
+                <span class="stat-sub">PID</span>
+                <div class="stat-big" id="dash-pid">--</div>
+              </div>
+              <div>
+                <span class="stat-sub">Gateway Port</span>
+                <div class="stat-big" id="dash-port">9501</div>
+              </div>
+              <div>
+                <span class="stat-sub">Uptime</span>
+                <div class="stat-big" id="dash-uptime">0s</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cognitive & Resource Metrics -->
+          <div class="card">
+            <div class="card-header">
+              <h4>System & Memory Governance</h4>
+              <p class="card-desc">2-Core AVX2 hardware budget allocation.</p>
+            </div>
+            <div class="grid-3" style="margin-bottom:0">
+              <div>
+                <span class="stat-sub">RAM Budget</span>
+                <div class="stat-big" id="dash-ram-budget">45%</div>
+              </div>
+              <div>
+                <span class="stat-sub">Needle3 Mode</span>
+                <div class="stat-big" id="dash-needle-mode" style="font-size:1.4rem">hybrid</div>
+              </div>
+              <div>
+                <span class="stat-sub">Context Capping</span>
+                <div class="stat-big" id="dash-ctx-window" style="font-size:1.2rem">65,536</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resident Model Topology Matrix -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">
+            <div class="form-group-row" style="margin-bottom:0">
+              <div>
+                <h4>Resident Model Topology</h4>
+                <p class="card-desc">Active specialized models assigned to cognitive task roles.</p>
+              </div>
+              <a href="#/models" class="btn btn-secondary">Manage Models</a>
+            </div>
+          </div>
+          <div class="dash-models-grid" id="dash-models-matrix">
+            <!-- Populated dynamically via dashboard.js -->
+          </div>
+        </div>
+
+        <!-- Storage & Path Diagnostics -->
+        <div class="card">
+          <div class="card-header">
+            <div class="form-group-row" style="margin-bottom:0">
+              <div>
+                <h4>Model & Storage Location</h4>
+                <p class="card-desc">Physical filesystem path for model weights and cache.</p>
+              </div>
+              <a href="#/storage" class="btn btn-secondary">Configure Storage</a>
+            </div>
+          </div>
+          <div class="font-mono" style="font-size:0.9rem; color:#38bdf8; background:rgba(0,0,0,0.3); padding:10px 14px; border-radius:6px" id="dash-models-dir">
+            ~/.denselite/models
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Inference & Needle -->
+      <section class="tab-pane" id="pane-inference">
         <div class="pane-header">
           <h3>Inference Routing & Context Controls</h3>
           <button class="btn btn-save" onclick="saveInferenceSettings()">Save Changes</button>
@@ -302,7 +412,78 @@
         </div>
       </section>
 
-      <!-- Tab 5: Live Console -->
+      <!-- Tab 6: System & Reset -->
+      <section class="tab-pane" id="pane-system">
+        <div class="pane-header">
+          <div>
+            <h3>System Maintenance & Factory Reset</h3>
+            <p class="card-desc">Database operations, ephemeral cache management, and factory default reset.</p>
+          </div>
+        </div>
+
+        <div class="card danger-zone" style="margin-bottom:24px">
+          <div class="card-header">
+            <h4>Factory Reset to Migration Defaults</h4>
+            <p class="card-desc">Restores all DenseLite settings (server, resource, inference, logging, storage) back to the official database migration defaults. All changes take effect live instantly across both processes.</p>
+          </div>
+          <div style="margin-top:14px">
+            <button id="btn-open-reset-modal" class="btn btn-danger-solid">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              Reset DenseLite to Factory Defaults
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Cache Management -->
+          <div class="card">
+            <div class="card-header">
+              <h4>Ephemeral KV Session Cache</h4>
+              <p class="card-desc">Purge on-disk KV cache snapshots to free storage space. Does not delete model weights or settings.</p>
+            </div>
+            <div style="margin-top:14px">
+              <button class="btn btn-secondary" onclick="purgeKvCache()">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                Purge KV Cache
+              </button>
+            </div>
+          </div>
+
+          <!-- Database Optimization -->
+          <div class="card">
+            <div class="card-header">
+              <h4>Database Vacuum & Re-Index</h4>
+              <p class="card-desc">Defragment and optimize SQLite WAL files (settings, episodic memory, and symbol index).</p>
+            </div>
+            <div style="margin-top:14px">
+              <button class="btn btn-secondary" onclick="vacuumDatabases()">
+                <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                Vacuum & Optimize Databases
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Architecture Diagnostics -->
+        <div class="card" style="margin-top:20px">
+          <div class="card-header">
+            <h4>Runtime Architecture & Specifications</h4>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <tbody>
+                <tr><td>Runtime Engine</td><td>DenseLite C++17 Core (AVX2 / FMA Optimized)</td></tr>
+                <tr><td>Control Plane</td><td>DenseLiteTray Native Supervisor (Port 9500)</td></tr>
+                <tr><td>Inference Gateway</td><td>DenseLite OpenAI HTTP Gateway (Port 9501)</td></tr>
+                <tr><td>Storage Engine</td><td>SQLite3 WAL Shared-Memory (Zero-copy data_version)</td></tr>
+                <tr><td>Platform Target</td><td>Linux x86_64 (2-Core Edge / 32GB RAM Target)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 7: Live Console -->
       <section class="tab-pane" id="pane-logs">
         <div class="pane-header">
           <h3>Real-time Engine Logs</h3>
@@ -355,6 +536,34 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeRegisterModal()">Cancel</button>
         <button class="btn btn-primary" onclick="submitRegisterModel()">Register & Bind</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Factory Reset Confirmation Modal -->
+  <div class="modal-overlay" id="modal-reset-confirm">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h4 style="color:#f87171">Confirm Factory Reset</h4>
+        <button class="btn-close" id="btn-cancel-reset">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:12px; line-height:1.5">
+          This will reset <strong>all DenseLite configuration settings</strong> back to the initial database migration defaults:
+        </p>
+        <ul style="margin-left:20px; margin-bottom:14px; font-size:0.85rem; color:var(--text-muted); line-height:1.6">
+          <li><strong>Server:</strong> 0.0.0.0:9501, 4 threads, 32MB payload</li>
+          <li><strong>Resource:</strong> 45% RAM budget, GPU enabled, 2048MB VRAM</li>
+          <li><strong>Inference:</strong> Needle3 hybrid mode, 65,536 context, temp 0.7</li>
+          <li><strong>Storage:</strong> Default paths in <code>~/.denselite/</code></li>
+        </ul>
+        <p style="color:#f87171; font-size:0.85rem; font-weight:600">
+          This action will immediately take live effect across all running processes. Model files and database tables will not be deleted.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-reset">Cancel</button>
+        <button class="btn btn-danger-solid" id="btn-confirm-reset">Yes, Reset to Defaults</button>
       </div>
     </div>
   </div>

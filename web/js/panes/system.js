@@ -1,0 +1,67 @@
+// System Maintenance & Factory Reset Pane Controller
+
+import { apiPost, apiGet } from "../api.js";
+import { showToast } from "../toast.js";
+
+export function initSystemPane() {
+  // Setup reset modal handlers
+  const openBtn = document.getElementById("btn-open-reset-modal");
+  const cancelBtn = document.getElementById("btn-cancel-reset");
+  const confirmBtn = document.getElementById("btn-confirm-reset");
+  const modal = document.getElementById("modal-reset-confirm");
+
+  if (openBtn && modal) {
+    openBtn.addEventListener("click", () => modal.classList.add("active"));
+  }
+  if (cancelBtn && modal) {
+    cancelBtn.addEventListener("click", () => modal.classList.remove("active"));
+  }
+  if (confirmBtn && modal) {
+    confirmBtn.addEventListener("click", async () => {
+      modal.classList.remove("active");
+      await executeFactoryReset();
+    });
+  }
+}
+
+export async function executeFactoryReset() {
+  try {
+    showToast("Resetting settings to migration defaults...", "info");
+    const res = await apiPost("/api/settings/reset", {});
+    if (res.success) {
+      showToast("DenseLite successfully reset to factory defaults!", "success");
+      // Trigger live re-fetch of settings across all forms
+      if (window.loadAllSettings) {
+        window.loadAllSettings();
+      }
+    } else {
+      showToast(res.message || "Failed to reset settings", "error");
+    }
+  } catch (err) {
+    showToast("Error executing reset: " + err.message, "error");
+  }
+}
+
+export async function purgeKvCache() {
+  if (!confirm("Are you sure you want to purge all cached session KV states? Active sessions will re-evaluate prompt context.")) {
+    return;
+  }
+  try {
+    const res = await apiPost("/api/system/purge-cache", {});
+    if (res.success) showToast("Session KV Cache purged successfully", "success");
+    else showToast("Failed to purge KV cache", "error");
+  } catch (err) {
+    showToast("Error purging cache: " + err.message, "error");
+  }
+}
+
+export async function vacuumDatabases() {
+  try {
+    showToast("Optimizing and vacuuming SQLite WAL databases...", "info");
+    const res = await apiPost("/api/system/vacuum", {});
+    if (res.success) showToast("Databases optimized and defragmented (VACUUM OK)", "success");
+    else showToast("Vacuum operation failed", "error");
+  } catch (err) {
+    showToast("Error vacuuming databases: " + err.message, "error");
+  }
+}

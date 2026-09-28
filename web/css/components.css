@@ -128,6 +128,29 @@ input:checked + .slider:before { transform: translateX(18px); }
 .toast-error { border-left-color: var(--accent-red); }
 @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 
+/* Dashboard Matrix & Status Components */
+.status-pill { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; font-family: var(--font-mono); letter-spacing: 0.05em; }
+.pill-running { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); box-shadow: 0 0 12px rgba(16, 185, 129, 0.2); }
+.pill-stopped { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+.stat-big { font-size: 1.8rem; font-weight: 700; color: #f8fafc; font-family: var(--font-mono); margin: 6px 0; }
+.stat-sub { font-size: 0.8rem; color: var(--text-dim); }
+.dash-models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+.dash-model-card { background: rgba(16, 21, 34, 0.6); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 14px; transition: transform 0.15s, border-color 0.15s; }
+.dash-model-card:hover { transform: translateY(-2px); border-color: rgba(14, 165, 233, 0.3); }
+.dash-model-role { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.role-badge { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #38bdf8; background: rgba(14, 165, 233, 0.12); padding: 2px 8px; border-radius: 4px; }
+.active-dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-on { background: #10b981; box-shadow: 0 0 8px #10b981; }
+.dot-off { background: #64748b; }
+.dash-model-id { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+.dash-model-meta { font-size: 0.78rem; color: var(--text-muted); }
+
+/* Danger & Maintenance Zone */
+.danger-zone { border: 1px solid rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.04); }
+.danger-zone .card-header h4 { color: #f87171; }
+.btn-danger-solid { background: #dc2626; color: #fff; box-shadow: 0 0 15px rgba(220, 38, 38, 0.35); }
+.btn-danger-solid:hover:not(:disabled) { background: #b91c1c; }
+
 @media (max-width: 768px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .form-group-row { flex-direction: column; align-items: flex-start; gap: 8px; }
