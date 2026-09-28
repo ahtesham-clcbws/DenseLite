@@ -2,6 +2,7 @@
 #include "settings_db.hpp"
 #include "settings_manager.hpp"
 #include "path_service.hpp"
+#include "database_migrator.hpp"
 #include <iostream>
 #include <filesystem>
 #include <cstdlib>
@@ -140,11 +141,32 @@ void test_path_service() {
     std::cout << "  Passed!" << std::endl;
 }
 
+void test_database_migrator_self_healing() {
+    std::cout << "[Test 4] Verifying DatabaseMigrator zero-touch self-healing..." << std::endl;
+    std::string sandbox = "/tmp/denselite_migrator_sandbox";
+    std::filesystem::remove_all(sandbox);
+
+    bool ok = DatabaseMigrator::ensure_all_databases_ready(sandbox, false);
+    REQUIRE(ok, "Migrator should succeed on empty sandbox directory");
+    REQUIRE(std::filesystem::exists(sandbox + "/src/databases/denselite_settings.db"), "Settings DB must exist");
+    REQUIRE(std::filesystem::exists(sandbox + "/src/databases/denselite_memory.db"), "Memory DB must exist");
+    REQUIRE(std::filesystem::exists(sandbox + "/src/databases/denselite_symbols.db"), "Symbols DB must exist");
+
+    SettingsManager mgr;
+    REQUIRE(mgr.init(sandbox + "/src/databases/denselite_settings.db"), "Manager init on migrated DB must succeed");
+    REQUIRE(mgr.get_server_config().port == 9501, "Port default must match 9501");
+    REQUIRE(mgr.get_resource_config().max_kv_tokens == 65536, "Max KV tokens must match 64K");
+
+    std::filesystem::remove_all(sandbox);
+    std::cout << "  Passed!" << std::endl;
+}
+
 int main() {
     std::cout << "=== Running DenseLite Settings Engine Test Suite ===" << std::endl;
     test_db_wal_mode();
     test_manager_seeding_and_types();
     test_path_service();
+    test_database_migrator_self_healing();
     std::cout << "All Settings Engine tests passed successfully (100%)!" << std::endl;
     return 0;
 }

@@ -322,6 +322,7 @@ add_executable(test_settings tests/settings_tests.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
     src/settings/path_service.cpp
+    src/databases/database_migrator.cpp
 )
 target_link_libraries(test_settings PRIVATE Threads::Threads sqlite3)
 target_include_directories(test_settings PRIVATE src src/settings src/databases)
