@@ -103,6 +103,8 @@ void TrayApp::build_menu() {
 
 void TrayApp::create_indicator() {
     std::string icon_dir = base_dir_ + "/src/tray/icons";
+    GtkIconTheme* theme = gtk_icon_theme_get_default();
+    if (theme) gtk_icon_theme_append_search_path(theme, icon_dir.c_str());
     indicator_ = app_indicator_new_with_path(
         "denselite", "denselite_idle",
         APP_INDICATOR_CATEGORY_APPLICATION_STATUS, icon_dir.c_str()

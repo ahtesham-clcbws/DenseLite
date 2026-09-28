@@ -141,7 +141,18 @@ if [ -f "$LOG_FILE" ]; then
     mv "${LOG_FILE}.tmp" "$LOG_FILE"
 fi
 
-# 5. Launch the System Tray Supervisor (Inference engine remains idle until commanded)
+# 5. Ensure system tray icons are registered in user theme
+if [ ! -f "$HOME/.local/share/icons/hicolor/32x32/apps/denselite_idle.png" ]; then
+    for s in 16 22 24 32 48 64 128; do
+        mkdir -p "$HOME/.local/share/icons/hicolor/${s}x${s}/apps"
+        cp "src/tray/icons/${s}x${s}/apps/"*.png "$HOME/.local/share/icons/hicolor/${s}x${s}/apps/" 2>/dev/null || true
+    done
+    mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
+    cp "src/tray/icons/scalable/apps/"*.svg "$HOME/.local/share/icons/hicolor/scalable/apps/" 2>/dev/null || true
+    gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+fi
+
+# 6. Launch the System Tray Supervisor (Inference engine remains idle until commanded)
 echo "[+] Starting DenseLite System Tray & Control Plane..." | tee -a "$LOG_FILE"
 echo "    Control Plane: http://127.0.0.1:9500" | tee -a "$LOG_FILE"
 echo "    (Inference engine remains IDLE until started from Settings Panel or Tray)" | tee -a "$LOG_FILE"
