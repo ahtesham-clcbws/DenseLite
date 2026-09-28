@@ -152,6 +152,14 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
         return res;
     }
 
+    if (res.architecture.empty()) {
+        std::string lower = std::filesystem::path(file_path).filename().string();
+        for (char& c : lower) c = ::tolower(c);
+        if (lower.find("diffusion") != std::string::npos || lower.find("sd") != std::string::npos) {
+            res.architecture = "diffusion";
+        }
+    }
+
     const std::vector<std::string> all_roles = {"general", "coder", "compressor", "embedding", "audio_stt", "image_gen"};
     for (const auto& r : all_roles) {
         if (is_role_compatible(res.architecture, r)) {

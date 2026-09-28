@@ -96,6 +96,16 @@ int ModelDiscovery::auto_discover_and_register(const std::string& base_dir, cons
             if (m.model_id == id || fs::path(m.file_path).filename() == fs::path(path).filename()) {
                 if (m.file_path != path && !fs::exists(m.file_path) && fs::exists(path)) {
                     m.file_path = path;
+                    if (fs::path(path).extension() == ".gguf") {
+                        auto insp = ModelInspector::inspect(path);
+                        if (insp.is_valid) {
+                            m.architecture = insp.architecture;
+                            m.param_count = insp.param_count;
+                            m.param_size_str = insp.param_size_str;
+                            m.quant_type = insp.quant_type;
+                            m.context_length = insp.context_length;
+                        }
+                    }
                     ModelRegistryDB::register_model(db_path, m);
                     std::cout << "[Discovery] Relocated: " << m.model_id << " -> " << path << std::endl;
                 }
