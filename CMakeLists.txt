@@ -72,6 +72,9 @@ add_executable(DenseLite
     src/settings/settings_manager.cpp
     src/settings/path_service.cpp
     src/databases/database_migrator.cpp
+    src/model_inspector.cpp
+    src/settings/model_registry_db.cpp
+    src/model_cli.cpp
 )
 
 # Tree-sitter Core Runtime & Multi-Language Grammars
@@ -140,6 +143,7 @@ add_executable(test_lifecycle tests/model_lifecycle_tests.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
     src/settings/path_service.cpp
+    src/settings/model_registry_db.cpp
 )
 target_link_libraries(test_lifecycle PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
 target_include_directories(test_lifecycle PRIVATE src src/settings src/databases dependencies/vulkan/include)
@@ -207,6 +211,7 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
     src/settings/path_service.cpp
+    src/settings/model_registry_db.cpp
     src/infer.cpp
 )
 target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
@@ -302,6 +307,7 @@ add_executable(test_multimodal tests/multimodal_tests.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
     src/settings/path_service.cpp
+    src/settings/model_registry_db.cpp
 )
 target_link_libraries(test_multimodal PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
 target_include_directories(test_multimodal PRIVATE src src/settings src/databases dependencies/vulkan/include)
@@ -323,10 +329,24 @@ add_executable(test_settings tests/settings_tests.cpp
     src/settings/settings_manager.cpp
     src/settings/path_service.cpp
     src/databases/database_migrator.cpp
+    src/settings/model_registry_db.cpp
+    src/model_inspector.cpp
 )
 target_link_libraries(test_settings PRIVATE Threads::Threads sqlite3)
 target_include_directories(test_settings PRIVATE src src/settings src/databases)
 add_test(NAME SettingsEngine COMMAND test_settings)
+
+add_executable(test_model_registry tests/model_registry_tests.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
+    src/databases/database_migrator.cpp
+    src/settings/model_registry_db.cpp
+    src/model_inspector.cpp
+)
+target_link_libraries(test_model_registry PRIVATE Threads::Threads sqlite3)
+target_include_directories(test_model_registry PRIVATE src src/settings src/databases)
+add_test(NAME ModelRegistry COMMAND test_model_registry)
 
 
 

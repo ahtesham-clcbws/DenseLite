@@ -79,9 +79,21 @@ struct TrieNode {
 struct Vocab {
     std::vector<std::string> tokens;
     std::vector<float> scores;
-    std::unique_ptr<TrieNode> root;
+    std::shared_ptr<TrieNode> root;
     
-    Vocab() : root(std::make_unique<TrieNode>()) {}
+    Vocab() : root(std::make_shared<TrieNode>()) {}
+};
+
+#include <sys/mman.h>
+
+struct MmapBuffer {
+    void* addr = nullptr;
+    size_t size = 0;
+    ~MmapBuffer() {
+        if (addr && addr != MAP_FAILED) {
+            munmap(addr, size);
+        }
+    }
 };
 
 // Represents the entire loaded model
@@ -91,6 +103,18 @@ struct DenseModel {
     std::unordered_map<std::string, Tensor> tensors;
     
     // The raw mmap'd file pointer and size
-    void* mmap_data;
-    size_t mmap_size;
+    void* mmap_data = nullptr;
+    size_t mmap_size = 0;
+    std::shared_ptr<MmapBuffer> mmap_buffer;
+
+    DenseModel create_shared_reference() const {
+        DenseModel ref;
+        ref.config = this->config;
+        ref.vocab = this->vocab;
+        ref.tensors = this->tensors;
+        ref.mmap_data = this->mmap_data;
+        ref.mmap_size = this->mmap_size;
+        ref.mmap_buffer = this->mmap_buffer;
+        return ref;
+    }
 };

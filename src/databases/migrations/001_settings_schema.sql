@@ -46,6 +46,28 @@ CREATE TABLE IF NOT EXISTS provider_models (
 
 CREATE INDEX IF NOT EXISTS idx_provider_type ON provider_models(provider, model_type, priority);
 
+-- 5. Physical Local Model Inventory
+CREATE TABLE IF NOT EXISTS local_models (
+    model_id        TEXT PRIMARY KEY,
+    file_path       TEXT NOT NULL UNIQUE,
+    architecture    TEXT NOT NULL,
+    param_count     INTEGER NOT NULL,
+    param_size_str  TEXT NOT NULL,
+    quant_type      TEXT NOT NULL,
+    context_length  INTEGER NOT NULL,
+    is_verified     INTEGER NOT NULL DEFAULT 1,
+    updated_at      INTEGER NOT NULL
+);
+
+-- 6. Dynamic Task Role Assignments
+CREATE TABLE IF NOT EXISTS model_roles (
+    role            TEXT PRIMARY KEY,
+    model_id        TEXT NOT NULL,
+    is_active       INTEGER NOT NULL DEFAULT 1,
+    updated_at      INTEGER NOT NULL,
+    FOREIGN KEY(model_id) REFERENCES local_models(model_id)
+);
+
 -- Seed Initial System Settings
 INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at) VALUES
     ('server', 'host', '0.0.0.0', 'string', 1700000000000),
@@ -64,7 +86,11 @@ INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at)
     ('logging', 'level', 'INFO', 'string', 1700000000000),
     ('logging', 'enable_file_logging', 'true', 'bool', 1700000000000),
     ('logging', 'enable_console', 'true', 'bool', 1700000000000),
-    ('logging', 'log_path', 'denselite.log', 'string', 1700000000000);
+    ('logging', 'log_path', 'denselite.log', 'string', 1700000000000),
+    ('storage', 'models_dir', '~/.denselite/models', 'string', 1700000000000),
+    ('storage', 'data_dir', '~/.denselite/data', 'string', 1700000000000),
+    ('storage', 'kv_cache_dir', '~/.denselite/kv_cache', 'string', 1700000000000),
+    ('storage', 'logs_dir', '~/.denselite/logs', 'string', 1700000000000);
 
 -- Seed Initial Provider Models
 INSERT OR IGNORE INTO provider_models (provider, model_name, model_type, priority) VALUES

@@ -42,3 +42,10 @@ struct LoggingConfig {
     bool enable_console{true};
     std::string log_path{"denselite.log"};
 };
+
+struct StorageConfig {
+    std::string models_dir{"~/.denselite/models"};
+    std::string data_dir{"~/.denselite/data"};
+    std::string kv_cache_dir{"~/.denselite/kv_cache"};
+    std::string logs_dir{"~/.denselite/logs"};
+};

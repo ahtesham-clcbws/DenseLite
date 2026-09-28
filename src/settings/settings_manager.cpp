@@ -13,10 +13,13 @@ std::string SettingsManager::make_cache_key(const std::string& module, const std
     return module + ":" + key;
 }
 
+#include "path_service.hpp"
+
 bool SettingsManager::init(const std::string& db_path) {
     if (!db_.init(db_path)) return false;
     seed_defaults_if_empty();
     reload();
+    PathService::instance().sync_from_storage_config(get_storage_config());
     return true;
 }
 
@@ -41,6 +44,7 @@ void SettingsManager::seed_defaults_if_empty() {
     set_resource_config(ResourceConfig{});
     set_inference_config(InferenceConfig{});
     set_logging_config(LoggingConfig{});
+    set_storage_config(StorageConfig{});
 }
 
 std::string SettingsManager::get_string(const std::string& mod, const std::string& key, const std::string& def) const {
@@ -185,4 +189,21 @@ void SettingsManager::set_logging_config(const LoggingConfig& cfg) {
     set_bool("logging", "enable_file_logging", cfg.enable_file_logging);
     set_bool("logging", "enable_console", cfg.enable_console);
     set_string("logging", "log_path", cfg.log_path);
+}
+
+StorageConfig SettingsManager::get_storage_config() const {
+    StorageConfig cfg;
+    cfg.models_dir = get_string("storage", "models_dir", cfg.models_dir);
+    cfg.data_dir = get_string("storage", "data_dir", cfg.data_dir);
+    cfg.kv_cache_dir = get_string("storage", "kv_cache_dir", cfg.kv_cache_dir);
+    cfg.logs_dir = get_string("storage", "logs_dir", cfg.logs_dir);
+    return cfg;
+}
+
+void SettingsManager::set_storage_config(const StorageConfig& cfg) {
+    set_string("storage", "models_dir", cfg.models_dir);
+    set_string("storage", "data_dir", cfg.data_dir);
+    set_string("storage", "kv_cache_dir", cfg.kv_cache_dir);
+    set_string("storage", "logs_dir", cfg.logs_dir);
+    PathService::instance().sync_from_storage_config(cfg);
 }

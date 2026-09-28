@@ -36,6 +36,10 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
         return false;
     }
 
+    out_model.mmap_buffer = std::make_shared<MmapBuffer>();
+    out_model.mmap_buffer->addr = out_model.mmap_data;
+    out_model.mmap_buffer->size = out_model.mmap_size;
+
     uint8_t* ptr = static_cast<uint8_t*>(out_model.mmap_data);
 
     // 1. Validate Magic Bytes
@@ -294,10 +298,13 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
 }
 
 void free_gguf_model(DenseModel& model) {
-    if (model.mmap_data && model.mmap_data != MAP_FAILED) {
+    if (model.mmap_buffer) {
+        model.mmap_buffer.reset();
+        std::cout << "[GGUF] Model reference released." << std::endl;
+    } else if (model.mmap_data && model.mmap_data != MAP_FAILED) {
         munmap(model.mmap_data, model.mmap_size);
-        model.mmap_data = nullptr;
-        model.mmap_size = 0;
         std::cout << "[GGUF] Model unmapped from memory." << std::endl;
     }
+    model.mmap_data = nullptr;
+    model.mmap_size = 0;
 }

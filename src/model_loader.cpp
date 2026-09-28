@@ -1,5 +1,7 @@
 #include "ModelLoader.hpp"
 #include "path_service.hpp"
+#include "model_registry_db.hpp"
+#include "database_paths.hpp"
 #include <fstream>
 #include <iostream>
 #include <filesystem>
@@ -63,7 +65,66 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
         PathService::instance().set_base_dir(base_dir);
     }
     std::string models_dir = PathService::instance().get_models_dir();
+    std::string db_path = DatabasePaths::settings_db(base_dir.empty() ? "." : base_dir);
 
+    // 1. Check if database has active model role bindings
+    auto db_roles = ModelRegistryDB::get_all_role_bindings(db_path);
+    if (!db_roles.empty()) {
+        std::cout << "[Loader] Loading resident models from database registry (" << db_roles.size() << " roles mapped)..." << std::endl;
+        std::map<std::string, std::string> path_to_loaded_role;
+
+        for (const auto& binding : db_roles) {
+            LocalModelRecord rec;
+            if (!ModelRegistryDB::get_model(db_path, binding.model_id, rec) || !rec.is_verified) {
+                continue;
+            }
+            std::string path = PathService::expand_user(rec.file_path);
+            if (std::filesystem::path(path).is_relative()) {
+                path = models_dir + "/" + path;
+            }
+
+            if (path_to_loaded_role.count(path)) {
+                std::string src_role = path_to_loaded_role[path];
+                resident_models[binding.role] = resident_models[src_role].create_shared_reference();
+                std::cout << "[Loader] Multi-role deduplication: role '" << binding.role
+                          << "' shares memory with '" << src_role << "' (0 MB duplicate RAM)" << std::endl;
+            } else {
+                std::cout << "[Loader] Loading model for role '" << binding.role << "' from " << path << "..." << std::endl;
+                DenseModel m;
+                if (!load_model(path, m, error_msg)) {
+                    std::cerr << "[Loader Error] " << error_msg << std::endl;
+                    return false;
+                }
+                resident_models[binding.role] = std::move(m);
+                path_to_loaded_role[path] = binding.role;
+            }
+
+            // Sync legacy aliases for internal subsystem lookups
+            if (binding.role == "general" && !resident_models.count("qwen_main")) {
+                resident_models["qwen_main"] = resident_models["general"].create_shared_reference();
+            } else if (binding.role == "qwen_main" && !resident_models.count("general")) {
+                resident_models["general"] = resident_models["qwen_main"].create_shared_reference();
+            }
+            if (binding.role == "coder" && !resident_models.count("qwen_coder")) {
+                resident_models["qwen_coder"] = resident_models["coder"].create_shared_reference();
+            } else if (binding.role == "qwen_coder" && !resident_models.count("coder")) {
+                resident_models["coder"] = resident_models["qwen_coder"].create_shared_reference();
+            }
+            if (binding.role == "compressor" && !resident_models.count("smollm2")) {
+                resident_models["smollm2"] = resident_models["compressor"].create_shared_reference();
+            } else if (binding.role == "smollm2" && !resident_models.count("compressor")) {
+                resident_models["compressor"] = resident_models["smollm2"].create_shared_reference();
+            }
+            if (binding.role == "embedding" && !resident_models.count("nomic")) {
+                resident_models["nomic"] = resident_models["embedding"].create_shared_reference();
+            } else if (binding.role == "nomic" && !resident_models.count("embedding")) {
+                resident_models["embedding"] = resident_models["nomic"].create_shared_reference();
+            }
+        }
+        return true;
+    }
+
+    // 2. Fall back to .env model definitions
     struct ModelDef {
         std::string id;
         std::string path;

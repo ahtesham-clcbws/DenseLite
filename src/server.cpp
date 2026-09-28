@@ -5,7 +5,7 @@
 #include "ModelLoader.hpp"
 #include "database_migrator.hpp"
 #include "database_paths.hpp"
-#include "settings_manager.hpp"
+#include "model_cli.hpp"
 #include <mutex>
 #include <csignal>
 #include <iostream>
@@ -24,6 +24,10 @@ int main(int argc, char** argv) {
     DatabaseMigrator::ensure_all_databases_ready(base_dir);
     if (argc > 1 && (std::string(argv[1]) == "--init-db" || std::string(argv[1]) == "--migrate")) {
         std::cout << "[DenseLite] All databases verified and migrated successfully." << std::endl;
+        return 0;
+    }
+
+    if (ModelCli::handle_cli(argc, argv, base_dir)) {
         return 0;
     }
 
