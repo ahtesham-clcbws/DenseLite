@@ -1,6 +1,7 @@
 #include "model_cli.hpp"
 #include "model_inspector.hpp"
 #include "model_registry_db.hpp"
+#include "model_discovery.hpp"
 #include "database_paths.hpp"
 #include "path_service.hpp"
 #include <iostream>
@@ -126,6 +127,7 @@ bool ModelCli::handle_register(int argc, char** argv, const std::string& base_di
 
 bool ModelCli::handle_list(const std::string& base_dir) {
     std::string db_path = DatabasePaths::settings_db(base_dir);
+    ModelDiscovery::auto_discover_and_register(base_dir, db_path);
     auto models = ModelRegistryDB::get_all_models(db_path);
     auto bindings = ModelRegistryDB::get_all_role_bindings(db_path);
 

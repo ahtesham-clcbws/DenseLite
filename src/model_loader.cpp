@@ -2,6 +2,7 @@
 #include "path_service.hpp"
 #include "model_registry_db.hpp"
 #include "database_paths.hpp"
+#include "model_discovery.hpp"
 #include <fstream>
 #include <iostream>
 #include <filesystem>
@@ -67,6 +68,8 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
     std::string models_dir = PathService::instance().get_models_dir();
     std::string db_path = DatabasePaths::settings_db(base_dir.empty() ? "." : base_dir);
 
+    ModelDiscovery::auto_discover_and_register(base_dir, db_path);
+
     // 1. Check if database has active model role bindings
     auto db_roles = ModelRegistryDB::get_all_role_bindings(db_path);
     if (!db_roles.empty()) {
@@ -78,10 +81,7 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
             if (!ModelRegistryDB::get_model(db_path, binding.model_id, rec) || !rec.is_verified) {
                 continue;
             }
-            std::string path = PathService::expand_user(rec.file_path);
-            if (std::filesystem::path(path).is_relative()) {
-                path = models_dir + "/" + path;
-            }
+            std::string path = ModelDiscovery::resolve_model_path(rec.file_path, base_dir);
 
             if (path_to_loaded_role.count(path)) {
                 std::string src_role = path_to_loaded_role[path];
@@ -134,7 +134,7 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
     std::vector<ModelDef> models_to_load;
     auto add_model = [&](const std::string& id, const std::string& env_key, bool is_gguf) {
         if (env.count(env_key)) {
-            std::string full_path = models_dir + "/" + env.at(env_key);
+            std::string full_path = ModelDiscovery::resolve_model_path(env.at(env_key), base_dir);
             models_to_load.push_back({id, full_path, is_gguf});
         }
     };

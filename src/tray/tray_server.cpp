@@ -3,6 +3,7 @@
 #include "settings_manager.hpp"
 #include "model_registry_db.hpp"
 #include "model_inspector.hpp"
+#include "model_discovery.hpp"
 #include "database_paths.hpp"
 #include "path_service.hpp"
 #include "../dependencies/json.hpp"
@@ -100,6 +101,7 @@ void TrayServer::register_routes(httplib::Server& svr, const std::string& base_d
 
     svr.Get("/api/models", [base_dir](const httplib::Request&, httplib::Response& res) {
         std::string db_path = DatabasePaths::settings_db(base_dir);
+        ModelDiscovery::auto_discover_and_register(base_dir, db_path);
         auto models = ModelRegistryDB::get_all_models(db_path);
         auto bindings = ModelRegistryDB::get_all_role_bindings(db_path, false);
         json j;

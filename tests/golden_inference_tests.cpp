@@ -92,16 +92,28 @@ bool test_golden_inference(const std::string& model_name, const std::string& pat
     return true;
 }
 
+#include <filesystem>
+#include <cstdlib>
+
+static std::string resolve_test_model(const std::string& filename) {
+    const char* home = std::getenv("HOME");
+    if (home) {
+        std::filesystem::path user_path = std::filesystem::path(home) / ".denselite" / "models" / filename;
+        if (std::filesystem::exists(user_path)) {
+            return user_path.string();
+        }
+    }
+    return (std::filesystem::path("/mnt/apollo/Apollo4/DenseLite/models") / filename).string();
+}
+
 int main() {
     std::cout << "========================================\n";
     std::cout << "[TEST] Phase 1: Golden Inference Structural Tests\n";
     std::cout << "========================================\n";
 
-    std::string base = "/mnt/apollo/Apollo4/DenseLite/models/";
-
-    bool smollm_ok = test_golden_inference("SmolLM2-360M", base + "SmolLM2-360M-Instruct-Q8_0.gguf");
-    bool coder_ok = test_golden_inference("Qwen2.5-Coder-1.5B", base + "Qwen2.5-Coder-1.5B-Instruct-abliterated-Q8_0.gguf");
-    bool main_ok = test_golden_inference("Qwen2.5-1.5B-Main", base + "Qwen2.5-1.5B-Instruct-abliterated.Q8_0.gguf");
+    bool smollm_ok = test_golden_inference("SmolLM2-360M", resolve_test_model("SmolLM2-360M-Instruct-Q8_0.gguf"));
+    bool coder_ok = test_golden_inference("Qwen2.5-Coder-1.5B", resolve_test_model("Qwen2.5-Coder-1.5B-Instruct-abliterated-Q8_0.gguf"));
+    bool main_ok = test_golden_inference("Qwen2.5-1.5B-Main", resolve_test_model("Qwen2.5-1.5B-Instruct-abliterated.Q8_0.gguf"));
 
     if (smollm_ok && coder_ok && main_ok) {
         std::cout << "\n>>> ALL GOLDEN INFERENCE TESTS PASSED! <<<\n";

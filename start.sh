@@ -81,19 +81,23 @@ if [ ! -f ".env" ]; then
 fi
 
 # 2. Check and Auto-Download Models
+mkdir -p "$HOME/.denselite/models"
 mkdir -p models/needle3
-mkdir -p models/whisper
-mkdir -p models/sd15
 
 # Function to download model if missing
 download_if_missing() {
-    local file=$1
+    local file_name=$1
     local url=$2
-    if [ ! -f "$file" ]; then
-        echo "[-] Model missing: $file" | tee -a "$LOG_FILE"
-        echo "    Downloading directly from HuggingFace..." | tee -a "$LOG_FILE"
-        wget -q --show-progress "$url" -O "$file"
+    local user_model="$HOME/.denselite/models/$file_name"
+    local local_model="models/$file_name"
+
+    if [ -f "$user_model" ] || [ -f "$local_model" ]; then
+        return 0
     fi
+
+    echo "[-] Model missing: $file_name" | tee -a "$LOG_FILE"
+    echo "    Downloading to ~/.denselite/models/..." | tee -a "$LOG_FILE"
+    wget -q --show-progress "$url" -O "$user_model"
 }
 
 echo "[+] Verifying core and requested models from .env..." | tee -a "$LOG_FILE"
@@ -113,7 +117,7 @@ grep "^MODEL_.*_FILE=" .env | while read -r line; do
     url=$(grep "^${url_var_name}=" .env | cut -d'=' -f2 | tr -d '"')
     
     if [ -n "$url" ]; then
-        download_if_missing "models/$file_path" "$url"
+        download_if_missing "$file_path" "$url"
     fi
 done
 
