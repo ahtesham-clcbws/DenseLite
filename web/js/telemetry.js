@@ -59,6 +59,12 @@ export async function fetchStatus() {
 
     const elUptime = document.getElementById("tel-uptime");
     if (elUptime) elUptime.textContent = isRun ? formatUptime(st.uptime_seconds) : "0s";
+
+    const elRam = document.getElementById("tel-ram");
+    if (elRam) elRam.textContent = isRun && st.host_ram_mb ? `${st.host_ram_mb} MB` : "0.0 MB";
+
+    const elCpu = document.getElementById("tel-cpu");
+    if (elCpu) elCpu.textContent = isRun && st.host_cpu_load != null ? `${Number(st.host_cpu_load).toFixed(2)} load` : "0.00 load";
   } catch (e) {}
 }
 

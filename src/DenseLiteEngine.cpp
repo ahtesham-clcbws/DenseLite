@@ -118,9 +118,12 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     // If query is conversational / simple text without explicit tool demand, strip tool bloat
     if (inf_cfg.enable_tool_dedup && !requires_tools && (session.task_type == "text" || user_query.size() < 160)) {
         parsed_req.tools.clear();
+        std::string default_sys = inf_cfg.system_prompt.empty() 
+            ? "You are DenseLite, a fast, concise programming and chat assistant." 
+            : inf_cfg.system_prompt;
         for (auto& msg : parsed_req.messages) {
             if (msg.role == "system" && msg.content.size() > 400) {
-                msg.content = "You are DenseLite, a fast, concise programming and chat assistant.";
+                msg.content = default_sys;
             }
         }
     } else if (requires_tools && parsed_req.tools.empty() && SessionToolRegistry::instance().has_tools(session.session_id)) {
@@ -158,7 +161,9 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
 
     std::vector<SearchResult> search_hits;
     if (parsed_req.use_context && inf_cfg.enable_context_injection) {
-        search_hits = search_engine_.search(user_query, session.task_type, 5);
+        int top_k = SettingsManager::instance().get_memory_config().search_top_k;
+        if (top_k <= 0) top_k = 5;
+        search_hits = search_engine_.search(user_query, session.task_type, top_k);
     } else {
         std::cout << "[Engine] Dynamic Context Injection: DISABLED (client-only mode)" << std::endl;
     }

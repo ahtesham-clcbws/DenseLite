@@ -2,7 +2,7 @@
 
 import { closeDrawer } from "./drawer.js";
 
-export const VALID_TABS = ["dashboard", "inference", "models", "storage", "server", "system", "logs"];
+export const VALID_TABS = ["dashboard", "inference", "models", "multimodal", "providers", "memory", "storage", "server", "system", "logs"];
 
 export function initRouter(onTabChange) {
   window.addEventListener("hashchange", () => handleRouteChange(onTabChange));

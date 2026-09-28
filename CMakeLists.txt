@@ -34,6 +34,7 @@ add_executable(DenseLite
     src/ProviderErrorAnalyzer.cpp
     src/DenseLiteEngine.cpp
     src/sqlite_router.cpp
+    src/sqlite_router_models.cpp
     src/ContextManager.cpp
     src/Curator.cpp
     src/ModelEngine.cpp
@@ -70,6 +71,7 @@ add_executable(DenseLite
     src/SessionKVCache.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
     src/databases/database_migrator.cpp
     src/model_inspector.cpp
@@ -127,8 +129,12 @@ add_executable(DenseLiteTray
     src/tray/tray_app.cpp
     src/tray/tray_process.cpp
     src/tray/tray_server.cpp
+    src/tray/tray_routes_settings.cpp
+    src/tray/tray_routes_system.cpp
+    src/tray/tray_routes_models.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
     src/settings/model_registry_db.cpp
     src/settings/model_discovery.cpp
@@ -180,6 +186,7 @@ add_executable(test_lifecycle tests/model_lifecycle_tests.cpp
     src/gguf_parser.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
     src/settings/model_registry_db.cpp
     src/settings/model_discovery.cpp
@@ -250,6 +257,7 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/SessionKVCache.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
     src/settings/model_registry_db.cpp
     src/settings/model_discovery.cpp
@@ -328,6 +336,7 @@ add_executable(test_governor tests/resource_governor_tests.cpp
     src/vulkan_device.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
 )
 target_link_libraries(test_governor PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
@@ -348,6 +357,7 @@ add_executable(test_multimodal tests/multimodal_tests.cpp
     src/gguf_parser.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
     src/settings/model_registry_db.cpp
     src/settings/model_discovery.cpp
@@ -371,6 +381,7 @@ add_test(NAME SessionKVCache COMMAND test_session_kv)
 add_executable(test_settings tests/settings_tests.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
     src/databases/database_migrator.cpp
     src/settings/model_registry_db.cpp
@@ -383,6 +394,7 @@ add_test(NAME SettingsEngine COMMAND test_settings)
 add_executable(test_model_registry tests/model_registry_tests.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
+    src/settings/settings_dtos.cpp
     src/settings/path_service.cpp
     src/databases/database_migrator.cpp
     src/settings/model_registry_db.cpp

@@ -37,12 +37,18 @@ public:
     ServerConfig get_server_config() const;
     ResourceConfig get_resource_config() const;
     InferenceConfig get_inference_config() const;
+    MultimodalConfig get_multimodal_config() const;
+    MemoryConfig get_memory_config() const;
+    CloudConfig get_cloud_config() const;
     LoggingConfig get_logging_config() const;
     StorageConfig get_storage_config() const;
 
     void set_server_config(const ServerConfig& cfg);
     void set_resource_config(const ResourceConfig& cfg);
     void set_inference_config(const InferenceConfig& cfg);
+    void set_multimodal_config(const MultimodalConfig& cfg);
+    void set_memory_config(const MemoryConfig& cfg);
+    void set_cloud_config(const CloudConfig& cfg);
     void set_logging_config(const LoggingConfig& cfg);
     void set_storage_config(const StorageConfig& cfg);
 

@@ -55,8 +55,9 @@ void SettingsManager::reload() {
 void SettingsManager::seed_defaults_if_empty() {
     if (db_.count() > 0) return;
     set_server_config(ServerConfig{}); set_resource_config(ResourceConfig{});
-    set_inference_config(InferenceConfig{}); set_logging_config(LoggingConfig{});
-    set_storage_config(StorageConfig{});
+    set_inference_config(InferenceConfig{}); set_multimodal_config(MultimodalConfig{});
+    set_memory_config(MemoryConfig{}); set_cloud_config(CloudConfig{});
+    set_logging_config(LoggingConfig{}); set_storage_config(StorageConfig{});
 }
 
 std::string SettingsManager::get_string(const std::string& mod, const std::string& key, const std::string& def) const {
@@ -109,75 +110,3 @@ void SettingsManager::set_float(const std::string& m, const std::string& k, floa
 void SettingsManager::set_bool(const std::string& m, const std::string& k, bool v) { update_setting(db_, mutex_, cache_, last_data_version_, m, k, v ? "true" : "false", "bool"); }
 
 std::string SettingsManager::get_version() const { return DENSELITE_VERSION; }
-
-ServerConfig SettingsManager::get_server_config() const {
-    ServerConfig cfg; cfg.version = DENSELITE_VERSION;
-    cfg.host = get_string("server", "host", cfg.host); cfg.port = get_int("server", "port", cfg.port);
-    cfg.threads = get_int("server", "threads", cfg.threads); cfg.max_payload_mb = get_int("server", "max_payload_mb", cfg.max_payload_mb);
-    return cfg;
-}
-
-void SettingsManager::set_server_config(const ServerConfig& c) {
-    set_string("server", "host", c.host); set_int("server", "port", c.port);
-    set_int("server", "threads", c.threads); set_int("server", "max_payload_mb", c.max_payload_mb);
-}
-
-ResourceConfig SettingsManager::get_resource_config() const {
-    ResourceConfig cfg;
-    cfg.ram_budget_percent = get_float("resource", "ram_budget_percent", cfg.ram_budget_percent);
-    cfg.max_kv_tokens = get_int("resource", "max_kv_tokens", cfg.max_kv_tokens);
-    cfg.enable_gpu = get_bool("resource", "enable_gpu", cfg.enable_gpu);
-    cfg.vram_budget_mb = get_int("resource", "vram_budget_mb", cfg.vram_budget_mb);
-    return cfg;
-}
-
-void SettingsManager::set_resource_config(const ResourceConfig& c) {
-    set_float("resource", "ram_budget_percent", c.ram_budget_percent); set_int("resource", "max_kv_tokens", c.max_kv_tokens);
-    set_bool("resource", "enable_gpu", c.enable_gpu); set_int("resource", "vram_budget_mb", c.vram_budget_mb);
-}
-
-InferenceConfig SettingsManager::get_inference_config() const {
-    InferenceConfig cfg;
-    cfg.default_temperature = get_float("inference", "default_temperature", cfg.default_temperature);
-    cfg.default_top_p = get_float("inference", "default_top_p", cfg.default_top_p);
-    cfg.needle3_mode = get_string("inference", "needle3_mode", cfg.needle3_mode);
-    cfg.enable_tool_dedup = get_bool("inference", "enable_tool_dedup", cfg.enable_tool_dedup);
-    cfg.context_window = get_int("inference", "context_window", cfg.context_window);
-    cfg.enable_context_injection = get_bool("inference", "enable_context_injection", cfg.enable_context_injection);
-    return cfg;
-}
-
-void SettingsManager::set_inference_config(const InferenceConfig& c) {
-    set_float("inference", "default_temperature", c.default_temperature); set_float("inference", "default_top_p", c.default_top_p);
-    set_string("inference", "needle3_mode", c.needle3_mode); set_bool("inference", "enable_tool_dedup", c.enable_tool_dedup);
-    set_int("inference", "context_window", c.context_window); set_bool("inference", "enable_context_injection", c.enable_context_injection);
-}
-
-LoggingConfig SettingsManager::get_logging_config() const {
-    LoggingConfig cfg;
-    cfg.level = get_string("logging", "level", cfg.level);
-    cfg.enable_file_logging = get_bool("logging", "enable_file_logging", cfg.enable_file_logging);
-    cfg.enable_console = get_bool("logging", "enable_console", cfg.enable_console);
-    cfg.log_path = get_string("logging", "log_path", cfg.log_path);
-    return cfg;
-}
-
-void SettingsManager::set_logging_config(const LoggingConfig& c) {
-    set_string("logging", "level", c.level); set_bool("logging", "enable_file_logging", c.enable_file_logging);
-    set_bool("logging", "enable_console", c.enable_console); set_string("logging", "log_path", c.log_path);
-}
-
-StorageConfig SettingsManager::get_storage_config() const {
-    StorageConfig cfg;
-    cfg.models_dir = get_string("storage", "models_dir", cfg.models_dir);
-    cfg.data_dir = get_string("storage", "data_dir", cfg.data_dir);
-    cfg.kv_cache_dir = get_string("storage", "kv_cache_dir", cfg.kv_cache_dir);
-    cfg.logs_dir = get_string("storage", "logs_dir", cfg.logs_dir);
-    return cfg;
-}
-
-void SettingsManager::set_storage_config(const StorageConfig& c) {
-    set_string("storage", "models_dir", c.models_dir); set_string("storage", "data_dir", c.data_dir);
-    set_string("storage", "kv_cache_dir", c.kv_cache_dir); set_string("storage", "logs_dir", c.logs_dir);
-    PathService::instance().sync_from_storage_config(c);
-}

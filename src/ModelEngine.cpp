@@ -68,7 +68,7 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
             
             auto inf_cfg = SettingsManager::instance().get_inference_config();
             float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
-            int eff_max = (req.max_tokens > 0) ? req.max_tokens : 512;
+            int eff_max = (req.max_tokens > 0) ? req.max_tokens : inf_cfg.max_output_tokens;
             json generationConfig = json::object();
             generationConfig["temperature"] = eff_temp;
             generationConfig["maxOutputTokens"] = eff_max;
@@ -79,7 +79,7 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
             // Build OpenAI format
             auto inf_cfg = SettingsManager::instance().get_inference_config();
             float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
-            int eff_max = (req.max_tokens > 0) ? req.max_tokens : 512;
+            int eff_max = (req.max_tokens > 0) ? req.max_tokens : inf_cfg.max_output_tokens;
             payload["model"] = model_name;
             payload["temperature"] = eff_temp;
             payload["max_tokens"] = eff_max;
@@ -153,12 +153,13 @@ int ModelEngine::infer_local(const std::string& model_name, const std::string& p
     auto session_kv = SessionKVCacheManager::instance().get_or_create(req.session_id, &it->second.config);
     auto inf_cfg = SettingsManager::instance().get_inference_config();
     float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
-    int eff_max = (req.max_tokens > 0) ? req.max_tokens : 512;
+    int eff_max = (req.max_tokens > 0) ? req.max_tokens : inf_cfg.max_output_tokens;
     size_t dynamic_budget = ResourceGovernor::calculate_dynamic_context_tokens();
     if (inf_cfg.context_window > 0 && dynamic_budget > static_cast<size_t>(inf_cfg.context_window)) {
         dynamic_budget = static_cast<size_t>(inf_cfg.context_window);
     }
-    generate(it->second, tokens, stream_cb, eff_max, eff_temp, 1.15f, session_kv.get(), static_cast<int>(dynamic_budget));
+    float rep_pen = (inf_cfg.repeat_penalty > 0.0f) ? inf_cfg.repeat_penalty : 1.15f;
+    generate(it->second, tokens, stream_cb, eff_max, eff_temp, rep_pen, session_kv.get(), static_cast<int>(dynamic_budget));
 
     if (!req.session_id.empty()) {
         SessionKVCacheManager::instance().save_to_disk(req.session_id);
