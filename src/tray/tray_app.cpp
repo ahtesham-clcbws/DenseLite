@@ -47,7 +47,7 @@ void TrayApp::update_status_ui() {
     if (running != last_running_ || !item_status_) {
         last_running_ = running;
         if (indicator_) {
-            app_indicator_set_icon(indicator_, running ? "network-transmit-receive" : "network-idle");
+            app_indicator_set_icon_full(indicator_, running ? "denselite_active" : "denselite_idle", "DenseLite Status");
         }
         if (item_status_) {
             std::string label = running ? "● DenseLite: RUNNING (:9501)" : "○ DenseLite: STOPPED";
@@ -102,7 +102,11 @@ void TrayApp::build_menu() {
 }
 
 void TrayApp::create_indicator() {
-    indicator_ = app_indicator_new("denselite", "network-idle", APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+    std::string icon_dir = base_dir_ + "/src/tray/icons";
+    indicator_ = app_indicator_new_with_path(
+        "denselite", "denselite_idle",
+        APP_INDICATOR_CATEGORY_APPLICATION_STATUS, icon_dir.c_str()
+    );
     app_indicator_set_status(indicator_, APP_INDICATOR_STATUS_ACTIVE);
     app_indicator_set_title(indicator_, "DenseLite AI Runtime");
     build_menu();

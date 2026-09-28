@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <!-- Minimalist outer bounding frame -->
+  <rect width="64" height="64" rx="14" fill="#0D1117"/>
+  
+  <!-- "Dense": Compact 3x3 quantized weight lattice / SIMD register grid -->
+  <circle cx="20" cy="20" r="3" fill="#58A6FF"/>
+  <circle cx="32" cy="20" r="3" fill="#58A6FF"/>
+  <circle cx="20" cy="32" r="3" fill="#58A6FF"/>
+  <circle cx="32" cy="32" r="3" fill="#58A6FF"/>
+  <circle cx="20" cy="44" r="3" fill="#58A6FF"/>
+  <circle cx="32" cy="44" r="3" fill="#58A6FF"/>
+  
+  <!-- "Lite": Clean vector arrow emerging from the dense matrix (AVX2 zero-overhead throughput) -->
+  <path d="M44 44L44 20M44 20L38 26M44 20L50 26" 
+        stroke="#3FB950" 
+        stroke-width="3.5" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+</svg>

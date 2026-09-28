@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DenseLite Control Plane</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="alternate icon" href="/favicon.svg">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,39 +13,48 @@
 </head>
 <body>
   <div class="app-layout">
+    <div class="drawer-backdrop" id="drawer-backdrop"></div>
     <!-- Sidebar Navigation -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-logo">
-          <div class="logo-core"></div>
+          <img src="/icon.svg" alt="DenseLite" class="brand-svg-icon" width="28" height="28">
         </div>
         <div class="brand-text">
           <h1>DenseLite</h1>
           <span class="version-tag">v3.3.0 Control Plane</span>
         </div>
+        <button class="drawer-close-btn" id="drawer-close" aria-label="Close Navigation">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
 
       <nav class="nav-menu">
-        <button class="nav-item active" data-tab="inference">
+        <a href="#/inference" class="nav-item active" data-tab="inference" title="Inference Settings (Key: 1)">
           <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          Inference & Needle
-        </button>
-        <button class="nav-item" data-tab="models">
+          <span class="nav-text">Inference & Needle</span>
+          <kbd class="nav-kbd">1</kbd>
+        </a>
+        <a href="#/models" class="nav-item" data-tab="models" title="Models & Roles (Key: 2)">
           <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          Models & Roles
-        </button>
-        <button class="nav-item" data-tab="storage">
+          <span class="nav-text">Models & Roles</span>
+          <kbd class="nav-kbd">2</kbd>
+        </a>
+        <a href="#/storage" class="nav-item" data-tab="storage" title="Storage & Paths (Key: 3)">
           <svg class="icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          Storage & Paths
-        </button>
-        <button class="nav-item" data-tab="server">
+          <span class="nav-text">Storage & Paths</span>
+          <kbd class="nav-kbd">3</kbd>
+        </a>
+        <a href="#/server" class="nav-item" data-tab="server" title="Server & Resource (Key: 4)">
           <svg class="icon" viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5M17 12H3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><circle cx="17" cy="12" r="3"/></svg>
-          Server & Resource
-        </button>
-        <button class="nav-item" data-tab="logs">
+          <span class="nav-text">Server & Resource</span>
+          <kbd class="nav-kbd">4</kbd>
+        </a>
+        <a href="#/logs" class="nav-item" data-tab="logs" title="Live Console (Key: 5)">
           <svg class="icon" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
-          Live Console
-        </button>
+          <span class="nav-text">Live Console</span>
+          <kbd class="nav-kbd">5</kbd>
+        </a>
       </nav>
 
       <div class="sidebar-footer">
@@ -57,6 +68,21 @@
 
     <!-- Main Content Area -->
     <main class="main-content">
+      <!-- Mobile Bar (visible on narrow screens / Niri tiles) -->
+      <div class="mobile-nav-bar">
+        <button class="drawer-toggle-btn" id="drawer-toggle" aria-label="Open Navigation">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div class="mobile-brand">
+          <img src="/icon.svg" alt="DenseLite" width="22" height="22">
+          <span>DenseLite</span>
+        </div>
+        <div class="mobile-status-summary">
+          <span class="status-dot" id="mobile-status-dot"></span>
+          <span class="mobile-status-text" id="mobile-status-text">STOPPED</span>
+        </div>
+      </div>
+
       <!-- Master Control Header Bar -->
       <header class="top-bar">
         <div class="engine-banner">
@@ -334,6 +360,6 @@
   </div>
 
   <div id="toast-container" class="toast-container"></div>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

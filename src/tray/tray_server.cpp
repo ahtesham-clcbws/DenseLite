@@ -24,9 +24,10 @@ static std::string read_file_content(const std::string& path) {
 
 void TrayServer::register_routes(httplib::Server& svr, const std::string& base_dir) {
     svr.set_default_headers({{"Access-Control-Allow-Origin", "*"}, {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"}, {"Access-Control-Allow-Headers", "Content-Type"}});
-    svr.Get("/", [base_dir](const auto&, auto& res) { res.set_content(read_file_content(base_dir + "/web/index.html"), "text/html"); });
-    svr.Get("/style.css", [base_dir](const auto&, auto& res) { res.set_content(read_file_content(base_dir + "/web/style.css"), "text/css"); });
-    svr.Get("/app.js", [base_dir](const auto&, auto& res) { res.set_content(read_file_content(base_dir + "/web/app.js"), "application/javascript"); });
+    svr.set_mount_point("/", (base_dir + "/web").c_str());
+    svr.Get("/favicon.ico", [base_dir](const auto&, auto& res) {
+        res.set_content(read_file_content(base_dir + "/web/icon.svg"), "image/svg+xml");
+    });
 
     svr.Get("/api/status", [](const auto&, auto& res) {
         json j{{"running", TrayProcess::instance().is_running()}, {"pid", TrayProcess::instance().get_pid()},
@@ -108,10 +109,7 @@ void TrayServer::register_routes(httplib::Server& svr, const std::string& base_d
                                   {"param_size_str", m.param_size_str}, {"quant_type", m.quant_type},
                                   {"context_length", m.context_length}, {"is_verified", m.is_verified}});
         }
-        j["roles"] = json::array();
-        for (const auto& b : bindings) {
-            j["roles"].push_back({{"role", b.role}, {"model_id", b.model_id}, {"is_active", b.is_active}});
-        }
+        for (const auto& b : bindings) j["roles"].push_back({{"role", b.role}, {"model_id", b.model_id}, {"is_active", b.is_active}});
         res.set_content(j.dump(), "application/json");
     });
 
@@ -186,12 +184,8 @@ bool TrayServer::start(const std::string& base_dir, int port) {
 }
 
 void TrayServer::stop() {
-    if (server_) {
-        server_->stop();
-    }
-    if (thread_ && thread_->joinable()) {
-        thread_->join();
-    }
+    if (server_) server_->stop();
+    if (thread_ && thread_->joinable()) thread_->join();
     server_.reset();
     thread_.reset();
 }

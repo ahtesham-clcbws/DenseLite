@@ -1,0 +1,31 @@
+/* Responsive Breakpoints (Niri / Wayland Tiling < 1024px & Mobile) */
+@media (max-width: 1024px) {
+  .app-layout { flex-direction: column; height: auto; min-height: 100vh; }
+  .mobile-nav-bar { display: flex; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 280px;
+    height: 100vh;
+    z-index: 100;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+  }
+  .sidebar.open { transform: translateX(300px); }
+  .drawer-close-btn { display: block; }
+  .main-content { height: auto; overflow-y: visible; }
+  .top-bar { padding: 18px 20px; }
+  .tab-pane { padding: 20px; }
+}
+
+@media (max-width: 768px) {
+  .engine-banner { flex-direction: column; align-items: stretch; gap: 16px; }
+  .engine-actions { display: flex; width: 100%; flex-wrap: wrap; gap: 8px; }
+  .engine-actions .btn { flex: 1 1 calc(50% - 8px); justify-content: center; }
+  .live-telemetry { grid-template-columns: 1fr; gap: 8px; }
+  .pane-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .form-group-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .form-group-row label { margin-bottom: 0; }
+}
