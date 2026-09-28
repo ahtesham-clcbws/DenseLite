@@ -12,12 +12,14 @@ ModelEngine::ModelEngine(std::map<std::string, DenseModel>& resident_models, SQL
 
 using json = nlohmann::json;
 
+#include "settings/settings_manager.hpp"
+
 int ModelEngine::infer(const std::string& model_name, const OpenAIRequest& req, const std::string& compiled_prompt, std::string& output) {
     // 1. Ask SQLiteRouter if this is a Cloud model or Local model
     std::string provider = sqlite_router.get_provider_for_model(model_name);
 
     if (provider == "local" || provider.empty()) {
-        return infer_local(model_name, compiled_prompt, output, req.session_id);
+        return infer_local(model_name, compiled_prompt, output, req);
     } else {
         APIKeyStatus key_status = sqlite_router.get_next_available_key(provider);
         std::string api_key = key_status.key_value;
@@ -64,17 +66,23 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
             }
             payload["contents"] = contents;
             
+            auto inf_cfg = SettingsManager::instance().get_inference_config();
+            float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
+            int eff_max = (req.max_tokens > 0) ? req.max_tokens : 512;
             json generationConfig = json::object();
-            generationConfig["temperature"] = req.temperature;
-            generationConfig["maxOutputTokens"] = req.max_tokens;
+            generationConfig["temperature"] = eff_temp;
+            generationConfig["maxOutputTokens"] = eff_max;
             payload["generationConfig"] = generationConfig;
             
             // TODO: Tools for Gemini
         } else {
             // Build OpenAI format
+            auto inf_cfg = SettingsManager::instance().get_inference_config();
+            float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
+            int eff_max = (req.max_tokens > 0) ? req.max_tokens : 512;
             payload["model"] = model_name;
-            payload["temperature"] = req.temperature;
-            payload["max_tokens"] = req.max_tokens;
+            payload["temperature"] = eff_temp;
+            payload["max_tokens"] = eff_max;
             
             json messages = json::array();
             for (const auto& m : req.messages) {
@@ -126,7 +134,7 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
 
 #include "Formatter.hpp"
 
-int ModelEngine::infer_local(const std::string& model_name, const std::string& prompt, std::string& output, const std::string& session_id) {
+int ModelEngine::infer_local(const std::string& model_name, const std::string& prompt, std::string& output, const OpenAIRequest& req) {
     std::cout << "[ModelEngine] Routing inference to Local AVX2 engine for model: " << model_name << "\n";
     
     auto it = local_models.find(model_name);
@@ -140,16 +148,20 @@ int ModelEngine::infer_local(const std::string& model_name, const std::string& p
     std::string result_text;
     auto stream_cb = [&](const std::string& text) {
         result_text += text;
-        // In a real stream, we'd chunk this back to the client.
     };
     
-    auto session_kv = SessionKVCacheManager::instance().get_or_create(session_id, &it->second.config);
+    auto session_kv = SessionKVCacheManager::instance().get_or_create(req.session_id, &it->second.config);
+    auto inf_cfg = SettingsManager::instance().get_inference_config();
+    float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
+    int eff_max = (req.max_tokens > 0) ? req.max_tokens : 512;
     size_t dynamic_budget = ResourceGovernor::calculate_dynamic_context_tokens();
-    generate(it->second, tokens, stream_cb, 512, 0.7f, 1.15f, session_kv.get(), static_cast<int>(dynamic_budget));
+    if (inf_cfg.context_window > 0 && dynamic_budget > static_cast<size_t>(inf_cfg.context_window)) {
+        dynamic_budget = static_cast<size_t>(inf_cfg.context_window);
+    }
+    generate(it->second, tokens, stream_cb, eff_max, eff_temp, 1.15f, session_kv.get(), static_cast<int>(dynamic_budget));
 
-    // Persist updated KV state to disk alongside RAM
-    if (!session_id.empty()) {
-        SessionKVCacheManager::instance().save_to_disk(session_id);
+    if (!req.session_id.empty()) {
+        SessionKVCacheManager::instance().save_to_disk(req.session_id);
     }
     
     json response = json::object();

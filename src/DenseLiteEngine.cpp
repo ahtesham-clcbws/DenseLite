@@ -116,7 +116,7 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     }
 
     // If query is conversational / simple text without explicit tool demand, strip tool bloat
-    if (!requires_tools && (session.task_type == "text" || user_query.size() < 160)) {
+    if (inf_cfg.enable_tool_dedup && !requires_tools && (session.task_type == "text" || user_query.size() < 160)) {
         parsed_req.tools.clear();
         for (auto& msg : parsed_req.messages) {
             if (msg.role == "system" && msg.content.size() > 400) {
@@ -162,7 +162,9 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     } else {
         std::cout << "[Engine] Dynamic Context Injection: DISABLED (client-only mode)" << std::endl;
     }
-    size_t ctx_cap = (resource_governor_.assess_eviction_stage() >= EvictionStage::SHRINK_CONTEXT) ? 4096 : 8192;
+    size_t default_ctx = (inf_cfg.context_window > 0) ? static_cast<size_t>(inf_cfg.context_window) : 8192;
+    size_t ctx_cap = (resource_governor_.assess_eviction_stage() >= EvictionStage::SHRINK_CONTEXT) 
+        ? std::min<size_t>(4096, default_ctx) : default_ctx;
     auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, ctx_cap);
     std::string prompt = opt_result.compiled_prompt;
     resource_governor_.track_inference_memory(prompt.size());

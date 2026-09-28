@@ -168,3 +168,15 @@ int SettingsDB::count() {
     }
     return cnt;
 }
+
+int SettingsDB::get_data_version() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!db_) return 0;
+    int v = 0;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, "PRAGMA data_version;", -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) v = sqlite3_column_int(stmt, 0);
+        sqlite3_finalize(stmt);
+    }
+    return v;
+}

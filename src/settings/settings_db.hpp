@@ -24,6 +24,7 @@ public:
     bool get_module(const std::string& module, std::vector<SettingRecord>& out);
     bool get_all(std::vector<SettingRecord>& out);
     int count();
+    int get_data_version();
 
 private:
     sqlite3* db_{nullptr};

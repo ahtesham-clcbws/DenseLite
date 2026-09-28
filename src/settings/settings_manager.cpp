@@ -1,30 +1,45 @@
 #include "settings_manager.hpp"
+#include "path_service.hpp"
 #include <chrono>
 
-SettingsManager& SettingsManager::instance() {
-    static SettingsManager inst;
-    return inst;
-}
-
+SettingsManager& SettingsManager::instance() { static SettingsManager inst; return inst; }
 SettingsManager::SettingsManager() = default;
 SettingsManager::~SettingsManager() = default;
 
-std::string SettingsManager::make_cache_key(const std::string& module, const std::string& key) {
-    return module + ":" + key;
+std::string SettingsManager::make_cache_key(const std::string& mod, const std::string& key) {
+    return mod + ":" + key;
 }
-
-#include "path_service.hpp"
 
 bool SettingsManager::init(const std::string& db_path) {
     if (!db_.init(db_path)) return false;
     seed_defaults_if_empty();
     reload();
+    last_data_version_ = db_.get_data_version();
     PathService::instance().sync_from_storage_config(get_storage_config());
     return true;
 }
 
-std::string SettingsManager::get_journal_mode() {
-    return db_.get_journal_mode();
+std::string SettingsManager::get_journal_mode() { return db_.get_journal_mode(); }
+
+void SettingsManager::check_and_reload() const {
+    int cur_ver = db_.get_data_version();
+    if (cur_ver != last_data_version_) {
+        std::vector<SettingRecord> all;
+        if (db_.get_all(all)) {
+            std::unique_lock<std::shared_mutex> lock(mutex_);
+            cache_.clear();
+            for (const auto& rec : all) cache_[make_cache_key(rec.module, rec.key)] = rec;
+            last_data_version_ = cur_ver;
+
+            auto get_c = [this](const std::string& k, const std::string& d) {
+                auto it = cache_.find("storage:" + k); return (it != cache_.end()) ? it->second.value : d;
+            };
+            StorageConfig sc;
+            sc.models_dir = get_c("models_dir", sc.models_dir); sc.data_dir = get_c("data_dir", sc.data_dir);
+            sc.kv_cache_dir = get_c("kv_cache_dir", sc.kv_cache_dir); sc.logs_dir = get_c("logs_dir", sc.logs_dir);
+            PathService::instance().sync_from_storage_config(sc);
+        }
+    }
 }
 
 void SettingsManager::reload() {
@@ -32,57 +47,51 @@ void SettingsManager::reload() {
     if (db_.get_all(all)) {
         std::unique_lock<std::shared_mutex> lock(mutex_);
         cache_.clear();
-        for (const auto& rec : all) {
-            cache_[make_cache_key(rec.module, rec.key)] = rec;
-        }
+        for (const auto& rec : all) cache_[make_cache_key(rec.module, rec.key)] = rec;
+        last_data_version_ = db_.get_data_version();
     }
 }
 
 void SettingsManager::seed_defaults_if_empty() {
     if (db_.count() > 0) return;
-    set_server_config(ServerConfig{});
-    set_resource_config(ResourceConfig{});
-    set_inference_config(InferenceConfig{});
-    set_logging_config(LoggingConfig{});
+    set_server_config(ServerConfig{}); set_resource_config(ResourceConfig{});
+    set_inference_config(InferenceConfig{}); set_logging_config(LoggingConfig{});
     set_storage_config(StorageConfig{});
 }
 
 std::string SettingsManager::get_string(const std::string& mod, const std::string& key, const std::string& def) const {
+    check_and_reload();
     std::shared_lock<std::shared_mutex> lock(mutex_);
     auto it = cache_.find(make_cache_key(mod, key));
     return (it != cache_.end()) ? it->second.value : def;
 }
 
 int SettingsManager::get_int(const std::string& mod, const std::string& key, int def) const {
+    check_and_reload();
     std::shared_lock<std::shared_mutex> lock(mutex_);
     auto it = cache_.find(make_cache_key(mod, key));
-    if (it != cache_.end()) {
-        try { return std::stoi(it->second.value); } catch (...) {}
-    }
+    if (it != cache_.end()) { try { return std::stoi(it->second.value); } catch (...) {} }
     return def;
 }
 
 float SettingsManager::get_float(const std::string& mod, const std::string& key, float def) const {
+    check_and_reload();
     std::shared_lock<std::shared_mutex> lock(mutex_);
     auto it = cache_.find(make_cache_key(mod, key));
-    if (it != cache_.end()) {
-        try { return std::stof(it->second.value); } catch (...) {}
-    }
+    if (it != cache_.end()) { try { return std::stof(it->second.value); } catch (...) {} }
     return def;
 }
 
 bool SettingsManager::get_bool(const std::string& mod, const std::string& key, bool def) const {
+    check_and_reload();
     std::shared_lock<std::shared_mutex> lock(mutex_);
     auto it = cache_.find(make_cache_key(mod, key));
-    if (it != cache_.end()) {
-        return (it->second.value == "true" || it->second.value == "1");
-    }
-    return def;
+    return (it != cache_.end()) ? (it->second.value == "true" || it->second.value == "1") : def;
 }
 
 static void update_setting(SettingsDB& db, std::shared_mutex& mutex,
                            std::unordered_map<std::string, SettingRecord>& cache,
-                           const std::string& mod, const std::string& key,
+                           int& last_ver, const std::string& mod, const std::string& key,
                            const std::string& val, const std::string& type) {
     int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch()).count();
@@ -90,41 +99,27 @@ static void update_setting(SettingsDB& db, std::shared_mutex& mutex,
     if (db.upsert(rec)) {
         std::unique_lock<std::shared_mutex> lock(mutex);
         cache[mod + ":" + key] = rec;
+        last_ver = db.get_data_version();
     }
 }
 
-void SettingsManager::set_string(const std::string& mod, const std::string& key, const std::string& val) {
-    update_setting(db_, mutex_, cache_, mod, key, val, "string");
-}
-void SettingsManager::set_int(const std::string& mod, const std::string& key, int val) {
-    update_setting(db_, mutex_, cache_, mod, key, std::to_string(val), "int");
-}
-void SettingsManager::set_float(const std::string& mod, const std::string& key, float val) {
-    update_setting(db_, mutex_, cache_, mod, key, std::to_string(val), "float");
-}
-void SettingsManager::set_bool(const std::string& mod, const std::string& key, bool val) {
-    update_setting(db_, mutex_, cache_, mod, key, val ? "true" : "false", "bool");
-}
+void SettingsManager::set_string(const std::string& m, const std::string& k, const std::string& v) { update_setting(db_, mutex_, cache_, last_data_version_, m, k, v, "string"); }
+void SettingsManager::set_int(const std::string& m, const std::string& k, int v) { update_setting(db_, mutex_, cache_, last_data_version_, m, k, std::to_string(v), "int"); }
+void SettingsManager::set_float(const std::string& m, const std::string& k, float v) { update_setting(db_, mutex_, cache_, last_data_version_, m, k, std::to_string(v), "float"); }
+void SettingsManager::set_bool(const std::string& m, const std::string& k, bool v) { update_setting(db_, mutex_, cache_, last_data_version_, m, k, v ? "true" : "false", "bool"); }
 
-std::string SettingsManager::get_version() const {
-    return DENSELITE_VERSION;
-}
+std::string SettingsManager::get_version() const { return DENSELITE_VERSION; }
 
 ServerConfig SettingsManager::get_server_config() const {
-    ServerConfig cfg;
-    cfg.version = DENSELITE_VERSION;
-    cfg.host = get_string("server", "host", cfg.host);
-    cfg.port = get_int("server", "port", cfg.port);
-    cfg.threads = get_int("server", "threads", cfg.threads);
-    cfg.max_payload_mb = get_int("server", "max_payload_mb", cfg.max_payload_mb);
+    ServerConfig cfg; cfg.version = DENSELITE_VERSION;
+    cfg.host = get_string("server", "host", cfg.host); cfg.port = get_int("server", "port", cfg.port);
+    cfg.threads = get_int("server", "threads", cfg.threads); cfg.max_payload_mb = get_int("server", "max_payload_mb", cfg.max_payload_mb);
     return cfg;
 }
 
-void SettingsManager::set_server_config(const ServerConfig& cfg) {
-    set_string("server", "host", cfg.host);
-    set_int("server", "port", cfg.port);
-    set_int("server", "threads", cfg.threads);
-    set_int("server", "max_payload_mb", cfg.max_payload_mb);
+void SettingsManager::set_server_config(const ServerConfig& c) {
+    set_string("server", "host", c.host); set_int("server", "port", c.port);
+    set_int("server", "threads", c.threads); set_int("server", "max_payload_mb", c.max_payload_mb);
 }
 
 ResourceConfig SettingsManager::get_resource_config() const {
@@ -136,11 +131,9 @@ ResourceConfig SettingsManager::get_resource_config() const {
     return cfg;
 }
 
-void SettingsManager::set_resource_config(const ResourceConfig& cfg) {
-    set_float("resource", "ram_budget_percent", cfg.ram_budget_percent);
-    set_int("resource", "max_kv_tokens", cfg.max_kv_tokens);
-    set_bool("resource", "enable_gpu", cfg.enable_gpu);
-    set_int("resource", "vram_budget_mb", cfg.vram_budget_mb);
+void SettingsManager::set_resource_config(const ResourceConfig& c) {
+    set_float("resource", "ram_budget_percent", c.ram_budget_percent); set_int("resource", "max_kv_tokens", c.max_kv_tokens);
+    set_bool("resource", "enable_gpu", c.enable_gpu); set_int("resource", "vram_budget_mb", c.vram_budget_mb);
 }
 
 InferenceConfig SettingsManager::get_inference_config() const {
@@ -154,13 +147,10 @@ InferenceConfig SettingsManager::get_inference_config() const {
     return cfg;
 }
 
-void SettingsManager::set_inference_config(const InferenceConfig& cfg) {
-    set_float("inference", "default_temperature", cfg.default_temperature);
-    set_float("inference", "default_top_p", cfg.default_top_p);
-    set_string("inference", "needle3_mode", cfg.needle3_mode);
-    set_bool("inference", "enable_tool_dedup", cfg.enable_tool_dedup);
-    set_int("inference", "context_window", cfg.context_window);
-    set_bool("inference", "enable_context_injection", cfg.enable_context_injection);
+void SettingsManager::set_inference_config(const InferenceConfig& c) {
+    set_float("inference", "default_temperature", c.default_temperature); set_float("inference", "default_top_p", c.default_top_p);
+    set_string("inference", "needle3_mode", c.needle3_mode); set_bool("inference", "enable_tool_dedup", c.enable_tool_dedup);
+    set_int("inference", "context_window", c.context_window); set_bool("inference", "enable_context_injection", c.enable_context_injection);
 }
 
 LoggingConfig SettingsManager::get_logging_config() const {
@@ -172,11 +162,9 @@ LoggingConfig SettingsManager::get_logging_config() const {
     return cfg;
 }
 
-void SettingsManager::set_logging_config(const LoggingConfig& cfg) {
-    set_string("logging", "level", cfg.level);
-    set_bool("logging", "enable_file_logging", cfg.enable_file_logging);
-    set_bool("logging", "enable_console", cfg.enable_console);
-    set_string("logging", "log_path", cfg.log_path);
+void SettingsManager::set_logging_config(const LoggingConfig& c) {
+    set_string("logging", "level", c.level); set_bool("logging", "enable_file_logging", c.enable_file_logging);
+    set_bool("logging", "enable_console", c.enable_console); set_string("logging", "log_path", c.log_path);
 }
 
 StorageConfig SettingsManager::get_storage_config() const {
@@ -188,10 +176,8 @@ StorageConfig SettingsManager::get_storage_config() const {
     return cfg;
 }
 
-void SettingsManager::set_storage_config(const StorageConfig& cfg) {
-    set_string("storage", "models_dir", cfg.models_dir);
-    set_string("storage", "data_dir", cfg.data_dir);
-    set_string("storage", "kv_cache_dir", cfg.kv_cache_dir);
-    set_string("storage", "logs_dir", cfg.logs_dir);
-    PathService::instance().sync_from_storage_config(cfg);
+void SettingsManager::set_storage_config(const StorageConfig& c) {
+    set_string("storage", "models_dir", c.models_dir); set_string("storage", "data_dir", c.data_dir);
+    set_string("storage", "kv_cache_dir", c.kv_cache_dir); set_string("storage", "logs_dir", c.logs_dir);
+    PathService::instance().sync_from_storage_config(c);
 }

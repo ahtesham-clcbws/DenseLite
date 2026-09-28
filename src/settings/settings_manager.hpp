@@ -46,10 +46,13 @@ public:
     void set_logging_config(const LoggingConfig& cfg);
     void set_storage_config(const StorageConfig& cfg);
 
+    void check_and_reload() const;
+
 private:
-    SettingsDB db_;
+    mutable SettingsDB db_;
     mutable std::shared_mutex mutex_;
-    std::unordered_map<std::string, SettingRecord> cache_;
+    mutable std::unordered_map<std::string, SettingRecord> cache_;
+    mutable int last_data_version_{0};
 
     static std::string make_cache_key(const std::string& module, const std::string& key);
 };
