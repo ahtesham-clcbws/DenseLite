@@ -18,7 +18,6 @@ public:
 
     // Individual database self-healing initializers
     static bool bootstrap_settings_db(const std::string& db_path, DatabaseStatus& status);
-    static bool bootstrap_state_db(const std::string& db_path, DatabaseStatus& status);
     static bool bootstrap_memory_db(const std::string& db_path, DatabaseStatus& status);
     static bool bootstrap_symbols_db(const std::string& db_path, DatabaseStatus& status);
 

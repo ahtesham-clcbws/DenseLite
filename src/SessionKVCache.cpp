@@ -1,10 +1,15 @@
 #include "SessionKVCache.hpp"
+#include "path_service.hpp"
 #include <fstream>
 #include <filesystem>
 #include <iostream>
 
 constexpr uint32_t DLKV_MAGIC = 0x444C4B56; // "DLKV"
 constexpr uint32_t DLKV_VERSION = 1;
+
+SessionKVCacheManager::SessionKVCacheManager() {
+    cache_dir_ = PathService::instance().get_kv_cache_dir();
+}
 
 SessionKVCacheManager& SessionKVCacheManager::instance() {
     static SessionKVCacheManager mgr;

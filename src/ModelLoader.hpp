@@ -14,6 +14,11 @@ public:
     // Safe unload: frees mmapped buffers and clears tensor maps
     static bool unload_model(DenseModel& model);
 
+    // Path-unified loader using PathService
+    static bool load_resident_models(const std::map<std::string, std::string>& env,
+                                     std::map<std::string, DenseModel>& resident_models,
+                                     std::string& error_msg);
+
     // Backward-compatible loader for server startup without exit(1)
     static bool load_resident_models(const std::string& base_dir,
                                      const std::map<std::string, std::string>& env,

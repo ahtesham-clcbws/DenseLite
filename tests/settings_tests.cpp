@@ -125,7 +125,7 @@ void test_path_service() {
     ps.set_base_dir("/tmp/test_denselite_root");
     REQUIRE(ps.get_base_dir() == "/tmp/test_denselite_root", "Base dir matches");
     REQUIRE(ps.settings_db() == "/tmp/test_denselite_root/src/databases/denselite_settings.db", "Settings DB path matches");
-    REQUIRE(ps.state_db() == "/tmp/test_denselite_root/src/databases/denselite_state.db", "State DB path matches");
+    REQUIRE(ps.state_db() == "/tmp/test_denselite_root/src/databases/denselite_settings.db", "State DB path aliases to settings DB");
     REQUIRE(ps.memory_db() == "/tmp/test_denselite_root/src/databases/denselite_memory.db", "Memory DB path matches");
     REQUIRE(ps.symbols_db() == "/tmp/test_denselite_root/src/databases/denselite_symbols.db", "Symbols DB path matches");
     REQUIRE(ps.env_file() == "/tmp/test_denselite_root/.env", "Env file path matches");

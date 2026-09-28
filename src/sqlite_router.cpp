@@ -7,10 +7,13 @@
 #include "httplib.h"
 
 SQLiteRouter::SQLiteRouter(const std::string& db_path) {
-    if (sqlite3_open(db_path.c_str(), &db) != SQLITE_OK) {
+    if (sqlite3_open_v2(db_path.c_str(), &db,
+                        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr) != SQLITE_OK) {
         std::cerr << "[SQLiteRouter] Failed to open DB: " << sqlite3_errmsg(db) << std::endl;
         db = nullptr;
     } else {
+        const char* pragmas = "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;";
+        sqlite3_exec(db, pragmas, nullptr, nullptr, nullptr);
         init_db();
     }
 }

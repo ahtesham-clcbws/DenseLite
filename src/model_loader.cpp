@@ -1,4 +1,5 @@
 #include "ModelLoader.hpp"
+#include "path_service.hpp"
 #include <fstream>
 #include <iostream>
 #include <filesystem>
@@ -48,10 +49,21 @@ bool ModelLoader::unload_model(DenseModel& model) {
     return true;
 }
 
+bool ModelLoader::load_resident_models(const std::map<std::string, std::string>& env,
+                                      std::map<std::string, DenseModel>& resident_models,
+                                      std::string& error_msg) {
+    return load_resident_models("", env, resident_models, error_msg);
+}
+
 bool ModelLoader::load_resident_models(const std::string& base_dir,
                                       const std::map<std::string, std::string>& env,
                                       std::map<std::string, DenseModel>& resident_models,
                                       std::string& error_msg) {
+    if (!base_dir.empty()) {
+        PathService::instance().set_base_dir(base_dir);
+    }
+    std::string models_dir = PathService::instance().get_models_dir();
+
     struct ModelDef {
         std::string id;
         std::string path;
@@ -61,7 +73,7 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
     std::vector<ModelDef> models_to_load;
     auto add_model = [&](const std::string& id, const std::string& env_key, bool is_gguf) {
         if (env.count(env_key)) {
-            std::string full_path = base_dir + "/models/" + env.at(env_key);
+            std::string full_path = models_dir + "/" + env.at(env_key);
             models_to_load.push_back({id, full_path, is_gguf});
         }
     };

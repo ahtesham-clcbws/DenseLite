@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
         if (svr_ptr) svr_ptr->stop();
     });
     
-    SQLiteRouter router(DatabasePaths::state_db(base_dir));
+    SQLiteRouter router(DatabasePaths::settings_db(base_dir));
     router.load_env(base_dir + "/.env");
 
     DenseLiteEngine engine(resident_models, router, base_dir);
@@ -62,12 +62,13 @@ int main(int argc, char** argv) {
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
     
-    std::cout << "[API] Server listening on http://localhost:9501" << std::endl;
-    if (!svr.listen("0.0.0.0", 9501)) {
-        std::cerr << "\n[DenseLite Error] Failed to bind to http://localhost:9501!\n"
-                  << "Port 9501 is already occupied by an existing process.\n"
+    auto srv_cfg = SettingsManager::instance().get_server_config();
+    std::cout << "[API] Server listening on http://" << srv_cfg.host << ":" << srv_cfg.port << std::endl;
+    if (!svr.listen(srv_cfg.host.c_str(), srv_cfg.port)) {
+        std::cerr << "\n[DenseLite Error] Failed to bind to http://" << srv_cfg.host << ":" << srv_cfg.port << "!\n"
+                  << "Port " << srv_cfg.port << " is already occupied by an existing process.\n"
                   << "To stop the running instance, run: pkill -9 -f DenseLite\n"
-                  << "Or check the active process with: lsof -i :9501\n" << std::endl;
+                  << "Or check the active process with: lsof -i :" << srv_cfg.port << "\n" << std::endl;
     }
     
     std::cout << "Shutting down..." << std::endl;

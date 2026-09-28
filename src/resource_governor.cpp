@@ -1,4 +1,5 @@
 #include "resource_governor.hpp"
+#include "settings_manager.hpp"
 #include <thread>
 #include <algorithm>
 #include <fstream>
@@ -9,8 +10,9 @@
 ResourceGovernor::ResourceGovernor(VulkanDevice* gpu_device)
     : gpu_device_(gpu_device) {
     size_t total_ram = get_host_total_ram_bytes();
-    // Enforce 45% RAM ceiling as safe operating target
-    max_allowed_ram_bytes_ = static_cast<size_t>(total_ram * 0.45);
+    float pct = SettingsManager::instance().get_resource_config().ram_budget_percent;
+    if (pct <= 0.0f || pct > 1.0f) pct = 0.45f;
+    max_allowed_ram_bytes_ = static_cast<size_t>(total_ram * pct);
 }
 
 size_t ResourceGovernor::get_host_total_ram_bytes() {
@@ -57,6 +59,8 @@ size_t ResourceGovernor::get_process_rss_bytes() {
 }
 
 int ResourceGovernor::get_max_allowed_threads() {
+    int cfg_threads = SettingsManager::instance().get_server_config().threads;
+    if (cfg_threads > 0) return cfg_threads;
     int hw_concurrency = std::thread::hardware_concurrency();
     if (hw_concurrency == 0) hw_concurrency = 4;
     return std::max(1, hw_concurrency / 2); // 50% CPU allocation
@@ -151,7 +155,9 @@ bool ResourceGovernor::should_reject_optional_load() const {
 size_t ResourceGovernor::calculate_dynamic_context_tokens() {
     size_t total_ram = get_host_total_ram_bytes();
     size_t avail_ram = get_host_available_ram_bytes();
-    size_t base_model_ceiling = static_cast<size_t>(total_ram * 0.45);
+    float pct = SettingsManager::instance().get_resource_config().ram_budget_percent;
+    if (pct <= 0.0f || pct > 1.0f) pct = 0.45f;
+    size_t base_model_ceiling = static_cast<size_t>(total_ram * pct);
 
     // Balance RAM headroom available for dynamic KV cache (up to 90% of balance)
     size_t balance_ram = (avail_ram > base_model_ceiling) ? (avail_ram - base_model_ceiling) : (avail_ram / 2);

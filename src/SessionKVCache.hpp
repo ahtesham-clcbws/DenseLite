@@ -37,8 +37,8 @@ public:
     void clear_all();
 
 private:
-    SessionKVCacheManager() = default;
+    SessionKVCacheManager();
     mutable std::mutex mutex_;
-    std::string cache_dir_ = "denselite_kv_cache";
+    std::string cache_dir_;
     std::map<std::string, std::shared_ptr<SessionKVState>> sessions_;
 };

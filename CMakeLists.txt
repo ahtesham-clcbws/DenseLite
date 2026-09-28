@@ -137,9 +137,12 @@ add_executable(test_lifecycle tests/model_lifecycle_tests.cpp
     src/resource_governor.cpp
     src/model_manager.cpp
     src/gguf_parser.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
 )
-target_link_libraries(test_lifecycle PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
-target_include_directories(test_lifecycle PRIVATE src dependencies/vulkan/include)
+target_link_libraries(test_lifecycle PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
+target_include_directories(test_lifecycle PRIVATE src src/settings src/databases dependencies/vulkan/include)
 
 add_test(NAME MathCorrectness COMMAND test_math)
 add_test(NAME ModelConfigValidation COMMAND test_config)
@@ -201,10 +204,13 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/multimodal_engine.cpp
     src/SessionToolRegistry.cpp
     src/SessionKVCache.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
     src/infer.cpp
 )
 target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
-target_include_directories(benchmark_engine PRIVATE src dependencies/vulkan/include dependencies/tree-sitter/lib/include)
+target_include_directories(benchmark_engine PRIVATE src src/settings src/databases dependencies/vulkan/include dependencies/tree-sitter/lib/include)
 
 add_executable(test_memory tests/memory_engine_tests.cpp
     src/working_memory.cpp
@@ -273,9 +279,12 @@ add_test(NAME AgentLoop COMMAND test_agent_loop)
 add_executable(test_governor tests/resource_governor_tests.cpp
     src/resource_governor.cpp
     src/vulkan_device.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
 )
-target_link_libraries(test_governor PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
-target_include_directories(test_governor PRIVATE src dependencies/vulkan/include)
+target_link_libraries(test_governor PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
+target_include_directories(test_governor PRIVATE src src/settings src/databases dependencies/vulkan/include)
 add_test(NAME ResourceGovernor COMMAND test_governor)
 
 add_executable(test_multimodal tests/multimodal_tests.cpp
@@ -290,19 +299,23 @@ add_executable(test_multimodal tests/multimodal_tests.cpp
     src/kv_cache.cpp
     src/model_loader.cpp
     src/gguf_parser.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_manager.cpp
+    src/settings/path_service.cpp
 )
-target_link_libraries(test_multimodal PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
-target_include_directories(test_multimodal PRIVATE src dependencies/vulkan/include)
+target_link_libraries(test_multimodal PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
+target_include_directories(test_multimodal PRIVATE src src/settings src/databases dependencies/vulkan/include)
 add_test(NAME MultimodalEngine COMMAND test_multimodal)
 
 add_executable(test_session_kv tests/session_kv_tests.cpp
     src/SessionToolRegistry.cpp
     src/SessionKVCache.cpp
+    src/settings/path_service.cpp
     src/infer.cpp
     src/gguf_parser.cpp
 )
 target_link_libraries(test_session_kv PRIVATE Threads::Threads OpenMP::OpenMP_CXX)
-target_include_directories(test_session_kv PRIVATE src)
+target_include_directories(test_session_kv PRIVATE src src/settings)
 add_test(NAME SessionKVCache COMMAND test_session_kv)
 
 add_executable(test_settings tests/settings_tests.cpp

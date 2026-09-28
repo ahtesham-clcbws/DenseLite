@@ -5,12 +5,16 @@
 #include <string>
 #include <iostream>
 
+#include "settings_manager.hpp"
+
 #include <omp.h>
 
 class HardwareManager {
 public:
     static int get_max_allowed_threads() {
-        // Enforce 50% CPU capacity. e.g., 4 threads -> 2 max
+        int configured_threads = SettingsManager::instance().get_server_config().threads;
+        if (configured_threads > 0) return configured_threads;
+
         int hw_concurrency = std::thread::hardware_concurrency();
         if (hw_concurrency == 0) hw_concurrency = 4; // fallback
         
@@ -19,7 +23,9 @@ public:
     }
 
     static size_t get_max_allowed_ram_bytes() {
-        // Enforce 45% RAM capacity
+        float ram_budget_pct = SettingsManager::instance().get_resource_config().ram_budget_percent;
+        if (ram_budget_pct <= 0.0f || ram_budget_pct > 1.0f) ram_budget_pct = 0.45f;
+
         // Linux specific parsing of /proc/meminfo
         size_t total_ram_kb = 0;
         std::ifstream meminfo("/proc/meminfo");
@@ -33,7 +39,7 @@ public:
         if (total_ram_kb == 0) return 4ULL * 1024 * 1024 * 1024; // Fallback to 4GB limits if reading fails
 
         size_t total_ram_bytes = total_ram_kb * 1024;
-        return static_cast<size_t>(total_ram_bytes * 0.45);
+        return static_cast<size_t>(total_ram_bytes * ram_budget_pct);
     }
 
     static void enforce_limits() {

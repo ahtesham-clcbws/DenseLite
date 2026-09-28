@@ -28,7 +28,7 @@ bool DatabaseMigrator::execute_sql(const std::string& db_path, const char* sql, 
 }
 
 bool DatabaseMigrator::bootstrap_settings_db(const std::string& db_path, DatabaseStatus& status) {
-    status.name = "Settings DB";
+    status.name = "Settings & Control DB";
     status.path = db_path;
     status.created = !std::filesystem::exists(db_path);
 
@@ -39,6 +39,14 @@ bool DatabaseMigrator::bootstrap_settings_db(const std::string& db_path, Databas
         "  PRIMARY KEY (module, key)"
         ");"
         "CREATE INDEX IF NOT EXISTS idx_settings_module ON system_settings(module);"
+        "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT);"
+        "CREATE TABLE IF NOT EXISTS api_keys ("
+        "  provider TEXT, key_index INTEGER, cooldown_until INTEGER, PRIMARY KEY (provider, key_index)"
+        ");"
+        "CREATE TABLE IF NOT EXISTS provider_models ("
+        "  provider TEXT, model_name TEXT, model_type TEXT, priority INTEGER, UNIQUE(provider, model_name)"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_provider_type ON provider_models(provider, model_type, priority);"
         "INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at) VALUES "
         "('server', 'host', '0.0.0.0', 'string', 1700000000000),"
         "('server', 'port', '9501', 'int', 1700000000000),"
@@ -56,26 +64,7 @@ bool DatabaseMigrator::bootstrap_settings_db(const std::string& db_path, Databas
         "('logging', 'level', 'INFO', 'string', 1700000000000),"
         "('logging', 'enable_file_logging', 'true', 'bool', 1700000000000),"
         "('logging', 'enable_console', 'true', 'bool', 1700000000000),"
-        "('logging', 'log_path', 'denselite.log', 'string', 1700000000000);";
-
-    status.migrated = execute_sql(db_path, ddl, status.journal_mode);
-    return status.migrated;
-}
-
-bool DatabaseMigrator::bootstrap_state_db(const std::string& db_path, DatabaseStatus& status) {
-    status.name = "State & Router DB";
-    status.path = db_path;
-    status.created = !std::filesystem::exists(db_path);
-
-    const char* ddl =
-        "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT);"
-        "CREATE TABLE IF NOT EXISTS api_keys ("
-        "  provider TEXT, key_index INTEGER, cooldown_until INTEGER, PRIMARY KEY (provider, key_index)"
-        ");"
-        "CREATE TABLE IF NOT EXISTS provider_models ("
-        "  provider TEXT, model_name TEXT, model_type TEXT, priority INTEGER, UNIQUE(provider, model_name)"
-        ");"
-        "CREATE INDEX IF NOT EXISTS idx_provider_type ON provider_models(provider, model_type, priority);"
+        "('logging', 'log_path', 'denselite.log', 'string', 1700000000000);"
         "INSERT OR IGNORE INTO provider_models (provider, model_name, model_type, priority) VALUES "
         "('GEMINI', 'gemini-2.5-flash-image', 'image', 1),"
         "('GEMINI', 'gemini-2.5-flash', 'text', 1),"
@@ -136,14 +125,13 @@ bool DatabaseMigrator::bootstrap_symbols_db(const std::string& db_path, Database
 }
 
 bool DatabaseMigrator::ensure_all_databases_ready(const std::string& base_dir, bool verbose) {
-    std::vector<DatabaseStatus> statuses(4);
+    std::vector<DatabaseStatus> statuses(3);
     bool ok = true;
 
     DatabasePaths::ensure_dir_exists(base_dir);
     ok &= bootstrap_settings_db(DatabasePaths::settings_db(base_dir), statuses[0]);
-    ok &= bootstrap_state_db(DatabasePaths::state_db(base_dir), statuses[1]);
-    ok &= bootstrap_memory_db(DatabasePaths::memory_db(base_dir), statuses[2]);
-    ok &= bootstrap_symbols_db(DatabasePaths::symbols_db(base_dir), statuses[3]);
+    ok &= bootstrap_memory_db(DatabasePaths::memory_db(base_dir), statuses[1]);
+    ok &= bootstrap_symbols_db(DatabasePaths::symbols_db(base_dir), statuses[2]);
 
     if (verbose) {
         std::cout << "[DatabaseMigrator] Verifying database integrity & WAL configuration..." << std::endl;

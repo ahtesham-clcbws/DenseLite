@@ -58,8 +58,7 @@ std::string PathService::settings_db() const {
 }
 
 std::string PathService::state_db() const {
-    std::shared_lock<std::shared_mutex> lock(mutex_);
-    return database_dir_ + "/denselite_state.db";
+    return settings_db();
 }
 
 std::string PathService::memory_db() const {

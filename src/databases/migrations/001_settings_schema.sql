@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration 001: Settings Engine Schema & Production Defaults
+-- Migration 001: Settings & Control Plane Engine Schema & Production Defaults
 -- Target Database: denselite_settings.db
 -- Mode: WAL
 -- ============================================================================
@@ -9,6 +9,7 @@ PRAGMA synchronous = NORMAL;
 PRAGMA temp_store = MEMORY;
 PRAGMA busy_timeout = 5000;
 
+-- 1. System Settings Registry
 CREATE TABLE IF NOT EXISTS system_settings (
     module     TEXT NOT NULL,
     key        TEXT NOT NULL,
@@ -20,7 +21,32 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 CREATE INDEX IF NOT EXISTS idx_settings_module ON system_settings(module);
 
--- Seed Initial System Defaults
+-- 2. Metadata Key-Value Store
+CREATE TABLE IF NOT EXISTS metadata (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
+
+-- 3. API Key Cooldown State
+CREATE TABLE IF NOT EXISTS api_keys (
+    provider       TEXT NOT NULL,
+    key_index      INTEGER NOT NULL,
+    cooldown_until INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (provider, key_index)
+);
+
+-- 4. Provider Models Registry & Priorities
+CREATE TABLE IF NOT EXISTS provider_models (
+    provider   TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    model_type TEXT NOT NULL, -- 'text' or 'image'
+    priority   INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(provider, model_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_provider_type ON provider_models(provider, model_type, priority);
+
+-- Seed Initial System Settings
 INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at) VALUES
     ('server', 'host', '0.0.0.0', 'string', 1700000000000),
     ('server', 'port', '9501', 'int', 1700000000000),
@@ -39,3 +65,17 @@ INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at)
     ('logging', 'enable_file_logging', 'true', 'bool', 1700000000000),
     ('logging', 'enable_console', 'true', 'bool', 1700000000000),
     ('logging', 'log_path', 'denselite.log', 'string', 1700000000000);
+
+-- Seed Initial Provider Models
+INSERT OR IGNORE INTO provider_models (provider, model_name, model_type, priority) VALUES
+    ('GEMINI', 'gemini-2.5-flash-image', 'image', 1),
+    ('GEMINI', 'gemini-2.5-flash', 'text', 1),
+    ('GROQ', 'openai/gpt-oss-20b', 'text', 1),
+    ('OPENROUTER', 'liquid/lfm-2.5-2.6b:free', 'text', 1),
+    ('OPENROUTER', 'inclusionai/ling-3.0-flash-fin:free', 'text', 2),
+    ('MISTRAL', 'ministral-8b-2512', 'text', 1),
+    ('MISTRAL', 'open-mistral-nemo', 'text', 2),
+    ('COHERE', 'command-r-08-2024', 'text', 1),
+    ('NOVITA', 'zai-org/glm-5.3-flash', 'text', 1);
+
+INSERT OR REPLACE INTO metadata (key, value) VALUES ('model_seed_version', '2');
