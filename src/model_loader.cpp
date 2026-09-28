@@ -81,6 +81,9 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
             if (!ModelRegistryDB::get_model(db_path, binding.model_id, rec) || !rec.is_verified) {
                 continue;
             }
+            if (binding.role == "audio_stt" || binding.role == "image_gen" || rec.architecture == "whisper" || rec.architecture == "diffusion") {
+                continue;
+            }
             std::string path = ModelDiscovery::resolve_model_path(rec.file_path, base_dir);
 
             if (path_to_loaded_role.count(path)) {
@@ -93,35 +96,29 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
                 DenseModel m;
                 if (!load_model(path, m, error_msg)) {
                     std::cerr << "[Loader Error] " << error_msg << std::endl;
-                    return false;
+                    continue;
                 }
                 resident_models[binding.role] = std::move(m);
                 path_to_loaded_role[path] = binding.role;
             }
 
-            // Sync legacy aliases for internal subsystem lookups
-            if (binding.role == "general" && !resident_models.count("qwen_main")) {
+            if (resident_models.count(binding.role)) {
+                resident_models[binding.model_id] = resident_models[binding.role].create_shared_reference();
+            }
+            if (binding.role == "general") {
                 resident_models["qwen_main"] = resident_models["general"].create_shared_reference();
-            } else if (binding.role == "qwen_main" && !resident_models.count("general")) {
-                resident_models["general"] = resident_models["qwen_main"].create_shared_reference();
-            }
-            if (binding.role == "coder" && !resident_models.count("qwen_coder")) {
+                resident_models["qwen25_main"] = resident_models["general"].create_shared_reference();
+            } else if (binding.role == "coder") {
                 resident_models["qwen_coder"] = resident_models["coder"].create_shared_reference();
-            } else if (binding.role == "qwen_coder" && !resident_models.count("coder")) {
-                resident_models["coder"] = resident_models["qwen_coder"].create_shared_reference();
-            }
-            if (binding.role == "compressor" && !resident_models.count("smollm2")) {
+                resident_models["qwen25_coder"] = resident_models["coder"].create_shared_reference();
+            } else if (binding.role == "compressor") {
                 resident_models["smollm2"] = resident_models["compressor"].create_shared_reference();
-            } else if (binding.role == "smollm2" && !resident_models.count("compressor")) {
-                resident_models["compressor"] = resident_models["smollm2"].create_shared_reference();
-            }
-            if (binding.role == "embedding" && !resident_models.count("nomic")) {
+            } else if (binding.role == "embedding") {
                 resident_models["nomic"] = resident_models["embedding"].create_shared_reference();
-            } else if (binding.role == "nomic" && !resident_models.count("embedding")) {
-                resident_models["embedding"] = resident_models["nomic"].create_shared_reference();
+                resident_models["nomic_embed"] = resident_models["embedding"].create_shared_reference();
             }
         }
-        return true;
+        return !resident_models.empty();
     }
 
     // 2. Fall back to .env model definitions
