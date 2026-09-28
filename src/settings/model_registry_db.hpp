@@ -32,7 +32,8 @@ public:
     static bool delete_model(const std::string& db_path, const std::string& model_id);
 
     static bool bind_role(const std::string& db_path, const std::string& role, const std::string& model_id, bool is_active = true);
+    static bool set_role_active(const std::string& db_path, const std::string& role, bool is_active);
     static bool unbind_role(const std::string& db_path, const std::string& role);
-    static std::vector<ModelRoleBinding> get_all_role_bindings(const std::string& db_path);
+    static std::vector<ModelRoleBinding> get_all_role_bindings(const std::string& db_path, bool active_only = false);
     static std::string get_model_for_role(const std::string& db_path, const std::string& role);
 };

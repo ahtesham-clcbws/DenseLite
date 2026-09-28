@@ -31,9 +31,10 @@ struct ResourceConfig {
 struct InferenceConfig {
     float default_temperature{0.7f};
     float default_top_p{0.9f};
-    std::string needle3_mode{"hybrid"}; // "gpu", "avx2", "hybrid", "cloud"
+    std::string needle3_mode{"hybrid"}; // "gpu", "avx2", "hybrid", "cloud", "off"
     bool enable_tool_dedup{true};
     int context_window{65536};
+    bool enable_context_injection{true};
 };
 
 struct LoggingConfig {

@@ -11,4 +11,6 @@ private:
     static bool handle_inspect(const std::string& filepath);
     static bool handle_register(int argc, char** argv, const std::string& base_dir);
     static bool handle_list(const std::string& base_dir);
+    static bool handle_bind_role(int argc, char** argv, const std::string& base_dir);
+    static bool handle_set_role(const std::string& role, bool active, const std::string& base_dir);
 };

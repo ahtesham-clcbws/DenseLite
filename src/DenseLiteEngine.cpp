@@ -12,6 +12,7 @@
 #include "SessionToolRegistry.hpp"
 #include "SessionKVCache.hpp"
 #include "database_paths.hpp"
+#include "settings_manager.hpp"
 #include <iostream>
 #include <chrono>
 #include <mutex>
@@ -77,14 +78,21 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     session.status = SessionStatus::ANALYZING;
     std::string user_query = parsed_req.messages.empty() ? "" : parsed_req.messages.back().content;
 
+    auto inf_cfg = SettingsManager::instance().get_inference_config();
+
     // 1. ROUTING & RECALL
     session.status = SessionStatus::ROUTING;
-    DenseModel* needle = (models.find("needle") != models.end()) ? &models.at("needle") : nullptr;
-    if (!needle && models.find("smollm2") != models.end()) {
-        needle = &models.at("smollm2");
+    if (inf_cfg.needle3_mode == "off" || (!parsed_req.model.empty() && parsed_req.model != "denselite")) {
+        session.task_type = "general";
+        std::cout << "[Engine] Needle3 bypassed (mode: " << inf_cfg.needle3_mode << ", requested: " << parsed_req.model << ")" << std::endl;
+    } else {
+        DenseModel* needle = (models.find("needle") != models.end()) ? &models.at("needle") : nullptr;
+        if (!needle && models.find("smollm2") != models.end()) {
+            needle = &models.at("smollm2");
+        }
+        RoutingDecision decision = NeedleRouter::analyze_request(parsed_req, needle);
+        session.task_type = decision.intent;
     }
-    RoutingDecision decision = NeedleRouter::analyze_request(parsed_req, needle);
-    session.task_type = decision.intent;
     memory_engine_.working().set_objective(session.task_type);
     memory_engine_.working().set_current_task(user_query);
 
@@ -148,7 +156,12 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         if (!cloud_fallback.empty()) target_model = cloud_fallback;
     }
 
-    auto search_hits = search_engine_.search(user_query, session.task_type, 5);
+    std::vector<SearchResult> search_hits;
+    if (parsed_req.use_context && inf_cfg.enable_context_injection) {
+        search_hits = search_engine_.search(user_query, session.task_type, 5);
+    } else {
+        std::cout << "[Engine] Dynamic Context Injection: DISABLED (client-only mode)" << std::endl;
+    }
     size_t ctx_cap = (resource_governor_.assess_eviction_stage() >= EvictionStage::SHRINK_CONTEXT) ? 4096 : 8192;
     auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, ctx_cap);
     std::string prompt = opt_result.compiled_prompt;

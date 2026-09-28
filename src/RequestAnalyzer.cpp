@@ -61,6 +61,13 @@ OpenAIRequest RequestAnalyzer::parse_request(const std::string& raw_json_body) {
                 req.tools.push_back(tool);
             }
         }
+        if (j.contains("use_context")) {
+            req.use_context = j["use_context"].get<bool>();
+        } else if (j.contains("inject_context")) {
+            req.use_context = j["inject_context"].get<bool>();
+        } else if (j.contains("rag")) {
+            req.use_context = j["rag"].get<bool>();
+        }
     } catch (...) {
         std::cerr << "[RequestAnalyzer] Error parsing JSON request body" << std::endl;
     }

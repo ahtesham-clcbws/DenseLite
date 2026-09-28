@@ -83,6 +83,7 @@ INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at)
     ('inference', 'needle3_mode', 'hybrid', 'string', 1700000000000),
     ('inference', 'enable_tool_dedup', 'true', 'bool', 1700000000000),
     ('inference', 'context_window', '65536', 'int', 1700000000000),
+    ('inference', 'enable_context_injection', 'true', 'bool', 1700000000000),
     ('logging', 'level', 'INFO', 'string', 1700000000000),
     ('logging', 'enable_file_logging', 'true', 'bool', 1700000000000),
     ('logging', 'enable_console', 'true', 'bool', 1700000000000),

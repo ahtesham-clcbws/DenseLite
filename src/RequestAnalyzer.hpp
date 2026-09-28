@@ -31,6 +31,7 @@ struct OpenAIRequest {
     float temperature;
     float repetition_penalty;
     std::string session_id; // Added for session-based isolation
+    bool use_context = true; // Set to false to disable external RAG/symbol context injection
 };
 
 class RequestAnalyzer {

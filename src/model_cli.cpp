@@ -22,13 +22,12 @@ bool ModelCli::handle_cli(int argc, char** argv, const std::string& base_dir) {
     if (argc < 2) return false;
     std::string cmd = argv[1];
 
-    if (cmd == "--inspect-model" && argc >= 3) {
-        return handle_inspect(argv[2]);
-    } else if (cmd == "--register-model" && argc >= 3) {
-        return handle_register(argc, argv, base_dir);
-    } else if (cmd == "--list-models") {
-        return handle_list(base_dir);
-    }
+    if (cmd == "--inspect-model" && argc >= 3) return handle_inspect(argv[2]);
+    if (cmd == "--register-model" && argc >= 3) return handle_register(argc, argv, base_dir);
+    if (cmd == "--list-models") return handle_list(base_dir);
+    if (cmd == "--bind-role" && argc >= 3) return handle_bind_role(argc, argv, base_dir);
+    if (cmd == "--activate-role" && argc >= 3) return handle_set_role(argv[2], true, base_dir);
+    if (cmd == "--deactivate-role" && argc >= 3) return handle_set_role(argv[2], false, base_dir);
     return false;
 }
 
@@ -155,5 +154,37 @@ bool ModelCli::handle_list(const std::string& base_dir) {
                   << " (Active: " << (b.is_active ? "YES" : "NO") << ")\n";
     }
     std::cout << "=======================================================\n" << std::endl;
+    return true;
+}
+
+bool ModelCli::handle_bind_role(int argc, char** argv, const std::string& base_dir) {
+    std::string role = argv[2], model_id;
+    for (int i = 3; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--model" && i + 1 < argc) model_id = argv[++i];
+        else if (model_id.empty() && arg[0] != '-') model_id = arg;
+    }
+    if (model_id.empty()) {
+        std::cerr << "[Registry Error] Usage: --bind-role <role> --model <model_id>\n";
+        return true;
+    }
+    std::string db_path = DatabasePaths::settings_db(base_dir);
+    LocalModelRecord rec;
+    if (!ModelRegistryDB::get_model(db_path, model_id, rec)) {
+        std::cerr << "[Registry Error] Model '" << model_id << "' is not registered.\n";
+        return true;
+    }
+    ModelRegistryDB::bind_role(db_path, role, model_id, true);
+    std::cout << "[Registry] Bound role '" << role << "' -> model '" << model_id << "' (active)\n";
+    return true;
+}
+
+bool ModelCli::handle_set_role(const std::string& role, bool active, const std::string& base_dir) {
+    std::string db_path = DatabasePaths::settings_db(base_dir);
+    if (!ModelRegistryDB::set_role_active(db_path, role, active)) {
+        std::cerr << "[Registry Error] Role '" << role << "' not found.\n";
+        return true;
+    }
+    std::cout << "[Registry] Role '" << role << "' is now " << (active ? "ACTIVE" : "INACTIVE") << ".\n";
     return true;
 }

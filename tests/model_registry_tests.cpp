@@ -45,6 +45,12 @@ void test_storage_config_and_tilde() {
     REQUIRE(PathService::instance().get_models_dir() == "/custom/models", "PathService synced");
     REQUIRE(PathService::instance().get_data_dir() == "/custom/data", "PathService data dir synced");
 
+    InferenceConfig ic = mgr.get_inference_config();
+    REQUIRE(ic.enable_context_injection == true, "Context injection default true");
+    ic.enable_context_injection = false;
+    mgr.set_inference_config(ic);
+    REQUIRE(mgr.get_inference_config().enable_context_injection == false, "Context injection toggled to false");
+
     std::filesystem::remove_all(sandbox);
     std::cout << "  Passed!" << std::endl;
 }
@@ -85,6 +91,14 @@ void test_model_registry_crud_and_multi_role() {
 
     auto bindings = ModelRegistryDB::get_all_role_bindings(db_path);
     REQUIRE(bindings.size() == 3, "Must have 3 active role bindings");
+
+    // Deactivate role coder
+    REQUIRE(ModelRegistryDB::set_role_active(db_path, "coder", false), "Deactivate coder failed");
+    REQUIRE(ModelRegistryDB::get_model_for_role(db_path, "coder").empty(), "Inactive coder must return empty");
+    REQUIRE(ModelRegistryDB::get_all_role_bindings(db_path, true).size() == 2, "2 active bindings");
+    REQUIRE(ModelRegistryDB::get_all_role_bindings(db_path, false).size() == 3, "3 total bindings");
+    REQUIRE(ModelRegistryDB::set_role_active(db_path, "coder", true), "Reactivate coder failed");
+    REQUIRE(ModelRegistryDB::get_model_for_role(db_path, "coder") == "qwen_shared", "Coder reactivated");
 
     // Unbind one role
     REQUIRE(ModelRegistryDB::unbind_role(db_path, "compressor"), "Unbind compressor failed");

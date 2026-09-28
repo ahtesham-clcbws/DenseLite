@@ -80,44 +80,30 @@ bool SettingsManager::get_bool(const std::string& mod, const std::string& key, b
     return def;
 }
 
+static void update_setting(SettingsDB& db, std::shared_mutex& mutex,
+                           std::unordered_map<std::string, SettingRecord>& cache,
+                           const std::string& mod, const std::string& key,
+                           const std::string& val, const std::string& type) {
+    int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                      std::chrono::system_clock::now().time_since_epoch()).count();
+    SettingRecord rec{mod, key, val, type, now};
+    if (db.upsert(rec)) {
+        std::unique_lock<std::shared_mutex> lock(mutex);
+        cache[mod + ":" + key] = rec;
+    }
+}
+
 void SettingsManager::set_string(const std::string& mod, const std::string& key, const std::string& val) {
-    int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::system_clock::now().time_since_epoch()).count();
-    SettingRecord rec{mod, key, val, "string", now};
-    if (db_.upsert(rec)) {
-        std::unique_lock<std::shared_mutex> lock(mutex_);
-        cache_[make_cache_key(mod, key)] = rec;
-    }
+    update_setting(db_, mutex_, cache_, mod, key, val, "string");
 }
-
 void SettingsManager::set_int(const std::string& mod, const std::string& key, int val) {
-    int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::system_clock::now().time_since_epoch()).count();
-    SettingRecord rec{mod, key, std::to_string(val), "int", now};
-    if (db_.upsert(rec)) {
-        std::unique_lock<std::shared_mutex> lock(mutex_);
-        cache_[make_cache_key(mod, key)] = rec;
-    }
+    update_setting(db_, mutex_, cache_, mod, key, std::to_string(val), "int");
 }
-
 void SettingsManager::set_float(const std::string& mod, const std::string& key, float val) {
-    int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::system_clock::now().time_since_epoch()).count();
-    SettingRecord rec{mod, key, std::to_string(val), "float", now};
-    if (db_.upsert(rec)) {
-        std::unique_lock<std::shared_mutex> lock(mutex_);
-        cache_[make_cache_key(mod, key)] = rec;
-    }
+    update_setting(db_, mutex_, cache_, mod, key, std::to_string(val), "float");
 }
-
 void SettingsManager::set_bool(const std::string& mod, const std::string& key, bool val) {
-    int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::system_clock::now().time_since_epoch()).count();
-    SettingRecord rec{mod, key, val ? "true" : "false", "bool", now};
-    if (db_.upsert(rec)) {
-        std::unique_lock<std::shared_mutex> lock(mutex_);
-        cache_[make_cache_key(mod, key)] = rec;
-    }
+    update_setting(db_, mutex_, cache_, mod, key, val ? "true" : "false", "bool");
 }
 
 std::string SettingsManager::get_version() const {
@@ -164,6 +150,7 @@ InferenceConfig SettingsManager::get_inference_config() const {
     cfg.needle3_mode = get_string("inference", "needle3_mode", cfg.needle3_mode);
     cfg.enable_tool_dedup = get_bool("inference", "enable_tool_dedup", cfg.enable_tool_dedup);
     cfg.context_window = get_int("inference", "context_window", cfg.context_window);
+    cfg.enable_context_injection = get_bool("inference", "enable_context_injection", cfg.enable_context_injection);
     return cfg;
 }
 
@@ -173,6 +160,7 @@ void SettingsManager::set_inference_config(const InferenceConfig& cfg) {
     set_string("inference", "needle3_mode", cfg.needle3_mode);
     set_bool("inference", "enable_tool_dedup", cfg.enable_tool_dedup);
     set_int("inference", "context_window", cfg.context_window);
+    set_bool("inference", "enable_context_injection", cfg.enable_context_injection);
 }
 
 LoggingConfig SettingsManager::get_logging_config() const {
