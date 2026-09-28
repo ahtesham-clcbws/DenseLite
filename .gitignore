@@ -3,6 +3,9 @@ models/
 .env
 .DS_Store
 *.db
+*.db-wal
+*.db-shm
+*.db-journal
 *.log
 .agents/
 denselite.log
