@@ -43,7 +43,7 @@ bool ModelInspector::is_role_compatible(const std::string& arch, const std::stri
     }
     if (role == "embedding") return (arch == "nomic-bert" || arch == "bert");
     if (role == "audio_stt") return (arch == "whisper");
-    if (role == "image_gen") return (arch == "diffusion" || arch == "unet");
+    if (role == "image_gen") return (arch == "diffusion" || arch == "unet" || arch == "stable-diffusion" || arch == "sd1");
     return false;
 }
 

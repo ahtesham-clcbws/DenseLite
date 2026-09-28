@@ -44,6 +44,8 @@ static std::string derive_model_id(const std::string& filename) {
     if (lower.find("smollm2") != std::string::npos || lower.find("smol") != std::string::npos) return "smollm2";
     if (lower.find("nomic-embed") != std::string::npos || lower.find("nomic") != std::string::npos) return "nomic_embed";
     if (lower.find("whisper") != std::string::npos || lower.find("ggml-base") != std::string::npos) return "whisper_base";
+    if (lower.find("stable-diffusion") != std::string::npos || lower.find("sd-v1") != std::string::npos ||
+        lower.find("sd15") != std::string::npos || lower.find("v1-5") != std::string::npos) return "sd15";
 
     std::string stem = fs::path(filename).stem().string();
     std::string clean;
@@ -71,6 +73,8 @@ static void bind_roles_for_id(const std::string& db_path, const std::string& mod
         ModelRegistryDB::bind_role(db_path, "embedding", model_id, true);
     } else if (model_id == "whisper_base" && !has_role("audio_stt")) {
         ModelRegistryDB::bind_role(db_path, "audio_stt", model_id, true);
+    } else if (model_id == "sd15" && !has_role("image_gen")) {
+        ModelRegistryDB::bind_role(db_path, "image_gen", model_id, true);
     }
 }
 
@@ -133,6 +137,16 @@ int ModelDiscovery::auto_discover_and_register(const std::string& base_dir, cons
                         registered_count++;
                         existing_models.push_back(rec);
                         std::cout << "[Discovery] Registered Audio Model: " << id << " (" << path << ")" << std::endl;
+                    }
+                } else if (ext == ".safetensors" || filename.find("v1-5-pruned") != std::string::npos) {
+                    std::string id = "sd15";
+                    if (check_and_update_existing(path, id)) continue;
+                    LocalModelRecord rec{id, path, "diffusion", 860000000, "860M", "FP16", 77, true, 0};
+                    if (ModelRegistryDB::register_model(db_path, rec)) {
+                        bind_roles_for_id(db_path, id);
+                        registered_count++;
+                        existing_models.push_back(rec);
+                        std::cout << "[Discovery] Registered Diffusion Model: " << id << " (" << path << ")" << std::endl;
                     }
                 }
             }
