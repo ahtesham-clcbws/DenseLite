@@ -21,6 +21,7 @@ add_executable(DenseLite
     src/gguf_parser.cpp
     src/infer.cpp
     src/vulkan_device.cpp
+    src/vulkan_compute.cpp
     src/model_registry.cpp
     src/model_pool.cpp
     src/model_lease.cpp
@@ -189,6 +190,7 @@ target_include_directories(test_golden PRIVATE src)
 
 add_executable(test_lifecycle tests/model_lifecycle_tests.cpp 
     src/vulkan_device.cpp
+    src/vulkan_compute.cpp
     src/model_registry.cpp
     src/model_pool.cpp
     src/model_lease.cpp
@@ -232,6 +234,7 @@ add_test(NAME ContextEngine COMMAND test_context)
 
 add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/vulkan_device.cpp
+    src/vulkan_compute.cpp
     src/model_registry.cpp
     src/model_pool.cpp
     src/model_lease.cpp
@@ -354,6 +357,7 @@ add_test(NAME AgentLoop COMMAND test_agent_loop)
 add_executable(test_governor tests/resource_governor_tests.cpp
     src/resource_governor.cpp
     src/vulkan_device.cpp
+    src/vulkan_compute.cpp
     src/settings/settings_db.cpp
     src/settings/settings_manager.cpp
     src/settings/settings_dtos.cpp
@@ -367,6 +371,7 @@ add_executable(test_multimodal tests/multimodal_tests.cpp
     src/multimodal_engine.cpp
     src/resource_governor.cpp
     src/vulkan_device.cpp
+    src/vulkan_compute.cpp
     src/RequestAnalyzer.cpp
     src/model_manager.cpp
     src/model_registry.cpp

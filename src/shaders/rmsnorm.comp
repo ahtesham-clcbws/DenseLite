@@ -1,0 +1,43 @@
+#version 450
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 0) readonly buffer InX {
+    float x[];
+};
+layout(std430, binding = 1) readonly buffer InW {
+    float w[];
+};
+layout(std430, binding = 2) writeonly buffer OutY {
+    float y[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint n;
+    float eps;
+} pc;
+
+shared float shared_sum[256];
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+    float sum_sq = 0.0;
+    for (uint i = tid; i < pc.n; i += 256) {
+        float val = x[i];
+        sum_sq += val * val;
+    }
+    shared_sum[tid] = sum_sq;
+    barrier();
+
+    for (uint s = 128; s > 0; s >>= 1) {
+        if (tid < s) {
+            shared_sum[tid] += shared_sum[tid + s];
+        }
+        barrier();
+    }
+
+    float inv_rms = 1.0 / sqrt(shared_sum[0] / float(pc.n) + pc.eps);
+
+    for (uint i = tid; i < pc.n; i += 256) {
+        y[i] = x[i] * inv_rms * w[i];
+    }
+}

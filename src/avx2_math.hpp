@@ -142,6 +142,25 @@ inline float dot_product_q4_0_fp32(const block_q4_0* __restrict x, const float* 
     return _mm_cvtss_f32(sum128);
 }
 
+// FP32 x FP32 SIMD Dot Product with AVX2/FMA
+inline float dot_product_fp32(const float* __restrict a, const float* __restrict b, int size) {
+    __m256 acc = _mm256_setzero_ps();
+    int i = 0;
+    for (; i <= size - 8; i += 8) {
+        __m256 va = _mm256_loadu_ps(&a[i]);
+        __m256 vb = _mm256_loadu_ps(&b[i]);
+        acc = _mm256_fmadd_ps(va, vb, acc);
+    }
+    __m128 acc_hi = _mm256_extractf128_ps(acc, 1);
+    __m128 acc_lo = _mm256_castps256_ps128(acc);
+    __m128 sum128 = _mm_add_ps(acc_hi, acc_lo);
+    sum128 = _mm_hadd_ps(sum128, sum128);
+    sum128 = _mm_hadd_ps(sum128, sum128);
+    float sum = _mm_cvtss_f32(sum128);
+    for (; i < size; ++i) sum += a[i] * b[i];
+    return sum;
+}
+
 // ----------------------------------------------------------------------------
 // 2. RMSNorm (SIMD Optimized)
 // ----------------------------------------------------------------------------

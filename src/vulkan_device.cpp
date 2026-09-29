@@ -1,4 +1,5 @@
 #include "vulkan_device.hpp"
+#include "vulkan_compute.hpp"
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -120,10 +121,31 @@ bool VulkanDevice::init_vulkan() {
     device_ci.pQueueCreateInfos = &queue_create_info;
 
     res = vkCreateDevice(physical_device_, &device_ci, nullptr, &device_);
-    return (res == VK_SUCCESS);
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    compute_queue_family_ = compute_queue_family;
+    vkGetDeviceQueue(device_, static_cast<uint32_t>(compute_queue_family_), 0, &compute_queue_);
+
+    VkCommandPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_info.queueFamilyIndex = static_cast<uint32_t>(compute_queue_family_);
+    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    vkCreateCommandPool(device_, &pool_info, nullptr, &command_pool_);
+
+    available_ = true;
+    return true;
 }
 
 void VulkanDevice::cleanup() {
+    if (command_pool_ != VK_NULL_HANDLE && device_ != VK_NULL_HANDLE) {
+        vkDestroyCommandPool(device_, command_pool_, nullptr);
+        command_pool_ = VK_NULL_HANDLE;
+    }
+    compute_queue_ = VK_NULL_HANDLE;
+    compute_queue_family_ = -1;
+
     if (device_ != VK_NULL_HANDLE) {
         vkDestroyDevice(device_, nullptr);
         device_ = VK_NULL_HANDLE;
@@ -136,6 +158,7 @@ void VulkanDevice::cleanup() {
 }
 
 VulkanMemoryInfo VulkanDevice::memory_info() const {
+
     std::lock_guard<std::mutex> lock(alloc_mutex_);
     VulkanMemoryInfo info;
     info.total_vram_bytes = total_vram_bytes_;
@@ -183,3 +206,14 @@ void VulkanDevice::release(size_t bytes) {
         allocated_bytes_ -= bytes;
     }
 }
+
+bool VulkanDevice::dispatch_vector_dot(const float* a, const float* b, size_t n, float& result) {
+    VulkanCompute compute(this);
+    return compute.vector_dot(a, b, n, result);
+}
+
+bool VulkanDevice::dispatch_rmsnorm(const float* x, const float* w, float* y, size_t n, float eps) {
+    VulkanCompute compute(this);
+    return compute.rmsnorm(x, w, y, n, eps);
+}
+

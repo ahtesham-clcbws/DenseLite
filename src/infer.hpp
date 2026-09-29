@@ -36,3 +36,7 @@ using StreamCallback = std::function<void(const std::string&)>;
 void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCallback callback,
               int max_tokens = 512, float temperature = 0.7f, float repetition_penalty = 1.15f,
               SessionKVState* session_kv = nullptr, int context_budget = 0);
+
+// Dense mean-pooled L2-normalized embedding vector computation
+std::vector<float> compute_embedding(DenseModel& model, const std::vector<int>& tokens);
+

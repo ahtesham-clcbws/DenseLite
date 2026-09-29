@@ -24,16 +24,19 @@ float VectorSearch::cosine_similarity(const std::vector<float>& a,
     return std::max(0.0f, std::min(1.0f, (sim + 1.0f) * 0.5f));
 }
 
-float VectorSearch::semantic_overlap(const std::string& query, const std::string& target) {
-    if (query.empty() || target.empty()) return 0.0f;
+static inline uint32_t fnv1a_hash(const std::string& str) {
+    uint32_t hash = 2166136261u;
+    for (char c : str) {
+        hash ^= static_cast<uint8_t>(c);
+        hash *= 16777619u;
+    }
+    return hash;
+}
 
-    static const std::unordered_map<std::string, std::vector<std::string>> synonyms = {
-        {"login", {"auth", "authenticate", "session", "credential", "user", "password", "token"}},
-        {"auth", {"login", "authentication", "authorize", "token", "session", "jwt"}},
-        {"database", {"sql", "sqlite", "table", "store", "query", "record", "db"}},
-        {"route", {"endpoint", "url", "api", "handler", "request", "http"}},
-        {"memory", {"cache", "store", "persist", "recall", "state", "session"}}
-    };
+std::vector<float> VectorSearch::embed_text(const std::string& text, size_t dim) {
+    if (dim < 64) dim = 64;
+    std::vector<float> vec(dim, 0.0f);
+    if (text.empty()) return vec;
 
     auto to_words = [](const std::string& s) {
         std::vector<std::string> words;
@@ -50,32 +53,59 @@ float VectorSearch::semantic_overlap(const std::string& query, const std::string
         return words;
     };
 
-    auto q_words = to_words(query);
-    auto t_words = to_words(target);
-    std::unordered_set<std::string> target_set(t_words.begin(), t_words.end());
+    auto words = to_words(text);
+    if (words.empty()) return vec;
 
-    size_t hits = 0;
-    size_t total_semantic_terms = q_words.size();
+    // Semantic cluster bases: maps conceptual terms to structured subspace directions
+    static const std::unordered_map<std::string, int> cluster_map = {
+        {"auth", 0}, {"login", 0}, {"authenticate", 0}, {"credential", 0}, {"password", 0}, {"token", 0}, {"session", 0}, {"jwt", 0}, {"signin", 0}, {"verify", 0},
+        {"db", 1}, {"database", 1}, {"sql", 1}, {"sqlite", 1}, {"table", 1}, {"store", 1}, {"query", 1}, {"record", 1}, {"schema", 1},
+        {"route", 2}, {"endpoint", 2}, {"url", 2}, {"api", 2}, {"handler", 2}, {"request", 2}, {"http", 2}, {"controller", 2}, {"client", 2},
+        {"memory", 3}, {"cache", 3}, {"persist", 3}, {"recall", 3}, {"state", 3}, {"kv", 3}, {"buffer", 3},
+        {"thread", 4}, {"async", 4}, {"mutex", 4}, {"lock", 4}, {"task", 4}, {"worker", 4}, {"pool", 4},
+        {"code", 5}, {"ast", 5}, {"tree", 5}, {"symbol", 5}, {"class", 5}, {"function", 5}, {"method", 5}
+    };
 
-    for (const auto& w : q_words) {
-        if (target_set.count(w)) {
-            hits += 2;
-            continue;
+    for (const auto& w : words) {
+        auto it = cluster_map.find(w);
+        if (it != cluster_map.end()) {
+            int cluster_idx = it->second;
+            for (int k = 0; k < 6; ++k) {
+                vec[cluster_idx * 6 + k] += 2.0f;
+            }
         }
-        auto it = synonyms.find(w);
-        if (it != synonyms.end()) {
-            for (const auto& syn : it->second) {
-                if (target_set.count(syn)) {
-                    hits += 1;
-                    break;
-                }
+
+        // Subword n-gram feature hashing into remaining dimensions
+        uint32_t w_hash = fnv1a_hash(w);
+        size_t w_dim = 36 + (w_hash % (dim - 36));
+        vec[w_dim] += 1.5f;
+
+        if (w.size() >= 3) {
+            for (size_t i = 0; i <= w.size() - 3; ++i) {
+                std::string tri = w.substr(i, 3);
+                uint32_t t_hash = fnv1a_hash(tri);
+                size_t t_dim = 36 + (t_hash % (dim - 36));
+                vec[t_dim] += 0.5f;
             }
         }
     }
 
-    if (total_semantic_terms == 0) return 0.0f;
-    float score = static_cast<float>(hits) / static_cast<float>(total_semantic_terms * 2);
-    return std::min(1.0f, score);
+    // L2 Normalization
+    double norm_sq = 0.0;
+    for (float v : vec) norm_sq += static_cast<double>(v) * v;
+    if (norm_sq > 1e-9) {
+        float inv_norm = static_cast<float>(1.0 / std::sqrt(norm_sq));
+        for (float& v : vec) v *= inv_norm;
+    }
+
+    return vec;
+}
+
+float VectorSearch::semantic_overlap(const std::string& query, const std::string& target) {
+    if (query.empty() || target.empty()) return 0.0f;
+    auto q_vec = embed_text(query);
+    auto t_vec = embed_text(target);
+    return cosine_similarity(q_vec, t_vec);
 }
 
 std::vector<SearchResult> VectorSearch::search(
@@ -100,9 +130,13 @@ std::vector<SearchResult> VectorSearch::search_semantic_text(
     const std::vector<SearchResult>& candidates,
     float threshold) {
 
+    if (query.empty() || candidates.empty()) return {};
+    auto query_vec = embed_text(query);
+
     std::vector<SearchResult> results;
     for (auto res : candidates) {
-        float sim = semantic_overlap(query, res.content);
+        auto doc_vec = embed_text(res.content);
+        float sim = cosine_similarity(query_vec, doc_vec);
         if (sim >= threshold) {
             res.semantic_similarity = sim;
             results.push_back(res);
@@ -110,3 +144,4 @@ std::vector<SearchResult> VectorSearch::search_semantic_text(
     }
     return results;
 }
+

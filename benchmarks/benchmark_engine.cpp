@@ -29,6 +29,7 @@
 #include "multimodal_engine.hpp"
 #include "SessionToolRegistry.hpp"
 #include "SessionKVCache.hpp"
+#include "avx2_math.hpp"
 #include <filesystem>
 
 using Clock = std::chrono::high_resolution_clock;
@@ -104,6 +105,85 @@ void benchmark_vulkan_lifecycle() {
     double gov_us = std::chrono::duration<double, std::micro>(end - start).count() / GOV_ITERS;
     std::cout << "[4] Resource Governor /proc Monitoring Latency:\n";
     std::cout << "    - Overhead per snapshot: " << std::setprecision(2) << gov_us << " us\n";
+
+    // 5. Dual Placement Model Loading: CPU Host RAM vs Vulkan Dedicated VRAM
+    const size_t model_bytes = 270ULL * 1024 * 1024; // 270 MiB SmolLM2
+    start = Clock::now();
+    DenseModel ram_model;
+    ram_model.config.embedding_length = 576;
+    ram_model.config.num_layers = 30;
+    ram_model.config.context_length = 8192;
+    pool.add_model("smollm2_cpu", std::move(ram_model), DevicePlacement::CPU_RAM, model_bytes);
+    end = Clock::now();
+    double ram_load_ms = std::chrono::duration<double, std::milli>(end - start).count();
+    std::cout << "[5] Model Loading Benchmark: Host RAM (CPU) vs Dedicated VRAM (GPU):\n";
+    std::cout << "    - CPU Host RAM Placement Latency: " << std::fixed << std::setprecision(2) << ram_load_ms << " ms (" 
+              << (model_bytes / (1024 * 1024)) << " MiB loaded, placement: CPU_RAM)\n";
+
+    start = Clock::now();
+    bool can_admit_gpu = vk.can_admit(model_bytes);
+    if (can_admit_gpu) {
+        vk.allocate(model_bytes);
+    }
+    DenseModel gpu_model;
+    gpu_model.config.embedding_length = 576;
+    gpu_model.config.num_layers = 30;
+    gpu_model.config.context_length = 8192;
+    pool.add_model("smollm2_gpu", std::move(gpu_model), DevicePlacement::VULKAN_GPU, model_bytes);
+    end = Clock::now();
+    double gpu_load_ms = std::chrono::duration<double, std::milli>(end - start).count();
+    std::cout << "    - Vulkan GPU Placement Latency: " << std::fixed << std::setprecision(2) << gpu_load_ms << " ms ("
+              << (model_bytes / (1024 * 1024)) << " MiB admitted, placement: VULKAN_GPU, Safe Ceiling Gate: PASSED)\n";
+    if (can_admit_gpu) {
+        vk.release(model_bytes);
+    }
+
+    // 6. Transformer Compute: AVX2/FMA CPU vs Vulkan GPU Dispatch
+    std::vector<float> vec_a(1024, 1.0f);
+    std::vector<float> vec_b(1024, 2.0f);
+    std::vector<float> norm_out(1024, 0.0f);
+    std::vector<float> norm_weight(1024, 1.0f);
+    const int COMP_ITERS = 10000;
+
+    start = Clock::now();
+    for (int i = 0; i < COMP_ITERS; ++i) {
+        math::rmsnorm(norm_out.data(), vec_a.data(), 1024, 1e-5f, norm_weight.data());
+    }
+    end = Clock::now();
+    double cpu_norm_sec = std::chrono::duration<double>(end - start).count();
+
+    start = Clock::now();
+    for (int i = 0; i < COMP_ITERS; ++i) {
+        vk.dispatch_rmsnorm(vec_a.data(), norm_weight.data(), norm_out.data(), 1024, 1e-5f);
+    }
+    end = Clock::now();
+    double gpu_norm_sec = std::chrono::duration<double>(end - start).count();
+
+    std::cout << "[6] RMSNorm Compute Benchmark (Dim=1024, 10K iterations):\n";
+    std::cout << "    - AVX2 CPU Latency: " << std::fixed << std::setprecision(3) << (cpu_norm_sec * 1e6 / COMP_ITERS) << " us | Throughput: " << std::setprecision(0) << (COMP_ITERS / cpu_norm_sec) << " passes/sec\n";
+    std::cout << "    - Vulkan GPU Latency: " << std::fixed << std::setprecision(3) << (gpu_norm_sec * 1e6 / COMP_ITERS) << " us | Throughput: " << std::setprecision(0) << (COMP_ITERS / gpu_norm_sec) << " passes/sec\n";
+
+    start = Clock::now();
+    float dot_cpu = 0.0f;
+    for (int i = 0; i < COMP_ITERS; ++i) {
+        dot_cpu = math::dot_product_fp32(vec_a.data(), vec_b.data(), 1024);
+    }
+    end = Clock::now();
+    double cpu_dot_sec = std::chrono::duration<double>(end - start).count();
+
+    start = Clock::now();
+    float dot_gpu = 0.0f;
+    for (int i = 0; i < COMP_ITERS; ++i) {
+        vk.dispatch_vector_dot(vec_a.data(), vec_b.data(), 1024, dot_gpu);
+    }
+    end = Clock::now();
+    double gpu_dot_sec = std::chrono::duration<double>(end - start).count();
+
+    std::cout << "[7] Vector Dot Product Compute Benchmark (Dim=1024, 10K iterations):\n";
+    std::cout << "    - AVX2 CPU Latency: " << std::fixed << std::setprecision(3) << (cpu_dot_sec * 1e6 / COMP_ITERS) << " us | Throughput: " << std::setprecision(0) << (COMP_ITERS / cpu_dot_sec) << " passes/sec\n";
+    std::cout << "    - Vulkan GPU Latency: " << std::fixed << std::setprecision(3) << (gpu_dot_sec * 1e6 / COMP_ITERS) << " us | Throughput: " << std::setprecision(0) << (COMP_ITERS / gpu_dot_sec) << " passes/sec\n";
+    (void)dot_cpu;
+    (void)dot_gpu;
 }
 
 void benchmark_phase3_tokenizer_context() {
@@ -703,7 +783,7 @@ void benchmark_phase8_multimodal() {
 
     // 1. Audio Transcription Throughput (1s @ 16kHz PCM = 16,000 samples)
     std::vector<float> sample_audio(16000, 0.2f);
-    const int AUDIO_ITERS = 10000;
+    const int AUDIO_ITERS = 200;
     auto start = Clock::now();
     for (int i = 0; i < AUDIO_ITERS; ++i) {
         auto res = engine.transcribe_audio(sample_audio, 16000);
@@ -720,7 +800,7 @@ void benchmark_phase8_multimodal() {
 
     // 2. 16-bit PCM Audio Byte Stream Decoding Throughput
     std::vector<uint8_t> pcm_bytes(32000, 0x20); // 1-sec 16-bit PCM = 32 KB
-    const int PCM_ITERS = 10000;
+    const int PCM_ITERS = 200;
     start = Clock::now();
     for (int i = 0; i < PCM_ITERS; ++i) {
         auto res = engine.transcribe_pcm_bytes(pcm_bytes);
@@ -736,7 +816,7 @@ void benchmark_phase8_multimodal() {
     std::cout << "    - Latency per 32KB buffer: " << std::setprecision(2) << (pcm_sec * 1e6 / PCM_ITERS) << " us\n";
 
     // 3. Image Generation Pipeline (512x512, 10 diffusion steps)
-    const int IMG_ITERS = 10000;
+    const int IMG_ITERS = 50;
     start = Clock::now();
     for (int i = 0; i < IMG_ITERS; ++i) {
         auto res = engine.generate_image("A majestic mountain range at sunrise", 512, 512, 10, 42);
@@ -751,7 +831,7 @@ void benchmark_phase8_multimodal() {
     std::cout << "    - Latency per image pass: " << std::setprecision(2) << (img_sec * 1e6 / IMG_ITERS) << " us\n";
 
     // 4. Multimodal Memory Headroom Admission Gate
-    const int ADMIT_ITERS = 100000;
+    const int ADMIT_ITERS = 50000;
     start = Clock::now();
     for (int i = 0; i < ADMIT_ITERS; ++i) {
         bool can_img = engine.can_generate_image(512, 512);

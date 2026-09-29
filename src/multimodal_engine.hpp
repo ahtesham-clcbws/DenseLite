@@ -23,6 +23,7 @@ struct ImageGenerationResult {
     int seed = 42;
     std::string format = "png";
     size_t data_bytes = 0;
+    std::vector<uint8_t> rgba_data;
     std::string error_message;
 };
 

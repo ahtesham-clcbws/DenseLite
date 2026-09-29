@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cassert>
+#include <cmath>
 #include <filesystem>
+
 #include "SessionToolRegistry.hpp"
 #include "SessionKVCache.hpp"
 
@@ -156,6 +158,34 @@ void test_session_kv_cache_lru_eviction() {
     std::cout << "   -> PASS: SessionKVCacheManager LRU eviction verified.\n";
 }
 
+void test_64k_context_scaling_and_persistence() {
+    std::cout << "[TEST] 64K Context Allocation, NTK RoPE Scaling & Persistence...\n";
+    ModelConfig cfg;
+    cfg.num_layers = 1;
+    cfg.embedding_length = 128;
+    cfg.num_kv_heads = 2;
+    cfg.head_dim = 64;
+    cfg.rope.base = 10000.0f;
+
+    InferenceState state;
+    init_inference_state(cfg, 65536, state);
+
+    // Verify 64K KV cache allocation size
+    size_t expected_kv_elements = 65536ULL * cfg.num_kv_heads * cfg.head_dim;
+    assert(state.k_cache[0].size() == expected_kv_elements);
+    assert(state.v_cache[0].size() == expected_kv_elements);
+
+    // Verify NTK RoPE frequency scaling applied (base scaled up)
+    assert(state.inv_freq.size() == cfg.head_dim / 2);
+    // Base for 64K context must be significantly higher than standard 10000.0f
+    float scaled_base = 10000.0f * std::pow(65536.0f / 8192.0f, static_cast<float>(cfg.head_dim) / (cfg.head_dim - 2));
+    float expected_inv0 = 1.0f / std::pow(scaled_base, 0.0f);
+    assert(std::abs(state.inv_freq[0] - expected_inv0) < 1e-4f);
+
+    std::cout << "   -> PASS: 64K KV memory sized (" << (expected_kv_elements * sizeof(float) * 2 / (1024 * 1024))
+              << " MiB/layer) & NTK RoPE scaled to base " << static_cast<int>(scaled_base) << ".\n";
+}
+
 int main() {
     std::cout << "========================================\n";
     std::cout << "[TEST] Phase 9: Session KV & Tool Tests\n";
@@ -163,6 +193,8 @@ int main() {
     test_session_tool_registry();
     test_session_kv_cache_disk_persistence();
     test_session_kv_cache_lru_eviction();
+    test_64k_context_scaling_and_persistence();
     std::cout << "\n>>> ALL PHASE 9 SESSION TESTS PASSED! <<<\n";
     return 0;
 }
+

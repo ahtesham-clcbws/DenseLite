@@ -80,11 +80,17 @@ void init_inference_state(const ModelConfig& config, int max_context, InferenceS
     state.k_cache.resize(config.num_layers, std::vector<float>(max_context * config.num_kv_heads * config.head_dim, 0.0f));
     state.v_cache.resize(config.num_layers, std::vector<float>(max_context * config.num_kv_heads * config.head_dim, 0.0f));
     
-    state.inv_freq.resize(config.head_dim / 2);
     float base = (config.rope.base > 0.0f) ? config.rope.base : 10000.0f;
+    // Dynamic NTK-aware RoPE frequency scaling for extended contexts (up to 64K)
+    if (max_context > 8192 && config.head_dim > 2) {
+        float scale = static_cast<float>(max_context) / 8192.0f;
+        base = base * std::pow(scale, static_cast<float>(config.head_dim) / (config.head_dim - 2));
+    }
+    state.inv_freq.resize(config.head_dim / 2);
     for (int i = 0; i < (int)config.head_dim; i += 2) {
         state.inv_freq[i / 2] = 1.0f / std::pow(base, (float)i / config.head_dim);
     }
+
     
     std::cout << "[Infer] Initializing KV Cache for max context: " << max_context 
               << " | RoPE Base: " << base << " | Intermediate Dim: " << config.intermediate_dim << std::endl;
@@ -495,3 +501,39 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         current_token = next_token;
     }
 }
+
+std::vector<float> compute_embedding(DenseModel& model, const std::vector<int>& tokens) {
+    if (tokens.empty()) return {};
+
+    InferenceState state;
+    int ctx = std::max(static_cast<int>(tokens.size()) + 16, 256);
+    init_inference_state(model.config, ctx, state);
+
+    std::vector<float> logits(model.config.vocab_size > 0 ? model.config.vocab_size : 1);
+    std::vector<float> pooled(model.config.embedding_length, 0.0f);
+
+    for (int t : tokens) {
+        forward_pass(model, state, t, logits);
+        for (size_t i = 0; i < model.config.embedding_length; ++i) {
+            pooled[i] += state.x[i];
+        }
+        state.current_pos++;
+    }
+
+    // Mean pooling & L2 normalization
+    double norm_sq = 0.0;
+    float inv_tokens = 1.0f / static_cast<float>(tokens.size());
+    for (size_t i = 0; i < model.config.embedding_length; ++i) {
+        pooled[i] *= inv_tokens;
+        norm_sq += static_cast<double>(pooled[i]) * pooled[i];
+    }
+
+    if (norm_sq > 1e-9) {
+        float inv_norm = static_cast<float>(1.0 / std::sqrt(norm_sq));
+        for (size_t i = 0; i < model.config.embedding_length; ++i) {
+            pooled[i] *= inv_norm;
+        }
+    }
+    return pooled;
+}
+

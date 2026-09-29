@@ -34,9 +34,15 @@ public:
     bool allocate(size_t bytes);
     void release(size_t bytes);
 
+    // Real GPU Compute Acceleration
+    bool has_compute() const { return compute_queue_ != VK_NULL_HANDLE; }
+    bool dispatch_vector_dot(const float* a, const float* b, size_t n, float& result);
+    bool dispatch_rmsnorm(const float* x, const float* w, float* y, size_t n, float eps);
+
     VkInstance instance() const { return instance_; }
     VkPhysicalDevice physical_device() const { return physical_device_; }
     VkDevice device() const { return device_; }
+    VkQueue compute_queue() const { return compute_queue_; }
 
 private:
     bool init_vulkan();
@@ -48,6 +54,10 @@ private:
     VkInstance instance_ = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device_ = VK_NULL_HANDLE;
     VkDevice device_ = VK_NULL_HANDLE;
+    int compute_queue_family_ = -1;
+    VkQueue compute_queue_ = VK_NULL_HANDLE;
+    VkCommandPool command_pool_ = VK_NULL_HANDLE;
+
     VkPhysicalDeviceLimits limits_{};
     VkPhysicalDeviceMemoryProperties mem_properties_{};
 
