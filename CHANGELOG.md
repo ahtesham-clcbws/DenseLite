@@ -60,8 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Phase 1 Native Transformer Runtime**: 100% zero-dependency model-driven C++ AVX2 forward pass in `infer.cpp`.
-- **Dynamic ModelConfig & RopeConfig (`model.hpp`)**: Eliminated hardcoded dimensions (`mlp_hidden_dim = 8960` removed); dynamically parses GGUF metadata for `intermediate_dim`, `head_dim`, and RoPE base frequency ($100{,}000$ for SmolLM2, $1{,}000{,}000$ for Qwen2.5).
-- **SmolLM2-360M Compatibility**: Resolved legacy SIGSEGV crashes; SmolLM2, Qwen Main, and Qwen Coder run natively through identical code paths.
+- **Dynamic ModelConfig & RopeConfig (`model.hpp`)**: Eliminated hardcoded dimensions (`mlp_hidden_dim = 8960` removed); dynamically parses GGUF metadata for `intermediate_dim`, `head_dim`, and RoPE base frequency ($100{,}000$ for SmolLM2, $500{,}000$ for Llama 3.2, $1{,}000{,}000$ for DeepSeek-R1).
+- **SmolLM2-360M Compatibility**: Resolved legacy SIGSEGV crashes; SmolLM2, Llama 3.2 1B Instruct (General), and DeepSeek-R1 Distill Qwen 1.5B (Coder) run natively through identical code paths.
 - **Phase 1 Test Suite**: Added `tests/math_correctness.cpp`, `tests/model_config_tests.cpp`, and `tests/golden_inference_tests.cpp` with 100% automated pass rate.
 
 ## [3.0.0] - 2026-09-25

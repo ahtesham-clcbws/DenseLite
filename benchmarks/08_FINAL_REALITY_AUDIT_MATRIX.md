@@ -14,8 +14,8 @@
 | **Build System** | Clean CMake build (~45s) | Clean incremental build (~1.2s), full CTest integration | 11/11 CTest suites pass in 31.57s | 🟢 VERIFIED |
 | **Daemon Startup** | ~850 ms (lazy sequential mmap) | Cold boot in ~820 ms, non-blocking HTTP/SSE on port 9501 | HTTP 200 `{"status":"ok"}` | 🟢 VERIFIED |
 | **SmolLM2 Inference** | ❌ SIGSEGV (REG-001 dimension mismatch) | 🟢 Dynamic GGUF parsing (`intermediate_dim = 4864`) | 18.42 tok/s AVX2, zero crash/OOM | 🟢 RESOLVED |
-| **Coder Inference (DeepSeek-R1-Distill-Qwen-1.5B)** | ~4.35 tokens/sec, hardcoded Qwen | Dynamic `ModelConfig`, pure AVX2 forward pass | 4.35 tokens/sec, rel_err $< 1.1 \times 10^{-6}$ | 🟢 VERIFIED |
-| **Main Inference (Llama-3.2-1B-Instruct)** | ~2.60–3.20 tokens/sec | Dynamic `RopeConfig`, pure AVX2 forward pass | 3.15 tokens/sec, deterministic temp=0 | 🟢 VERIFIED |
+| **Coder Inference (DeepSeek-R1-Distill-Qwen-1.5B)** | ~4.35 tokens/sec, static architecture | Dynamic `ModelConfig`, pure AVX2 forward pass | 4.35 tokens/sec, rel_err $< 1.1 \times 10^{-6}$ | 🟢 VERIFIED |
+| **General Inference (Llama-3.2-1B-Instruct)** | ~2.60–3.20 tokens/sec | Dynamic `RopeConfig`, pure AVX2 forward pass | 3.15 tokens/sec, deterministic temp=0 | 🟢 VERIFIED |
 | **AVX2 Math Kernels** | FP32 `matvec_q8` verified | Full SIMD math: `dot_product`, `rmsnorm`, `swiglu`, `rope` | Bitwise tested against scalar | 🟢 VERIFIED |
 | **GPU / Vulkan VRAM Governance** | Untested / Stub | 85% VRAM ceiling (1,740 MiB cap) + unified weights & scratch budgeting | Vulkan 1.3 physical limits & admission gate verified | 🟢 VERIFIED |
 | **GPU / Vulkan Compute Kernels** | Untested / Stub | Evaluated; transformer forward pass deferred to AVX2+FMA SIMD | Active inference on AVX2 CPU; Vulkan GEMV on roadmap | 🟡 BY-DESIGN (CPU-BOUND) |

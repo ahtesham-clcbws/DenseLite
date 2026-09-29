@@ -88,7 +88,7 @@ code:**
 
 2. **Zero external runtime dependencies.**
    No Ollama, no llama.cpp, no MNN. The inference engine is 100% hand-rolled
-   AVX2 C++ targeting Qwen 2.5.
+   AVX2+FMA C++ targeting Llama 3.2 1B and DeepSeek-R1 Distill Qwen 1.5B with Vulkan 1.3 GPU resource management.
 
 3. **`server.cpp` is a thin gateway.**
    It must remain under 100 lines. All intelligence lives in `DenseLiteEngine`
@@ -103,7 +103,7 @@ code:**
 Every request flows through these stages in order:
 
 ```
-HTTP Gateway → RequestAnalyzer → NeedleRouter → MemoryEngine (Recall)
+HTTP Gateway → RequestAnalyzer → ModernBERT Router → MemoryEngine (Recall)
     → SearchEngine (Multi-Signal) → ContextEngine (BPE + ChatML)
     → ModelEngine → AgentLoop (ResponseAnalyzer + Recovery + Completion)
     → Curator → Formatter
@@ -137,7 +137,7 @@ Each stage is a separate class. Do not merge stages or add cross-cutting concern
 |---|---|---|
 | Classes | PascalCase | `ModelEngine` |
 | Methods | snake_case | `get_fallback_model()` |
-| Constants | UPPER_SNAKE | `QWEN_EOS_TOKEN` |
+| Constants | UPPER_SNAKE | `MODEL_EOS_TOKEN` |
 | Files (classes) | PascalCase | `DenseLiteEngine.cpp` |
 | Files (systems) | snake_case | `sqlite_router.cpp` |
 | Enum values | UPPER_SNAKE | `SessionStatus::COMPLETED` |

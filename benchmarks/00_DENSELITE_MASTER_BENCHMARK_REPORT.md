@@ -4,10 +4,10 @@
 **Version:** v3.4.0  
 **Date:** 2026-09-29  
 **Hardware Platform:** Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz (2 Cores, 4 Threads), 32 GB RAM  
-**GPU Compute Platform:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
+**GPU Hardware / VRAM Gate:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
 **Operating System:** Linux 6.13.5-zen1-1-zen (x86_64)  
 **Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++17`  
-**Test Suite Verification:** 14/14 CTest Suites Passing (100% Pass Rate in 2.54s)  
+**Test Suite Verification:** 14/14 CTest Suites Passing (100% Pass Rate in 2.49s)  
 
 ---
 

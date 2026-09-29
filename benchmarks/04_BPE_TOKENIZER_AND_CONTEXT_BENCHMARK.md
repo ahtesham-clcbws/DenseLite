@@ -8,7 +8,7 @@
 
 ## 1. Native Trie-Based BPE Tokenizer
 
-DenseLite replaces the primitive `chars / 4` heuristic with a zero-dependency, trie-based Byte-Pair Encoding (BPE) tokenizer dynamically instantiated from the GGUF model vocabulary (`vocab_size = 151,936` for Qwen2.5, `49,152` for SmolLM2).
+DenseLite replaces the primitive `chars / 4` heuristic with a zero-dependency, trie-based Byte-Pair Encoding (BPE) tokenizer dynamically instantiated from the GGUF model vocabulary (`vocab_size = 128,256` for Llama 3.2, `151,936` for DeepSeek-R1, and `49,152` for SmolLM2).
 
 | Tokenizer Operation | Input Data Size | Measured Throughput | Latency per Unit | Target Baseline | Result |
 |---|:---:|:---:|:---:|:---:|:---:|

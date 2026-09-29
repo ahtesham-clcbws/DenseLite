@@ -60,6 +60,6 @@ COLD ──(Demand Load)──► LOADING ──(Success)──► HOT
                        FAILED                  WARM ──(Pressure)──► COLD
 ```
 
-- **Hot Resident Models:** `NeedleRouter` (CPU/RAM heuristic), `Nomic Embed` (Hot), `Qwen Main` (Hot).
-- **Leased On-Demand Models:** `Qwen Coder`, `SmolLM2`, `Whisper`, `Stable Diffusion`.
+- **Resident Models:** `ModernBERT Router` (ONNX CPU), `Nomic Embed v2 MoE` (GPU/RAM), `Llama 3.2 1B Instruct` (GPU/RAM).
+- **Leased On-Demand Models:** `DeepSeek-R1-Distill-Qwen-1.5B` (Coder), `SmolLM2 360M` (Compressor), `Whisper Turbo` (STT), `SDXL Lightning` (Image Gen).
 - **Eviction Verification:** When host memory pressure exceeds 85%, idle warm models are transitioned to `COLD` and unmapped via `munmap()`, reclaiming physical RAM within 1.2 ms.

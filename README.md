@@ -4,9 +4,9 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![C++](https://img.shields.io/badge/language-C++-blue.svg)
 ![AVX2](https://img.shields.io/badge/SIMD-AVX2%20%2B%20FMA-orange.svg)
-![Vulkan](https://img.shields.io/badge/GPU-Vulkan%201.3%20Compute-red.svg)
+![Vulkan](https://img.shields.io/badge/GPU-Vulkan%201.3%20Resource%20Mgmt-red.svg)
 
-**DenseLite** is a hyper-optimized, C++ based multi-model orchestration gateway designed to dynamically load, route, and execute large language models, vector embeddings, speech recognition, and image generation locally. It acts as an incredibly fast, edge-optimized "local brain".
+**DenseLite** is a hyper-optimized, C++ based multi-model orchestration gateway designed to dynamically load, route, and execute large language models, vector embeddings, speech recognition, and image generation locally. It provides Vulkan 1.3 GPU resource management and admission gating paired with a high-performance AVX2+FMA SIMD transformer forward pass, acting as an edge-optimized "local brain".
 
 > **DenseLite controls intelligence. The Client (IDE/Agent) controls execution.**  
 > **DenseLite may reason about tools, but DenseLite never executes tools.**
@@ -81,7 +81,7 @@ When a Client IDE or Agent sends a request to DenseLite, it flows through a dete
 flowchart TD
     A["🖥️ Client IDE/Agent sends POST /v1/chat/completions"] --> B["📥 server.cpp<br/>(HTTP Gateway)"]
     B --> C["🔍 RequestAnalyzer<br/>Parse JSON → OpenAIRequest"]
-    C --> D["🧠 NeedleRouter<br/>Classify intent via local LLM"]
+    C --> D["🧠 ModernBERT Router<br/>Zero-shot intent classification"]
     D --> E{"Intent Type?"}
 
     E -->|"reasoning"| F["📐 High-complexity path"]
@@ -97,7 +97,7 @@ flowchart TD
     J --> K{"Cloud or Local?"}
 
     K -->|"Cloud API available"| L["☁️ CloudAdapter<br/>Groq / OpenRouter / Gemini"]
-    K -->|"Offline / all keys exhausted"| M["🔧 LocalInference<br/>AVX2 infer.cpp<br/>Qwen 2.5 1.5B"]
+    K -->|"Offline / all keys exhausted"| M["🔧 LocalInference<br/>AVX2 infer.cpp<br/>Llama 3.2 1B / DeepSeek-R1 1.5B"]
 
     L --> N["📊 ResponseAnalyzer"]
     M --> N
@@ -151,7 +151,7 @@ flowchart LR
 
     G --> J["Retry with<br/>new credentials"]
     H --> J
-    I --> K["Generate locally<br/>Qwen 2.5 1.5B"]
+    I --> K["Generate locally<br/>Llama 3.2 1B / DeepSeek-R1 1.5B"]
 
     J --> L["✅ Transparent to user"]
     K --> L
@@ -169,11 +169,11 @@ flowchart TD
     B --> C["ResourceGovernor<br/>50% CPU Cap & 85% VRAM Gate"]
     C --> D["ModelManager<br/>GPU-preferred admission"]
 
-    D --> E["Needle Router<br/>(Zero-RAM Intent Classifier)"]
+    D --> E["ModernBERT Router<br/>(MoritzLaurer Zero-Shot ONNX)"]
     D --> F["SmolLM2-360M<br/>(Context Compression)"]
-    D --> G["Nomic Embed<br/>(Vector Embeddings)"]
-    D --> H["Qwen 2.5 1.5B<br/>(Main Local Brain)"]
-    D --> I["Qwen 2.5 Coder<br/>(On-Demand Leased)"]
+    D --> G["Nomic Embed v2 MoE<br/>(Vector Embeddings)"]
+    D --> H["Llama 3.2 1B Instruct<br/>(General Reasoner)"]
+    D --> I["DeepSeek-R1 Distill Qwen 1.5B<br/>(Coding Specialist)"]
 
     F --> J["GGUF Parser<br/>mmap + 32-byte align"]
     G --> J
@@ -238,9 +238,9 @@ DenseLite exposes a standard OpenAI-compatible HTTP REST API on `http://localhos
 
 | Client / IDE | Configuration Target | Base URL | Model ID |
 |---|---|---|---|
-| **Zed Editor** | `~/.config/zed/settings.json` | `http://localhost:9501/v1` | `denselite` / `qwen_coder` |
-| **OpenCode** | `~/.config/opencode/config.json` | `http://localhost:9501/v1` | `denselite` / `qwen_coder` |
-| **VS Code (Continue)** | `~/.continue/config.json` | `http://localhost:9501/v1` | `denselite` / `qwen_coder` |
+| **Zed Editor** | `~/.config/zed/settings.json` | `http://localhost:9501/v1` | `denselite` / `coder` / `general` |
+| **OpenCode** | `~/.config/opencode/config.json` | `http://localhost:9501/v1` | `denselite` / `coder` / `general` |
+| **VS Code (Continue)** | `~/.continue/config.json` | `http://localhost:9501/v1` | `denselite` / `coder` / `general` |
 
 #### Quick cURL Example
 ```bash
@@ -309,11 +309,11 @@ struct InferenceSession {
 ### The V3.0 Transformation
 
 - **Stripped `server.cpp`:** Removed monolithic logic from the HTTP server, relegating it to a pure routing gateway.
-- **Added Semantic Routing:** Replaced keyword-based string matching with `NeedleRouter` (Needle 3), using structured JSON assessments for true intent understanding.
+- **Added ModernBERT Zero-Shot Intent Routing:** Replaced legacy heuristic matching with `ModernBERTRouter` (`MoritzLaurer/ModernBERT-large-zeroshot-v2.0`), classifying intents into coding, reasoning, image, audio, and compression with sub-10ms ONNX execution.
 - **Implemented Deterministic Provider-State Healing:** Built `ProviderErrorAnalyzer` and `SQLiteRouter` logic to intercept errors. Rather than letting an LLM guess replacements, it hits provider `/v1/models` endpoints to deterministically map available fallback infrastructure.
 - **Embedded Alibaba Zvec:** Pulled the production-grade `alibaba/zvec` vector database directly into the C++ tree to enable true local semantic memory slicing for context.
 - **Abstracted `ModelEngine` & Added `Curator`:** Extracted inference into a dedicated engine and added a Curator layer to consolidate multi-turn results before serializing.
-- **Revealed the Custom AVX2 Engine:** Committed to the custom, hand-rolled C++ Transformer engine (`infer.cpp`) capable of running Qwen 2.5 natively.
+- **Revealed the Custom AVX2 Engine:** Committed to the custom, hand-rolled C++ Transformer engine (`infer.cpp`) running Llama 3.2 1B Instruct and DeepSeek-R1 Distill Qwen 1.5B natively.
 
 ### What We Have Now
 
@@ -343,7 +343,7 @@ SQLite is perfectly designed for ACID-compliant, deterministic, tabular data. We
 | **Ollama** | Requires a heavy background daemon and Docker-like abstractions |
 | **llama.cpp** | Pulls in massive multi-backend framework bloat (CUDA, ROCm, SYCL, Metal, OpenCL) whereas DenseLite uses a lean, tailored Vulkan 1.3 + AVX2 engine with zero bloat |
 | **MNN** | Designed for generic deep learning on edge devices, carrying bloat for convolutions and vision |
-| **DenseLite** | A **100% custom-built AVX2 Transformer engine** with raw intrinsics for Q8_0 dequantization, RoPE, and SwiGLU — the fastest, smallest possible binary tailored to Qwen 2.5 and SmolLM2 |
+| **DenseLite** | A **100% custom-built AVX2 Transformer engine** with raw intrinsics for Q8_0 dequantization, RoPE, and SwiGLU — the fastest, smallest possible binary tailored to Llama 3.2, DeepSeek-R1, and SmolLM2 with Vulkan 1.3 GPU resource management |
 
 ---
 
@@ -359,7 +359,8 @@ DenseLite/
 │   ├── server.cpp              # The Gateway: Thin HTTP/SSE listener (< 100 lines) receiving OpenAI payloads.
 │   ├── DenseLiteEngine.*       # The Orchestrator: Drives cognitive pipeline, manages multi-turn tool loops.
 │   ├── RequestAnalyzer.*       # The Payload Parser: Parses JSON, extracts intent tokens and schemas.
-│   ├── NeedleRouter.*          # The Semantic Brain: Zero-RAM heuristic intent router (coding, reasoning, text, audio, image).
+│   ├── Router.*                # The Semantic Dispatcher: Direct dispatch to ModernBERTRouter.
+│   ├── routing/modernbert_router.* # ModernBERT Zero-Shot Router: Embedded ONNX Runtime intent classifier.
 │   ├── sqlite_router.*         # The Deterministic Registry: SQLite state machine for keys, cooldowns, and provider limits.
 │   ├── ProviderErrorAnalyzer.* # The Error Interceptor: Traps 400/404/413/429/5xx HTTP errors for recovery.
 │   │
@@ -443,8 +444,8 @@ graph TD
         Engine --> Session
 
         Session --> Req[RequestAnalyzer]
-        Req --> Needle[Needle 3 Router]
-        Needle --> Context[ContextManager]
+        Req --> Router[ModernBERT Router]
+        Router --> Context[ContextEngine]
         Context --> ModEng[ModelEngine]
 
         ModEng --> Cloud[Cloud API]
@@ -510,7 +511,7 @@ DenseLite auto-detects `std::thread::hardware_concurrency()` and physical memory
 
 #### Scenario 4: The Offline Fallback (Airplane Mode)
 > **User:** Asks for a regex pattern while on a plane with no Wi-Fi.
-> **Resolution:** `sqlite_router` detects network failure. `ModelEngine` seamlessly routes to `LocalInference` (`infer.cpp`). The local Qwen 2.5 1.5B model spins up natively on CPU cores.
+> **Resolution:** `sqlite_router` detects network failure. `ModelEngine` seamlessly routes to `LocalInference` (`infer.cpp`). The local Llama-3.2-1B-Instruct model spins up natively on CPU cores.
 
 ---
 

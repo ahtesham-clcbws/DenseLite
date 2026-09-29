@@ -38,9 +38,9 @@ BMI1 / BMI2:                            Supported (Bit manipulation intrinsics)
 
 ---
 
-## 3. GPU Compute Hardware & Vulkan 1.3 Driver Limits
+## 3. GPU Hardware & Vulkan 1.3 Driver Limits
 
-DenseLite utilizes Vulkan 1.3 Compute for hardware-accelerated tensor math and memory leasing.
+DenseLite utilizes Vulkan 1.3 for GPU resource management, physical limits validation, and VRAM admission gating, with active transformer forward pass execution carried out on the AVX2+FMA SIMD CPU runtime.
 
 ```text
 Selected Device:        AMD Radeon R7 M350 (RADV OLAND)

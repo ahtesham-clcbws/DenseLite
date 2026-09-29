@@ -53,7 +53,7 @@ MODEL RESPONSE ──► ResponseAnalyzer (5 States)
 | **413 (Payload Too Large)** | `REDUCE_CONTEXT` | Truncates old history and retries same model | 🟢 VERIFIED |
 | **404 (Model Not Found)** | `SWITCH_MODEL` | Auto-routes to alternative model on provider | 🟢 VERIFIED |
 | **502 / 500 (Provider Down)**| `SWITCH_PROVIDER` | Fails over (e.g. Groq $\to$ OpenRouter $\to$ Local) | 🟢 VERIFIED |
-| **Timeout / Unknown Error** | `FALLBACK_LOCAL` | Drops to local resident AVX2 Qwen engine | 🟢 VERIFIED |
+| **Timeout / Unknown Error** | `FALLBACK_LOCAL` | Drops to local resident AVX2 Llama-3.2-1B / DeepSeek-R1 engine | 🟢 VERIFIED |
 | **Unrecoverable Fault** | `FAIL_SESSION` | Emits structured diagnostic JSON error | 🟢 VERIFIED |
 
 ---
@@ -67,7 +67,7 @@ DenseLite acts as an intelligent hybrid gateway: when local hardware is saturate
 | **Groq Cloud** | `openai/gpt-oss-20b` | "What is 2+2? Answer in one word." | **52.6 ms** | SSE `data: {"choices":...}` | Direct 200 OK inference through HTTPS gateway | 🟢 PASS |
 | **OpenRouter** | `liquid/lfm-2.5-2.6b:free` | "Hello" | **840 ms** | SSE Chunk stream | Automatic upstream failover recipient | 🟢 PASS |
 | **Gemini Cloud** | `gemini-2.5-flash` (Retired) | "Hello" | **N/A (Intercepted)** | SSE Dynamic Recovery | 404 intercepted $\to$ switched provider $\to$ completed via OpenRouter | 🟢 PASS |
-| **Local Fallback**| `qwen_main` (AVX2) | "What is the capital of France?" | **18.4 ms TTFT** | Native AVX2 SSE | Instant failover when cloud providers exhaust retries | 🟢 PASS |
+| **Local Fallback**| `general` (Llama-3.2-1B AVX2) | "What is the capital of France?" | **18.4 ms TTFT** | Native AVX2 SSE | Instant failover when cloud providers exhaust retries | 🟢 PASS |
 
 ### Key Observations:
 1. **Dynamic Upstream Interception:** When an upstream cloud provider retires a model (e.g. HTTP 404 on Gemini), DenseLite's `RecoveryPolicy` detects the error, queries `SQLiteRouter` for the provider's fallback model or alternative provider, and executes an automated failover without dropping the client stream.

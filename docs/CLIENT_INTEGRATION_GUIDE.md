@@ -35,7 +35,7 @@ DenseLite exposes a standard **OpenAI-compatible HTTP Gateway** on `http://local
    * **API URL:** `http://localhost:9501/v1`
    * **API Key:** `denselite`
 3. Click **`+ Add Model`**:
-   * **Model Name:** `denselite` *(or `qwen_coder`)*
+   * **Model Name:** `denselite` *(or `coder` / `general`)*
    * **Max Completion Tokens:** `4096`
    * **Max Output Tokens:** `4096`
    * **Max Tokens (Context):** `32768`
@@ -59,7 +59,12 @@ Add the following snippet directly to `~/.config/zed/settings.json`:
             "max_output_tokens": 4096
           },
           {
-            "name": "qwen_coder",
+            "name": "coder",
+            "max_tokens": 32768,
+            "max_output_tokens": 4096
+          },
+          {
+            "name": "general",
             "max_tokens": 32768,
             "max_output_tokens": 4096
           },
@@ -102,13 +107,13 @@ Add the following provider specification:
       },
       "models": {
         "denselite": {
-          "name": "DenseLite Auto Router"
+          "name": "DenseLite ModernBERT Router"
         },
-        "qwen_coder": {
-          "name": "Qwen 2.5 Coder 1.5B"
+        "coder": {
+          "name": "DeepSeek-R1 Distill Qwen 1.5B (Local Coder)"
         },
-        "qwen_main": {
-          "name": "Qwen 2.5 Main 1.5B"
+        "general": {
+          "name": "Llama 3.2 1B Instruct Abliterated (General Reasoner)"
         },
         "openai/gpt-oss-20b": {
           "name": "Groq GPT OSS 20B (Cloud)"
@@ -121,7 +126,7 @@ Add the following provider specification:
 
 ### Selecting Models in OpenCode
 - **In Chat:** Type `/models` and select `denselite/denselite` or any configured model.
-- **In Config:** Set `"model": "denselite/denselite"` or `"denselite/qwen_coder"` as your default.
+- **In Config:** Set `"model": "denselite/denselite"` or `"denselite/coder"` as your default.
 
 ### MCP Tools & 600 KB Schema Acceleration (v3.3.0)
 DenseLite v3.3.0 includes native **Session Tool Registry** and **Persistent Session KV Cache**:
@@ -148,7 +153,7 @@ For **Continue** (`~/.continue/config.json`):
     {
       "title": "DenseLite Coder",
       "provider": "openai",
-      "model": "qwen_coder",
+      "model": "coder",
       "apiBase": "http://localhost:9501/v1",
       "apiKey": "denselite"
     }
@@ -156,7 +161,7 @@ For **Continue** (`~/.continue/config.json`):
   "tabAutocompleteModel": {
     "title": "DenseLite Autocomplete",
     "provider": "openai",
-    "model": "qwen_coder",
+    "model": "coder",
     "apiBase": "http://localhost:9501/v1",
     "apiKey": "denselite"
   }

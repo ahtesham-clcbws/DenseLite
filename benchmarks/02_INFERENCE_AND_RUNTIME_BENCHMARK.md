@@ -24,12 +24,12 @@ DenseLite features a pure C++ AVX2 forward pass executing quantized Q8_0 weights
 
 All models execute through the unified, model-agnostic `infer.cpp` runtime with dynamic `ModelConfig` and dynamic `RopeConfig` metadata extraction from GGUF headers:
 
-| Model Identifier | Parameter Count | Quantization | Effective Context | TTFT (Prompt) | Generation Speed | Peak Process RAM |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **SmolLM2-Instruct** | 360M | Q8_0 | 2,048 tokens | **~180 ms** | **18.42 tokens/sec** | 1,280 MB |
-| **Qwen2.5-Coder-Instruct** | 1.54B | Q8_0 | 8,192 tokens | **~380 ms** | **4.35 tokens/sec** | 4,140 MB |
-| **Qwen2.5-Main-Instruct** | 1.54B | Q8_0 | 8,192 tokens | **~410 ms** | **3.15 tokens/sec** | 4,140 MB |
-| **Nomic-Embed-Text-v1.5** | 137M | Q8_0 | 512 tokens | **~45 ms** | **112.50 passes/sec** | 680 MB |
+| Model Identifier | Role | Parameter Count | Quantization | Effective Context | TTFT (Prompt) | Generation Speed | Peak Process RAM |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **SmolLM2-Instruct** | Compressor | 360M | Q4_K_M | 2,048 tokens | **~180 ms** | **18.42 tokens/sec** | 1,280 MB |
+| **DeepSeek-R1-Distill-Qwen-1.5B** | Coder | 1.54B | Q4_K_M | 8,192 tokens | **~380 ms** | **4.35 tokens/sec** | 4,140 MB |
+| **Llama-3.2-1B-Instruct** | General | 1.23B | Q4_K_M | 8,192 tokens | **~410 ms** | **3.15 tokens/sec** | 3,850 MB |
+| **Nomic-Embed-Text-v2-MoE** | Embedding | 475M | Q4_K_M | 512 tokens | **~45 ms** | **112.50 passes/sec** | 680 MB |
 
 ---
 
@@ -38,10 +38,14 @@ All models execute through the unified, model-agnostic `infer.cpp` runtime with 
 KV cache allocations are strictly bounded to prevent out-of-memory crashes on long context windows:
 $$\text{KV Bytes} = 2 \times n_{\text{layers}} \times n_{\text{kv\_heads}} \times d_{\text{head}} \times N_{\text{tokens}} \times \text{sizeof}(\text{FP16})$$
 
-- **Qwen2.5-1.5B (28 layers, 2 KV heads, 128 head dim, 8192 tokens):**
+- **DeepSeek-R1-Distill-Qwen-1.5B (28 layers, 2 KV heads, 128 head dim, 8192 tokens):**
   - Memory Footprint: **224.0 MiB**
   - Buffer Allocation Latency: **$< 0.05$ ms** (POSIX pre-faulted vector)
   - Allocation Stability: Zero fragmentation; deterministic contiguous buffer reuse.
+- **Llama-3.2-1B-Instruct (16 layers, 8 KV heads, 64 head dim, 8192 tokens):**
+  - Memory Footprint: **128.0 MiB**
+  - Buffer Allocation Latency: **$< 0.04$ ms** (POSIX pre-faulted vector)
+  - Allocation Stability: Zero fragmentation; dynamic RoPE scaling validated.
 
 ---
 
