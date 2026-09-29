@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(DenseLite VERSION 3.3.0 LANGUAGES C CXX)
+project(DenseLite VERSION 4.0.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -30,6 +30,7 @@ add_executable(DenseLite
     src/resource_governor.cpp
     src/model_manager.cpp
     src/RequestAnalyzer.cpp
+    src/decision_engine.cpp
     src/Formatter.cpp
     src/Router.cpp
     src/routing/modernbert_router.cpp
@@ -56,6 +57,7 @@ add_executable(DenseLite
     src/memory_store.cpp
     src/memory_recall.cpp
     src/memory_consolidator.cpp
+    src/nli_evaluator.cpp
     src/memory_engine.cpp
     src/language_registry.cpp
     src/ast_chunker.cpp
@@ -65,6 +67,7 @@ add_executable(DenseLite
     src/exact_search.cpp
     src/lexical_search.cpp
     src/vector_search.cpp
+    src/vector/turboquant_index.cpp
     src/structural_search.cpp
     src/result_fusion.cpp
     src/search_engine.cpp
@@ -178,15 +181,16 @@ target_compile_options(DenseLiteTray PRIVATE ${AYATANA_CFLAGS_OTHER})
 # ============================================================================
 enable_testing()
 
-add_executable(test_math tests/math_correctness.cpp)
-target_include_directories(test_math PRIVATE src)
+add_executable(test_math tests/math_correctness.cpp src/vulkan_device.cpp src/vulkan_compute.cpp)
+target_link_libraries(test_math PRIVATE vulkan)
+target_include_directories(test_math PRIVATE src dependencies/vulkan/include)
 
 add_executable(test_config tests/model_config_tests.cpp src/gguf_parser.cpp)
 target_include_directories(test_config PRIVATE src)
 
-add_executable(test_golden tests/golden_inference_tests.cpp src/infer.cpp src/gguf_parser.cpp)
-target_link_libraries(test_golden PRIVATE OpenMP::OpenMP_CXX)
-target_include_directories(test_golden PRIVATE src)
+add_executable(test_golden tests/golden_inference_tests.cpp src/infer.cpp src/gguf_parser.cpp src/vulkan_device.cpp src/vulkan_compute.cpp)
+target_link_libraries(test_golden PRIVATE OpenMP::OpenMP_CXX vulkan)
+target_include_directories(test_golden PRIVATE src dependencies/vulkan/include)
 
 add_executable(test_lifecycle tests/model_lifecycle_tests.cpp 
     src/vulkan_device.cpp
@@ -256,6 +260,7 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/memory_store.cpp
     src/memory_recall.cpp
     src/memory_consolidator.cpp
+    src/nli_evaluator.cpp
     src/memory_engine.cpp
     src/language_registry.cpp
     src/ast_chunker.cpp
@@ -265,6 +270,7 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/exact_search.cpp
     src/lexical_search.cpp
     src/vector_search.cpp
+    src/vector/turboquant_index.cpp
     src/structural_search.cpp
     src/result_fusion.cpp
     src/search_engine.cpp
@@ -297,7 +303,9 @@ add_executable(test_memory tests/memory_engine_tests.cpp
     src/memory_store.cpp
     src/memory_recall.cpp
     src/memory_consolidator.cpp
+    src/nli_evaluator.cpp
     src/memory_engine.cpp
+    src/vector_search.cpp
 )
 target_link_libraries(test_memory PRIVATE Threads::Threads sqlite3)
 target_include_directories(test_memory PRIVATE src)
@@ -318,6 +326,7 @@ add_executable(test_search tests/search_engine_tests.cpp
     src/exact_search.cpp
     src/lexical_search.cpp
     src/vector_search.cpp
+    src/vector/turboquant_index.cpp
     src/structural_search.cpp
     src/result_fusion.cpp
     src/search_engine.cpp
@@ -332,6 +341,7 @@ add_executable(test_search tests/search_engine_tests.cpp
     src/memory_store.cpp
     src/memory_recall.cpp
     src/memory_consolidator.cpp
+    src/nli_evaluator.cpp
     src/memory_engine.cpp
     src/tokenizer.cpp
     src/tokenizer_registry.cpp
@@ -402,9 +412,11 @@ add_executable(test_session_kv tests/session_kv_tests.cpp
     src/settings/path_service.cpp
     src/infer.cpp
     src/gguf_parser.cpp
+    src/vulkan_device.cpp
+    src/vulkan_compute.cpp
 )
-target_link_libraries(test_session_kv PRIVATE Threads::Threads OpenMP::OpenMP_CXX)
-target_include_directories(test_session_kv PRIVATE src src/settings)
+target_link_libraries(test_session_kv PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan)
+target_include_directories(test_session_kv PRIVATE src src/settings dependencies/vulkan/include)
 add_test(NAME SessionKVCache COMMAND test_session_kv)
 
 add_executable(test_settings tests/settings_tests.cpp
@@ -434,13 +446,52 @@ target_link_libraries(test_model_registry PRIVATE Threads::Threads sqlite3)
 target_include_directories(test_model_registry PRIVATE src src/settings src/databases)
 add_test(NAME ModelRegistry COMMAND test_model_registry)
 
+add_executable(test_decision tests/decision_engine_tests.cpp
+    src/decision_engine.cpp
+    src/RequestAnalyzer.cpp
+    src/routing/modernbert_router.cpp
+    src/settings/path_service.cpp
+    src/settings/settings_manager.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_dtos.cpp
+    src/databases/database_migrator.cpp
+    src/Formatter.cpp
+    src/tokenizer.cpp
+)
+target_link_directories(test_decision PRIVATE ${ONNXRUNTIME_DIR}/lib)
+target_link_libraries(test_decision PRIVATE Threads::Threads sqlite3 onnxruntime)
+set_target_properties(test_decision PROPERTIES BUILD_RPATH "${ONNXRUNTIME_DIR}/lib" INSTALL_RPATH "${ONNXRUNTIME_DIR}/lib")
+target_include_directories(test_decision PRIVATE src src/settings src/databases src/routing dependencies ${ONNXRUNTIME_DIR}/include)
+add_test(NAME DecisionEngine COMMAND test_decision)
 
+add_executable(test_turboquant tests/turboquant_tests.cpp
+    src/vector/turboquant_index.cpp
+)
+target_link_libraries(test_turboquant PRIVATE Threads::Threads)
+target_include_directories(test_turboquant PRIVATE src)
+add_test(NAME TurboQuant COMMAND test_turboquant)
 
+# ==============================================================================
+# Installation Targets (Portability & Packaging - IDs 170, 200, 214)
+# ==============================================================================
+include(GNUInstallDirs)
 
+install(TARGETS DenseLite DenseLiteTray
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
+install(DIRECTORY src/databases/migrations/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/denselite/migrations
+    FILES_MATCHING PATTERN "*.sql"
+)
 
+install(DIRECTORY web/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/denselite/web
+    OPTIONAL
+)
 
-
-
-
+install(FILES env.example
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/denselite
+    RENAME denselite.env.example
+)
 

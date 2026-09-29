@@ -6,6 +6,12 @@
 
 using json = nlohmann::json;
 
+static std::string mask_secret(const std::string& secret) {
+    if (secret.empty()) return "";
+    if (secret.size() <= 4) return std::string(secret.size(), '*');
+    return std::string(secret.size() - 4, '*') + secret.substr(secret.size() - 4);
+}
+
 static json get_all_settings_json() {
     auto& sm = SettingsManager::instance();
     json j;
@@ -13,7 +19,7 @@ static json get_all_settings_json() {
     j["server"] = {
         {"host", srv.host}, {"port", srv.port}, {"threads", srv.threads},
         {"max_payload_mb", srv.max_payload_mb}, {"enable_api_auth", srv.enable_api_auth},
-        {"api_secret_key", srv.api_secret_key}, {"cors_allowed_origins", srv.cors_allowed_origins},
+        {"api_secret_key", mask_secret(srv.api_secret_key)}, {"cors_allowed_origins", srv.cors_allowed_origins},
         {"n_batch", srv.n_batch}
     };
     auto rc = sm.get_resource_config();
@@ -42,8 +48,8 @@ static json get_all_settings_json() {
     };
     auto cc = sm.get_cloud_config();
     j["cloud"] = json{
-        {"openrouter_api_key", cc.openrouter_api_key}, {"gemini_api_key", cc.gemini_api_key},
-        {"openai_api_key", cc.openai_api_key}, {"cloud_priority", cc.cloud_priority},
+        {"openrouter_api_key", mask_secret(cc.openrouter_api_key)}, {"gemini_api_key", mask_secret(cc.gemini_api_key)},
+        {"openai_api_key", mask_secret(cc.openai_api_key)}, {"cloud_priority", cc.cloud_priority},
         {"cloud_fallback_enabled", cc.cloud_fallback_enabled}
     };
     auto st = sm.get_storage_config();
@@ -157,6 +163,7 @@ void register_settings_routes(httplib::Server& svr, const std::string& base_dir)
     });
 
     svr.Get("/api/settings/export", [](const httplib::Request&, httplib::Response& res) {
+        // Safe export: uses get_all_settings_json() which already masks secrets
         res.set_header("Content-Disposition", "attachment; filename=\"denselite-settings-backup.json\"");
         res.set_content(get_all_settings_json().dump(2), "application/json");
     });

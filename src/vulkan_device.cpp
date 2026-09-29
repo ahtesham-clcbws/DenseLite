@@ -217,3 +217,12 @@ bool VulkanDevice::dispatch_rmsnorm(const float* x, const float* w, float* y, si
     return compute.rmsnorm(x, w, y, n, eps);
 }
 
+uint32_t VulkanDevice::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties) const {
+    for (uint32_t i = 0; i < mem_properties_.memoryTypeCount; ++i) {
+        if ((type_filter & (1 << i)) && (mem_properties_.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    return UINT32_MAX;
+}
+

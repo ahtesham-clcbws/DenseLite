@@ -1,6 +1,7 @@
 #include "infer.hpp"
 #include "avx2_math.hpp"
 #include "SessionKVCache.hpp"
+#include "vulkan_compute.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -194,9 +195,14 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
         std::memcpy(residual.data(), state.x.data(), config.embedding_length * sizeof(float));
         
         // Pre-attention RMSNorm
-        math::rmsnorm(state.x.data(), state.x.data(), config.embedding_length,
-                      config.rms_norm_eps,
-                      (float*)model.tensors[lp + "attn_norm.weight"].data);
+        if (state.vulkan_compute && state.vulkan_compute->is_ready()) {
+            state.vulkan_compute->rmsnorm(state.x.data(), (const float*)model.tensors[lp + "attn_norm.weight"].data,
+                                          state.x.data(), config.embedding_length, config.rms_norm_eps);
+        } else {
+            math::rmsnorm(state.x.data(), state.x.data(), config.embedding_length,
+                          config.rms_norm_eps,
+                          (float*)model.tensors[lp + "attn_norm.weight"].data);
+        }
         
         // Q, K, V Projections (matvec)
         matvec_q8(model.tensors[lp + "attn_q.weight"], state.x.data(), q.data(),
@@ -291,9 +297,14 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
         std::memcpy(residual.data(), state.x.data(), config.embedding_length * sizeof(float));
         
         // Pre-FFN RMSNorm
-        math::rmsnorm(state.x.data(), state.x.data(), config.embedding_length,
-                      config.rms_norm_eps,
-                      (float*)model.tensors[lp + "ffn_norm.weight"].data);
+        if (state.vulkan_compute && state.vulkan_compute->is_ready()) {
+            state.vulkan_compute->rmsnorm(state.x.data(), (const float*)model.tensors[lp + "ffn_norm.weight"].data,
+                                          state.x.data(), config.embedding_length, config.rms_norm_eps);
+        } else {
+            math::rmsnorm(state.x.data(), state.x.data(), config.embedding_length,
+                          config.rms_norm_eps,
+                          (float*)model.tensors[lp + "ffn_norm.weight"].data);
+        }
         
         // In GGUF/llama.cpp naming:
         //   ffn_gate = the projection that gets SiLU applied (w1 in the paper)
@@ -320,9 +331,14 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
     }
     
     // 3. Final RMSNorm
-    math::rmsnorm(state.x.data(), state.x.data(), config.embedding_length,
-                  config.rms_norm_eps,
-                  (float*)model.tensors["output_norm.weight"].data);
+    if (state.vulkan_compute && state.vulkan_compute->is_ready()) {
+        state.vulkan_compute->rmsnorm(state.x.data(), (const float*)model.tensors["output_norm.weight"].data,
+                                      state.x.data(), config.embedding_length, config.rms_norm_eps);
+    } else {
+        math::rmsnorm(state.x.data(), state.x.data(), config.embedding_length,
+                      config.rms_norm_eps,
+                      (float*)model.tensors["output_norm.weight"].data);
+    }
     
     // 4. LM Head (Vocab Projection)
     // Some models (e.g. Qwen2.5-1.5B, SmolLM2) tie word embeddings and omit output.weight

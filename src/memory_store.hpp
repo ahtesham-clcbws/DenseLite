@@ -21,7 +21,14 @@ public:
     bool get_memory(const std::string& key, MemoryEntry& out);
     bool delete_memory(const std::string& key);
     std::vector<MemoryEntry> query_memories_keyword(const std::string& query, size_t limit = 10);
-    std::vector<MemoryEntry> load_all_persistent();
+    std::vector<std::pair<MemoryEntry, float>> query_memories_vector(
+        const std::vector<float>& query_vec, size_t limit = 10, float threshold = 0.2f,
+        const MemoryScopeFilter& filter = {});
+    std::vector<MemoryEntry> load_all_persistent(const MemoryScopeFilter& filter = {});
+
+    // Living Memory Evolution & Provenance Lifecycle (Phase 1)
+    bool supersede_memory(const std::string& old_key, const std::string& new_key);
+    bool touch_memory(const std::string& key);
 
     // Session Persistence
     bool save_session(const SessionMemory& session);

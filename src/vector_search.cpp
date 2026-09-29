@@ -24,6 +24,27 @@ float VectorSearch::cosine_similarity(const std::vector<float>& a,
     return std::max(0.0f, std::min(1.0f, (sim + 1.0f) * 0.5f));
 }
 
+#include <mutex>
+
+static std::mutex g_emb_mutex;
+static VectorSearch::EmbeddingFn g_embedding_fn = nullptr;
+static DenseModel* g_embedding_model = nullptr;
+
+void VectorSearch::set_embedding_fn(EmbeddingFn fn) {
+    std::lock_guard<std::mutex> lock(g_emb_mutex);
+    g_embedding_fn = std::move(fn);
+}
+
+void VectorSearch::set_embedding_model(DenseModel* model) {
+    std::lock_guard<std::mutex> lock(g_emb_mutex);
+    g_embedding_model = model;
+}
+
+DenseModel* VectorSearch::get_embedding_model() {
+    std::lock_guard<std::mutex> lock(g_emb_mutex);
+    return g_embedding_model;
+}
+
 static inline uint32_t fnv1a_hash(const std::string& str) {
     uint32_t hash = 2166136261u;
     for (char c : str) {
@@ -34,6 +55,16 @@ static inline uint32_t fnv1a_hash(const std::string& str) {
 }
 
 std::vector<float> VectorSearch::embed_text(const std::string& text, size_t dim) {
+    // 1. Live neural embedding dispatch (Task 3.2 / Register 85-86)
+    {
+        std::lock_guard<std::mutex> lock(g_emb_mutex);
+        if (g_embedding_fn) {
+            auto neural = g_embedding_fn(text);
+            if (!neural.empty()) return neural;
+        }
+    }
+
+    // 2. Deterministic subword feature projection fallback
     if (dim < 64) dim = 64;
     std::vector<float> vec(dim, 0.0f);
     if (text.empty()) return vec;

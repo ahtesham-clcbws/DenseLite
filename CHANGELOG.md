@@ -5,6 +5,16 @@ All notable changes to the DenseLite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-09-29
+
+### Added & Hardened (Quantum Architectural Remediations)
+- **Real Hardware Vulkan GPU Compute Execution**: Completely replaced CPU simulation with physical GPU execution via dedicated host-visible, coherent capacity-cached VRAM buffers, descriptor set binding, SPIR-V compute pipelines, and command buffer submission (`vkQueueSubmit`). Integrated into transformer `forward_pass()` for pre-attention, pre-FFN, and output RMSNorm. Verified on AMD Radeon R7 M350 / Intel HD Graphics 520 hardware with $4.76 \times 10^{-7}$ precision.
+- **Persistent Semantic Vector RAG Pipeline**: Added dynamic embedding dispatch in `VectorSearch` supporting live Nomic Embed execution. Added `embedding BLOB` column to SQLite `memories` table in `MemoryStore` with automatic schema migration. Wired Channel D in `SearchEngine` to query persistent vector memory with cosine similarity. Added SHA-256 integrity verification in `start.sh`.
+- **Security Hardening (Secure by Default)**: Switched default network bind from `0.0.0.0` to localhost `127.0.0.1`. Enabled API authentication by default (`enable_api_auth = true`). Auto-generates 48-char cryptographically secure API secret on initial boot. Restricted CORS default to `""` (reject external cross-origin). Enforced HTTP maximum payload bytes on httplib server. Added secret masking (`mask_secret()`) for all API keys in settings GET/export routes.
+- **Path & Packaging Portability**: Eliminated `/proc/self/exe` parent-path assumptions; centralized base_dir via `PathService`. Added XDG-compliant path resolution (`xdg_config_home`, `xdg_data_home`, `xdg_cache_home`). Added canonical path containment validator (`PathService::is_safe_model_path`) to prevent path traversal and symlink escape attacks. Added standard `GNUInstallDirs` packaging rules in `CMakeLists.txt`.
+- **Truth-in-Reporting Multimodal Engine Contracts**: Added dynamic `engine_mode` field to `TranscribeResult` and `ImageGenerationResult` to transparently distinguish leased native neural weights from acoustic Fourier and latent VAE synthesis fallbacks.
+- **Canonical Version Lock**: Synchronized version `4.0.0` across `CMakeLists.txt`, `settings_types.hpp`, `settings_tests.cpp`, and `SECURITY.md`.
+
 ## [3.4.0] - 2026-09-29
 
 ### Added

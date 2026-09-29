@@ -55,15 +55,24 @@ bool ModernBERTRouter::initialize(const std::string& model_dir) {
     if (impl_->ready) return true;
 
     std::string effective_dir = model_dir;
-    std::string tok_path = effective_dir + "/tokenizer.json";
-    if (!std::filesystem::exists(tok_path)) {
+    std::string tok_path = effective_dir.empty() ? "" : (effective_dir + "/tokenizer.json");
+    if (tok_path.empty() || !std::filesystem::exists(tok_path)) {
         std::string ps_dir = PathService::instance().get_models_dir() + "/modernbert";
         if (std::filesystem::exists(ps_dir + "/tokenizer.json")) {
             effective_dir = ps_dir;
             tok_path = effective_dir + "/tokenizer.json";
-        } else if (std::filesystem::exists("../models/modernbert/tokenizer.json")) {
-            effective_dir = "../models/modernbert";
-            tok_path = effective_dir + "/tokenizer.json";
+        } else {
+            std::string base_m = PathService::instance().get_base_dir() + "/models/modernbert";
+            if (std::filesystem::exists(base_m + "/tokenizer.json")) {
+                effective_dir = base_m;
+                tok_path = effective_dir + "/tokenizer.json";
+            } else {
+                std::string user_m = PathService::expand_user("~/.denselite/models/modernbert");
+                if (std::filesystem::exists(user_m + "/tokenizer.json")) {
+                    effective_dir = user_m;
+                    tok_path = effective_dir + "/tokenizer.json";
+                }
+            }
         }
     }
 

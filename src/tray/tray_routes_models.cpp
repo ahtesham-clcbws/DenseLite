@@ -37,6 +37,10 @@ void register_model_routes(httplib::Server& svr, const std::string& base_dir) {
         try {
             auto body = json::parse(req.body);
             std::string path = PathService::expand_user(body.value("path", ""));
+            if (!PathService::instance().is_safe_model_path(path)) {
+                res.set_content(json({{"valid", false}, {"error", "Access denied: model path outside approved roots"}}).dump(), "application/json");
+                return;
+            }
             auto insp = ModelInspector::inspect(path);
             json j{
                 {"valid", insp.is_valid}, {"error", insp.error_message},
@@ -55,6 +59,10 @@ void register_model_routes(httplib::Server& svr, const std::string& base_dir) {
         try {
             auto body = json::parse(req.body);
             std::string path = PathService::expand_user(body.value("path", ""));
+            if (!PathService::instance().is_safe_model_path(path)) {
+                res.set_content(json({{"success", false}, {"error", "Access denied: model path outside approved roots"}}).dump(), "application/json");
+                return;
+            }
             std::string model_id = body.value("id", "");
             auto insp = ModelInspector::inspect(path);
             if (!insp.is_valid || !insp.is_supported_edge_size()) {

@@ -11,7 +11,7 @@ RoutingDecision Router::analyze_request(const OpenAIRequest& req) {
 
     // Direct routing via MoritzLaurer/ModernBERT-large-zeroshot-v2.0
     if (!ModernBERTRouter::instance().is_available()) {
-        ModernBERTRouter::instance().initialize("models/modernbert");
+        ModernBERTRouter::instance().initialize();
     }
 
     if (ModernBERTRouter::instance().is_available()) {

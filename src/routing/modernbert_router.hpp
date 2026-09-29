@@ -16,7 +16,7 @@ class ModernBERTRouter {
 public:
     static ModernBERTRouter& instance();
 
-    bool initialize(const std::string& model_dir = "models/modernbert");
+    bool initialize(const std::string& model_dir = "");
     bool is_available() const;
 
     RoutingDecision route(const std::string& user_query);

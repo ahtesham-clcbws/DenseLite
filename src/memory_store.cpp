@@ -1,6 +1,9 @@
 #include "memory_store.hpp"
+#include "vector_search.hpp"
 #include <iostream>
 #include <chrono>
+#include <algorithm>
+#include <filesystem>
 
 MemoryStore::MemoryStore() = default;
 
@@ -13,6 +16,11 @@ bool MemoryStore::init(const std::string& sqlite_path, const std::string& zvec_p
     close();
     sqlite_path_ = sqlite_path;
     zvec_path_ = zvec_path;
+
+    if (!zvec_path_.empty()) {
+        std::error_code ec;
+        std::filesystem::create_directories(std::filesystem::path(zvec_path_).parent_path(), ec);
+    }
 
     if (sqlite3_open_v2(sqlite_path_.c_str(), &db_,
                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX,
@@ -40,7 +48,22 @@ bool MemoryStore::create_tables() {
         "  category INTEGER,"
         "  value TEXT,"
         "  confidence REAL,"
-        "  updated_at INTEGER"
+        "  updated_at INTEGER,"
+        "  embedding BLOB,"
+        "  workspace_id TEXT NOT NULL DEFAULT 'default',"
+        "  session_id TEXT NOT NULL DEFAULT '',"
+        "  actor_scope TEXT NOT NULL DEFAULT 'public',"
+        "  visibility TEXT NOT NULL DEFAULT 'workspace',"
+        "  source_path TEXT DEFAULT '',"
+        "  source_type TEXT DEFAULT 'user',"
+        "  commit_hash TEXT DEFAULT '',"
+        "  importance REAL NOT NULL DEFAULT 0.5,"
+        "  access_count INTEGER NOT NULL DEFAULT 0,"
+        "  last_accessed_at INTEGER NOT NULL DEFAULT 0,"
+        "  expires_at INTEGER DEFAULT 0,"
+        "  supersedes_id TEXT DEFAULT '',"
+        "  contradicts_id TEXT DEFAULT '',"
+        "  status TEXT NOT NULL DEFAULT 'active'"
         ");"
         "CREATE TABLE IF NOT EXISTS sessions ("
         "  session_id TEXT PRIMARY KEY,"
@@ -64,21 +87,80 @@ bool MemoryStore::create_tables() {
         "  summary TEXT,"
         "  extracted_facts TEXT,"
         "  created_at INTEGER"
-        ");";
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_memories_workspace_status ON memories(workspace_id, status);";
     char* err_msg = nullptr;
     if (sqlite3_exec(db_, schema, nullptr, nullptr, &err_msg) != SQLITE_OK) {
         sqlite3_free(err_msg);
         return false;
     }
+    // Migration helpers for pre-existing tables
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN embedding BLOB;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN session_id TEXT NOT NULL DEFAULT '';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN actor_scope TEXT NOT NULL DEFAULT 'public';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN visibility TEXT NOT NULL DEFAULT 'workspace';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN source_path TEXT DEFAULT '';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN source_type TEXT DEFAULT 'user';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN commit_hash TEXT DEFAULT '';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN importance REAL NOT NULL DEFAULT 0.5;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN last_accessed_at INTEGER NOT NULL DEFAULT 0;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN expires_at INTEGER DEFAULT 0;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN supersedes_id TEXT DEFAULT '';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN contradicts_id TEXT DEFAULT '';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "ALTER TABLE memories ADD COLUMN status TEXT NOT NULL DEFAULT 'active';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "CREATE INDEX IF NOT EXISTS idx_memories_workspace_status ON memories(workspace_id, status);", nullptr, nullptr, nullptr);
     return true;
 }
 
-bool MemoryStore::put_memory(const MemoryEntry& entry, const std::vector<float>& /*embedding*/) {
+static inline std::string safe_text(sqlite3_stmt* stmt, int col) {
+    const unsigned char* t = sqlite3_column_text(stmt, col);
+    return t ? reinterpret_cast<const char*>(t) : "";
+}
+
+static inline MemoryEntry extract_memory_entry(sqlite3_stmt* stmt) {
+    MemoryEntry entry;
+    entry.key = safe_text(stmt, 0);
+    entry.id = safe_text(stmt, 1);
+    entry.category = static_cast<MemoryCategory>(sqlite3_column_int(stmt, 2));
+    entry.value = safe_text(stmt, 3);
+    entry.confidence = static_cast<float>(sqlite3_column_double(stmt, 4));
+    entry.updated_at = sqlite3_column_int64(stmt, 5);
+    entry.workspace_id = safe_text(stmt, 6);
+    entry.session_id = safe_text(stmt, 7);
+    entry.actor_scope = safe_text(stmt, 8);
+    entry.visibility = safe_text(stmt, 9);
+    entry.source_path = safe_text(stmt, 10);
+    entry.source_type = safe_text(stmt, 11);
+    entry.commit_hash = safe_text(stmt, 12);
+    entry.importance = static_cast<float>(sqlite3_column_double(stmt, 13));
+    entry.access_count = sqlite3_column_int(stmt, 14);
+    entry.last_accessed_at = sqlite3_column_int64(stmt, 15);
+    entry.expires_at = sqlite3_column_int64(stmt, 16);
+    entry.supersedes_id = safe_text(stmt, 17);
+    entry.contradicts_id = safe_text(stmt, 18);
+    entry.status = safe_text(stmt, 19);
+    if (entry.status.empty()) entry.status = "active";
+    return entry;
+}
+
+bool MemoryStore::put_memory(const MemoryEntry& entry, const std::vector<float>& embedding) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!db_) return false;
 
-    const char* sql = "INSERT OR REPLACE INTO memories (key, id, category, value, confidence, updated_at) "
-                      "VALUES (?, ?, ?, ?, ?, ?);";
+    std::vector<float> emb = embedding;
+    if (emb.empty()) {
+        emb = VectorSearch::embed_text(entry.value);
+    }
+
+    const char* sql = "INSERT OR REPLACE INTO memories ("
+                      "  key, id, category, value, confidence, updated_at, embedding, "
+                      "  workspace_id, session_id, actor_scope, visibility, "
+                      "  source_path, source_type, commit_hash, importance, "
+                      "  access_count, last_accessed_at, expires_at, "
+                      "  supersedes_id, contradicts_id, status"
+                      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 
@@ -88,34 +170,47 @@ bool MemoryStore::put_memory(const MemoryEntry& entry, const std::vector<float>&
     sqlite3_bind_text(stmt, 4, entry.value.c_str(), -1, SQLITE_STATIC);
     sqlite3_bind_double(stmt, 5, entry.confidence);
     sqlite3_bind_int64(stmt, 6, entry.updated_at);
+    if (!emb.empty()) {
+        sqlite3_bind_blob(stmt, 7, emb.data(), static_cast<int>(emb.size() * sizeof(float)), SQLITE_TRANSIENT);
+    } else {
+        sqlite3_bind_null(stmt, 7);
+    }
+    sqlite3_bind_text(stmt, 8, entry.workspace_id.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 9, entry.session_id.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 10, entry.actor_scope.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 11, entry.visibility.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 12, entry.source_path.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 13, entry.source_type.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 14, entry.commit_hash.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_double(stmt, 15, entry.importance);
+    sqlite3_bind_int(stmt, 16, entry.access_count);
+    sqlite3_bind_int64(stmt, 17, entry.last_accessed_at);
+    sqlite3_bind_int64(stmt, 18, entry.expires_at);
+    sqlite3_bind_text(stmt, 19, entry.supersedes_id.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 20, entry.contradicts_id.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 21, entry.status.c_str(), -1, SQLITE_STATIC);
 
     bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
     return ok;
 }
 
-static inline std::string safe_text(sqlite3_stmt* stmt, int col) {
-    const unsigned char* t = sqlite3_column_text(stmt, col);
-    return t ? reinterpret_cast<const char*>(t) : "";
-}
-
 bool MemoryStore::get_memory(const std::string& key, MemoryEntry& out) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!db_) return false;
 
-    const char* sql = "SELECT key, id, category, value, confidence, updated_at FROM memories WHERE key = ?;";
+    const char* sql = "SELECT key, id, category, value, confidence, updated_at, "
+                      "workspace_id, session_id, actor_scope, visibility, "
+                      "source_path, source_type, commit_hash, importance, "
+                      "access_count, last_accessed_at, expires_at, "
+                      "supersedes_id, contradicts_id, status FROM memories WHERE key = ?;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 
     sqlite3_bind_text(stmt, 1, key.c_str(), -1, SQLITE_STATIC);
     bool found = false;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        out.key = safe_text(stmt, 0);
-        out.id = safe_text(stmt, 1);
-        out.category = static_cast<MemoryCategory>(sqlite3_column_int(stmt, 2));
-        out.value = safe_text(stmt, 3);
-        out.confidence = static_cast<float>(sqlite3_column_double(stmt, 4));
-        out.updated_at = sqlite3_column_int64(stmt, 5);
+        out = extract_memory_entry(stmt);
         found = true;
     }
     sqlite3_finalize(stmt);
@@ -136,13 +231,47 @@ bool MemoryStore::delete_memory(const std::string& key) {
     return ok;
 }
 
+bool MemoryStore::supersede_memory(const std::string& old_key, const std::string& new_key) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!db_ || old_key.empty()) return false;
+
+    const char* sql = "UPDATE memories SET status = 'superseded', supersedes_id = ? WHERE key = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(stmt, 1, new_key.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, old_key.c_str(), -1, SQLITE_STATIC);
+    bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+bool MemoryStore::touch_memory(const std::string& key) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!db_ || key.empty()) return false;
+
+    int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    const char* sql = "UPDATE memories SET access_count = access_count + 1, last_accessed_at = ? WHERE key = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int64(stmt, 1, now);
+    sqlite3_bind_text(stmt, 2, key.c_str(), -1, SQLITE_STATIC);
+    bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
 std::vector<MemoryEntry> MemoryStore::query_memories_keyword(const std::string& query, size_t limit) {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<MemoryEntry> results;
     if (!db_) return results;
 
-    const char* sql = "SELECT key, id, category, value, confidence, updated_at FROM memories "
-                      "WHERE key LIKE ? OR value LIKE ? LIMIT ?;";
+    const char* sql = "SELECT key, id, category, value, confidence, updated_at, "
+                      "workspace_id, session_id, actor_scope, visibility, "
+                      "source_path, source_type, commit_hash, importance, "
+                      "access_count, last_accessed_at, expires_at, "
+                      "supersedes_id, contradicts_id, status FROM memories "
+                      "WHERE (key LIKE ? OR value LIKE ?) AND status = 'active' LIMIT ?;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return results;
 
@@ -152,37 +281,74 @@ std::vector<MemoryEntry> MemoryStore::query_memories_keyword(const std::string& 
     sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(limit));
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        MemoryEntry entry;
-        entry.key = safe_text(stmt, 0);
-        entry.id = safe_text(stmt, 1);
-        entry.category = static_cast<MemoryCategory>(sqlite3_column_int(stmt, 2));
-        entry.value = safe_text(stmt, 3);
-        entry.confidence = static_cast<float>(sqlite3_column_double(stmt, 4));
-        entry.updated_at = sqlite3_column_int64(stmt, 5);
-        results.push_back(std::move(entry));
+        results.push_back(extract_memory_entry(stmt));
     }
     sqlite3_finalize(stmt);
     return results;
 }
 
-std::vector<MemoryEntry> MemoryStore::load_all_persistent() {
+std::vector<std::pair<MemoryEntry, float>> MemoryStore::query_memories_vector(
+    const std::vector<float>& query_vec, size_t limit, float threshold,
+    const MemoryScopeFilter& filter) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!db_ || query_vec.empty()) return {};
+
+    const char* sql = "SELECT key, id, category, value, confidence, updated_at, "
+                      "workspace_id, session_id, actor_scope, visibility, "
+                      "source_path, source_type, commit_hash, importance, "
+                      "access_count, last_accessed_at, expires_at, "
+                      "supersedes_id, contradicts_id, status, embedding "
+                      "FROM memories WHERE embedding IS NOT NULL;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return {};
+
+    std::vector<std::pair<MemoryEntry, float>> scored;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        MemoryEntry entry = extract_memory_entry(stmt);
+        if (!filter.matches(entry)) {
+            continue;
+        }
+
+        const void* blob = sqlite3_column_blob(stmt, 20);
+        int bytes = sqlite3_column_bytes(stmt, 20);
+        if (blob && bytes > 0 && (bytes % sizeof(float) == 0)) {
+            size_t num_floats = bytes / sizeof(float);
+            const float* float_ptr = reinterpret_cast<const float*>(blob);
+            std::vector<float> doc_vec(float_ptr, float_ptr + num_floats);
+            float sim = VectorSearch::cosine_similarity(query_vec, doc_vec);
+            if (sim >= threshold) {
+                scored.emplace_back(std::move(entry), sim);
+            }
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    std::stable_sort(scored.begin(), scored.end(), [](const auto& a, const auto& b) {
+        return a.second > b.second;
+    });
+
+    if (scored.size() > limit) scored.resize(limit);
+    return scored;
+}
+
+std::vector<MemoryEntry> MemoryStore::load_all_persistent(const MemoryScopeFilter& filter) {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<MemoryEntry> results;
     if (!db_) return results;
 
-    const char* sql = "SELECT key, id, category, value, confidence, updated_at FROM memories;";
+    const char* sql = "SELECT key, id, category, value, confidence, updated_at, "
+                      "workspace_id, session_id, actor_scope, visibility, "
+                      "source_path, source_type, commit_hash, importance, "
+                      "access_count, last_accessed_at, expires_at, "
+                      "supersedes_id, contradicts_id, status FROM memories;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return results;
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        MemoryEntry entry;
-        entry.key = safe_text(stmt, 0);
-        entry.id = safe_text(stmt, 1);
-        entry.category = static_cast<MemoryCategory>(sqlite3_column_int(stmt, 2));
-        entry.value = safe_text(stmt, 3);
-        entry.confidence = static_cast<float>(sqlite3_column_double(stmt, 4));
-        entry.updated_at = sqlite3_column_int64(stmt, 5);
-        results.push_back(std::move(entry));
+        MemoryEntry entry = extract_memory_entry(stmt);
+        if (filter.matches(entry)) {
+            results.push_back(std::move(entry));
+        }
     }
     sqlite3_finalize(stmt);
     return results;

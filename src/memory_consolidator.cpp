@@ -1,4 +1,6 @@
 #include "memory_consolidator.hpp"
+#include "nli_evaluator.hpp"
+#include "vector_search.hpp"
 #include <sstream>
 #include <chrono>
 #include <algorithm>
@@ -108,13 +110,23 @@ ConsolidationResult MemoryConsolidator::consolidate(const SessionMemory& session
     for (const auto& mem : result.extracted_memories) {
         facts_oss << "[" << mem.key << "]: " << mem.value << "\n";
         if (store_) {
+            // Contradiction Resolution: Search for semantically related facts and supersede if contradictory
+            auto emb = VectorSearch::embed_text(mem.value);
+            auto hits = store_->query_memories_vector(emb, 3, 0.4f);
+            for (const auto& hit : hits) {
+                if (hit.first.key != mem.key && 
+                    NLIEvaluator::instance().is_contradiction(hit.first.value, mem.value)) {
+                    store_->supersede_memory(hit.first.key, mem.key);
+                }
+            }
+
             MemoryEntry existing;
             if (store_->get_memory(mem.key, existing)) {
                 result.updated_count++;
             } else {
                 result.added_count++;
             }
-            store_->put_memory(mem);
+            store_->put_memory(mem, emb);
         }
         if (persistent_mem_) {
             persistent_mem_->set_entry(mem);

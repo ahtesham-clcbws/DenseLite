@@ -3,7 +3,7 @@
 #include <string>
 #include <cstdint>
 
-inline constexpr const char* DENSELITE_VERSION = "3.3.0";
+inline constexpr const char* DENSELITE_VERSION = "4.0.0";
 
 struct SettingRecord {
     std::string module;
@@ -15,13 +15,13 @@ struct SettingRecord {
 
 struct ServerConfig {
     std::string version{DENSELITE_VERSION};
-    std::string host{"0.0.0.0"};
+    std::string host{"127.0.0.1"};
     int port{9501};
     int threads{4};
     int max_payload_mb{32};
-    bool enable_api_auth{false};
+    bool enable_api_auth{true};
     std::string api_secret_key{""};
-    std::string cors_allowed_origins{"*"};
+    std::string cors_allowed_origins{""};
     int n_batch{512};
 };
 

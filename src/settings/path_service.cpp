@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <cstdlib>
+#include <vector>
 
 PathService& PathService::instance() {
     static PathService inst;
@@ -32,12 +33,32 @@ std::string PathService::default_user_home_dir() {
     return expand_user("~/.denselite");
 }
 
+std::string PathService::xdg_config_home() {
+    const char* p = std::getenv("XDG_CONFIG_HOME");
+    return (p && *p) ? (std::string(p) + "/denselite") : expand_user("~/.config/denselite");
+}
+
+std::string PathService::xdg_data_home() {
+    const char* p = std::getenv("XDG_DATA_HOME");
+    return (p && *p) ? (std::string(p) + "/denselite") : expand_user("~/.local/share/denselite");
+}
+
+std::string PathService::xdg_cache_home() {
+    const char* p = std::getenv("XDG_CACHE_HOME");
+    return (p && *p) ? (std::string(p) + "/denselite") : expand_user("~/.cache/denselite");
+}
+
 std::string PathService::auto_resolve_base_dir() {
+    const char* env_base = std::getenv("DENSELITE_BASE_DIR");
+    if (env_base && *env_base) return std::string(env_base);
     try {
         if (std::filesystem::exists("/proc/self/exe")) {
             auto exe_path = std::filesystem::read_symlink("/proc/self/exe");
             auto parent = exe_path.parent_path();
-            if (parent.filename() == "build") {
+            if (parent.filename() == "build") return parent.parent_path().string();
+            if (parent.filename() == "bin") {
+                auto share = parent.parent_path() / "share" / "denselite";
+                if (std::filesystem::exists(share)) return share.string();
                 return parent.parent_path().string();
             }
             return parent.string();
@@ -170,3 +191,37 @@ void PathService::ensure_all_directories_exist() const {
         std::filesystem::create_directories(std::filesystem::path(log_path_).parent_path(), ec);
     }
 }
+
+bool PathService::is_safe_model_path(const std::string& path) const {
+    if (path.empty()) return false;
+    std::string exp = expand_user(path);
+    std::error_code ec;
+    std::filesystem::path canon = std::filesystem::weakly_canonical(std::filesystem::path(exp), ec);
+    if (ec) return false;
+    std::string cs = canon.string();
+    const std::vector<std::string> forbidden = {"/etc", "/proc", "/sys", "/dev", "/root", "/boot", "/bin", "/sbin", "/usr/bin", "/usr/sbin"};
+    for (const auto& f : forbidden) {
+        if (cs == f || cs.rfind(f + "/", 0) == 0) return false;
+    }
+    const char* allow_any = std::getenv("DENSELITE_ALLOW_CUSTOM_MODEL_PATHS");
+    if (allow_any && (std::string(allow_any) == "1" || std::string(allow_any) == "true")) return true;
+    std::vector<std::string> roots;
+    {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        if (!models_dir_.empty()) roots.push_back(models_dir_);
+        if (!base_dir_.empty()) roots.push_back(base_dir_ + "/models");
+    }
+    roots.push_back(expand_user("~/.denselite/models"));
+    roots.push_back(expand_user("~/models"));
+    roots.push_back(xdg_data_home() + "/models");
+    roots.push_back((std::filesystem::current_path() / "models").string());
+    for (const auto& r : roots) {
+        if (r.empty()) continue;
+        auto cr = std::filesystem::weakly_canonical(std::filesystem::path(r), ec);
+        if (ec) continue;
+        std::string crs = cr.string();
+        if (cs == crs || cs.rfind(crs + "/", 0) == 0) return true;
+    }
+    return false;
+}
+

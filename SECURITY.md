@@ -4,9 +4,9 @@
 
 | Version | Supported |
 |---|---|
-| 3.2.x (current) | ✅ Active |
-| 3.1.x | ❌ End of life |
-| 3.0.x | ❌ End of life |
+| 4.0.x (current) | ✅ Active |
+| 3.3.x | ❌ End of life |
+| 3.2.x | ❌ End of life |
 
 Only the latest release on the `main` branch receives security updates.
 
@@ -51,11 +51,11 @@ DenseLite is a **local inference gateway** that:
 | Threat | Mitigation | Status |
 |---|---|---|
 | API key exposure in version control | `.env` excluded via `.gitignore`; use `env.example` as template | ⚠️ Requires user discipline |
-| Network-accessible API | Binds to `0.0.0.0:9501` — should be `127.0.0.1` in production | ⚠️ Configurable |
+| Network-accessible API | Binds to `127.0.0.1:9501` by default (secure); configurable to `0.0.0.0` if needed | ✅ Secure default |
 | SQL injection in SQLite queries | All queries use parameterized statements (`sqlite3_bind_*`) | ✅ Mitigated |
 | Memory corruption via malformed GGUF | 32-byte alignment validation on all tensor offsets; magic byte check | ✅ Mitigated |
 | Prompt injection via cloud relay | DenseLite does not execute tools — it only suggests actions to the IDE | ✅ By design |
-| Denial of service via large payloads | No payload size limit enforced | ⚠️ Future improvement |
+| Denial of service via large payloads | Configurable `max_payload_mb` enforced on HTTP server (default: 32 MB) | ✅ Mitigated |
 | KV cache memory exhaustion | `ResourceGovernor` enforces 85% VRAM and 14GB RAM ceiling with 6-stage progressive eviction cascade | ✅ Mitigated |
 
 ### API Key Handling Best Practices
@@ -90,7 +90,7 @@ an untrusted network:
 
 - [ ] `.env` is in `.gitignore` and never committed
 - [ ] All API keys are rotated after any exposure
-- [ ] DenseLite binds to `127.0.0.1`, not `0.0.0.0`
+- [x] DenseLite binds to `127.0.0.1` by default (secure)
 - [ ] Firewall blocks external access to port `9501`
 - [ ] GGUF model files are from trusted sources (HuggingFace official repos)
 - [ ] `denselite_state.db` file permissions are restricted (`chmod 600`)

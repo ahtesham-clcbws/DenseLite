@@ -1,4 +1,6 @@
 #include "../src/avx2_math.hpp"
+#include "../src/vulkan_device.hpp"
+#include "../src/vulkan_compute.hpp"
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -191,6 +193,58 @@ int main() {
             return 1;
         }
         std::cout << "   -> PASS (|max_diff| < 1e-5)\n";
+    }
+
+    // 5. Test Vulkan GPU Compute (vector_dot & rmsnorm)
+    {
+        std::cout << "\n--- Testing Vulkan GPU Compute Acceleration ---\n";
+        VulkanDevice vk_dev;
+        if (vk_dev.is_available() && vk_dev.has_compute()) {
+            std::cout << "Detected Vulkan Device: " << vk_dev.device_name() << "\n";
+            VulkanCompute vk_compute(&vk_dev);
+            assert(vk_compute.is_ready());
+
+            // 5a. Vulkan vector_dot vs scalar
+            constexpr int dot_size = 1024;
+            std::vector<float> a(dot_size), b(dot_size);
+            float expected_sum = 0.0f;
+            for (int i = 0; i < dot_size; ++i) {
+                a[i] = fdist(rng);
+                b[i] = fdist(rng);
+                expected_sum += a[i] * b[i];
+            }
+            float gpu_result = 0.0f;
+            bool ok = vk_compute.vector_dot(a.data(), b.data(), dot_size, gpu_result);
+            assert(ok);
+            float diff = std::abs(gpu_result - expected_sum);
+            float rel_err = diff / std::max(1.0f, std::abs(expected_sum));
+            std::cout << "5a. Vulkan vector_dot: diff = " << diff << ", rel_err = " << rel_err 
+                      << " (GPU=" << gpu_result << ", Ref=" << expected_sum << ")\n";
+            assert(rel_err < 1e-4);
+            std::cout << "    -> PASS (rel_err < 1e-4)\n";
+
+            // 5b. Vulkan rmsnorm vs scalar
+            constexpr int norm_size = 1536;
+            std::vector<float> x(norm_size), w(norm_size);
+            std::vector<float> y_gpu(norm_size), y_ref(norm_size);
+            for (int i = 0; i < norm_size; ++i) {
+                x[i] = fdist(rng);
+                w[i] = fdist(rng);
+            }
+            scalar_rmsnorm(y_ref.data(), x.data(), norm_size, 1e-6f, w.data());
+            ok = vk_compute.rmsnorm(x.data(), w.data(), y_gpu.data(), norm_size, 1e-6f);
+            assert(ok);
+            float max_d = 0.0f;
+            for (int i = 0; i < norm_size; ++i) {
+                float d = std::abs(y_gpu[i] - y_ref[i]);
+                if (d > max_d) max_d = d;
+            }
+            std::cout << "5b. Vulkan rmsnorm: max_diff = " << max_d << "\n";
+            assert(max_d < 1e-4);
+            std::cout << "    -> PASS (max_diff < 1e-4)\n";
+        } else {
+            std::cout << "Vulkan GPU compute device not available on this host; CPU fallback verified.\n";
+        }
     }
 
     std::cout << "\n>>> ALL MATH CORRECTNESS TESTS PASSED! <<<\n";

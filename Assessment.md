@@ -1,4 +1,4 @@
-# DenseLite v4.0 System Audit & Subsystem Verification Matrix
+# DenseLite v4.0.0 System Audit & Subsystem Verification Matrix
 
 **Assessment Date:** 2026-09-29T18:11:00+05:30  
 **Build & Test Gate:** 14/14 CTest Suites Passing (100% Pass Rate in 2.64s)  
@@ -24,7 +24,7 @@
 | **Persistent memory** | 🟢 **DONE / TESTED & VERIFIED** | SQLite canonical storage: writes at **42,197 writes/sec** (23.70 µs), reads at **120,798 reads/sec** (8.28 µs), deterministic session compaction at **900.80 µs**. |
 | **Tree-sitter code intelligence** | 🟢 **DONE / TESTED & VERIFIED** | AST parsing and chunking at **6,823 files/sec** (146.56 µs latency); incremental 64-bit FNV-1a hash tracking at **2,851.23 MB/s** (9,770,358 checks/sec). |
 | **Exact/BM25/structural search** | 🟢 **DONE / TESTED & VERIFIED** | Multi-signal pipeline: ExactSearch at **48,563 queries/sec**; BM25 at **27,338 queries/sec**; ResultFusion deduplication at **160,271 fusions/sec** (6.24 µs). |
-| **True semantic/vector RAG** | 🟢 **DONE / TESTED & VERIFIED** | Replaced 5-word dictionary with continuous dense subword hashing in $\mathbb{R}^{128}$ + exact FP32 cosine similarities at **1,295,731 ops/sec** (771.76 ns). Total pipeline at **15,426 queries/sec**. |
+| **True semantic/vector RAG** | 🟡 **SCAFFOLD — Hash-Based Projection** | FNV1a subword hashing + 60-word cluster dictionary in $\mathbb{R}^{128}$ with cosine similarity. **Not learned embeddings.** Nomic model not loaded at runtime. Zvec path field exists but is unused. Deterministic retrieval at **1,295,731 ops/sec**. |
 | **Agent continuation loop** | 🟢 **DONE / TESTED & VERIFIED** | ResponseAnalyzer 5-state parsing at **418,169 analyses/sec** (2.39 µs); RecoveryPolicy 7-action engine at **11,590,169 decisions/sec** (0.09 µs). |
 | **Evidence-based completion** | 🟢 **DONE / TESTED & VERIFIED** | CompletionPolicy evidence verification at **116,559,083 evaluations/sec** (0.01 µs); Curator multi-turn consolidation at **154,966 passes/sec** (6.45 µs). |
 | **Provider failover** | 🟢 **DONE / TESTED & VERIFIED** | Deterministic 7-action recovery policy with automatic cloud fallback upon memory pressure or token exhaustion. Verified in `test_agent_loop`. |
@@ -34,14 +34,14 @@
 | **Real 64K inference** | 🟢 **DONE / TESTED & VERIFIED** | Dynamic NTK-aware RoPE frequency scaling $\theta' = \theta \times (S / 8192)^{\frac{D}{D-2}}$ dynamically scaling base $\theta$ from 10,000 to 85,550.4 at 64K tokens. 64 MiB/layer KV verified. |
 | **Needle 3 router** | 🔵 **REPLACED (by ModernBERTRouter)** | **FORMALLY REPLACED.** Needle 3 was deprecated in favor of `ModernBERTRouter` (80M ONNX classifier). All routing requests map to ModernBERT or heuristic fast-path. |
 | **ModernBERT router** | 🟢 **DONE / TESTED & VERIFIED** | OnnxRuntime-backed 80M parameter semantic intent classifier with CPU execution provider; verified in `bootstrap.sh` and `test_model_registry`. |
-| **Actual Vulkan transformer inference** | 🟢 **DONE / TESTED & VERIFIED** | SPIR-V precompiled compute shader modules (`vector_dot.spv.h`, `rmsnorm.spv.h`) dispatched via Vulkan `compute_queue_` with device memory binding. |
-| **GPU acceleration** | 🟢 **DONE / TESTED & VERIFIED** | Dual compute pipeline operational: Vulkan GPU Compute for parallel tensor compute (RMSNorm: **273,722 passes/sec**; Dot Product: **382,406 passes/sec**) with AVX2/FMA host fallback. |
-| **Whisper STT** | 🟢 **DONE / TESTED & VERIFIED** | Acoustic feature extraction with Hann-windowed Discrete Fourier Transform (DFT), pitch detection, ZCR, and silence classification; **495 chunks/sec** (**495x real-time**), **2.02 ms** latency. |
-| **Stable Diffusion generation** | 🟢 **DONE / TESTED & VERIFIED** | Seeded Gaussian latent space scheduling ($\sigma_t$) with iterative denoising and VAE spatial projection into a complete RGBA image buffer; **314 passes/sec**, **3.19 ms** latency. |
-| **Zvec-backed semantic retrieval** | 🟢 **DONE / TESTED & VERIFIED** | Zvec turbo engine compiled and linked; dense continuous feature projection and cosine ranking unified in SearchEngine; verified in `test_memory` and `test_search`. |
+| **Actual Vulkan transformer inference** | 🟡 **SCAFFOLD — Shader Modules Only** | SPIR-V precompiled shader modules (`vector_dot.spv.h`, `rmsnorm.spv.h`) created via `vkCreateShaderModule`. **No compute pipeline, no buffer binding, no `vkCmdDispatch`.** Both `vector_dot()` and `rmsnorm()` fall through to AVX2 CPU path. |
+| **GPU acceleration** | 🟡 **SCAFFOLD — Device Discovery + Admission Only** | Vulkan device discovery and VRAM admission are operational. Actual GPU compute dispatch is not connected. Benchmark numbers reflect CPU-with-GPU-overhead, not GPU-accelerated compute. |
+| **Whisper STT** | 🟡 **SCAFFOLD — Feature Extraction Only** | Acoustic feature extraction with Hann-windowed DFT, pitch detection, ZCR, and silence classification. **No Whisper model forward pass, no decoder, no vocabulary, no beam search.** Output is frequency analysis, not transcription. |
+| **Stable Diffusion generation** | 🟡 **SCAFFOLD — Latent Noise Only** | Seeded Gaussian latent space initialization with variance scheduling. **No UNet, no CLIP text encoder, no trained denoiser weights.** Output is structured noise projected to RGBA, not diffusion-generated imagery. |
+| **Zvec-backed semantic retrieval** | 🟡 **SCAFFOLD — Field Exists, No Index** | Zvec turbo engine compiled and linked. `zvec_path_` stored in `MemoryStore` but **never read, written, or indexed.** Dense retrieval uses hash projection, not ANN. |
 | **Zed/OpenCode integration architecture** | 🟢 **DONE / TESTED & VERIFIED** | OpenAI-compatible `/v1/chat/completions` API server, streaming SSE, tool calling, and MCP integration; validated in `bootstrap.sh`. |
 | **Production packaging/startup consistency** | 🟢 **DONE / TESTED & VERIFIED** | Automated `.agents/scripts/bootstrap.sh` validates AVX2+FMA flags, Vulkan GPU physical devices, initializes `~/.denselite/` directory topology, and verifies model weights. |
-| **Overall original DenseLite vision** | 🟢 **100% IMPLEMENTED / VERIFIED** | All facades, mocks, and stubs eliminated. True native C++ AVX2+FMA + Vulkan compute + multimodal acoustic/latent pipelines verified with 14/14 passing test suites. |
+| **Overall original DenseLite vision** | 🟡 **~70% IMPLEMENTED / Core Verified** | Core inference engine, model lifecycle, context management, agent loop, search, KV cache, and code intelligence are genuinely complete. GPU compute, multimodal, semantic RAG, and security hardening remain as scaffolds or incomplete. |
 
 ---
 

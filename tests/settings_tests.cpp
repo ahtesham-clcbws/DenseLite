@@ -67,11 +67,11 @@ void test_manager_seeding_and_types() {
     REQUIRE((mode == "wal" || mode == "WAL"), "Manager DB must be in WAL mode");
 
     // Check seeded defaults
-    REQUIRE(mgr.get_version() == "3.3.0", "Version must be 3.3.0");
+    REQUIRE(mgr.get_version() == "4.0.0", "Version must be 4.0.0");
     ServerConfig sc = mgr.get_server_config();
-    REQUIRE(sc.version == "3.3.0", "ServerConfig version must be 3.3.0");
+    REQUIRE(sc.version == "4.0.0", "ServerConfig version must be 4.0.0");
     REQUIRE(sc.port == 9501, "Default port must be 9501");
-    REQUIRE(sc.host == "0.0.0.0", "Default host must be 0.0.0.0");
+    REQUIRE(sc.host == "127.0.0.1", "Default host must be 127.0.0.1");
 
     ResourceConfig rc = mgr.get_resource_config();
     REQUIRE(rc.ram_budget_percent >= 0.49f && rc.ram_budget_percent <= 0.51f, "RAM budget must be ~0.50");
@@ -135,6 +135,17 @@ void test_path_service() {
     ps.set_database_dir("/tmp/custom_db_storage");
     REQUIRE(ps.settings_db() == "/tmp/custom_db_storage/denselite_settings.db", "Custom settings DB path matches");
     REQUIRE(ps.memory_db() == "/tmp/custom_db_storage/denselite_memory.db", "Custom memory DB path matches");
+
+    // XDG compliance tests
+    REQUIRE(!PathService::xdg_config_home().empty(), "XDG config home must not be empty");
+    REQUIRE(!PathService::xdg_data_home().empty(), "XDG data home must not be empty");
+    REQUIRE(!PathService::xdg_cache_home().empty(), "XDG cache home must not be empty");
+
+    // Security & Path Containment tests (IDs 157, 158, 172, 173)
+    REQUIRE(!ps.is_safe_model_path(""), "Empty path must be rejected");
+    REQUIRE(!ps.is_safe_model_path("/etc/passwd"), "System file /etc/passwd must be rejected");
+    REQUIRE(!ps.is_safe_model_path("/root/.ssh/id_rsa"), "Root directory must be rejected");
+    REQUIRE(!ps.is_safe_model_path("../../etc/shadow"), "Relative traversal out of root must be rejected");
 
     // Restore original base dir
     ps.set_base_dir(orig_base);

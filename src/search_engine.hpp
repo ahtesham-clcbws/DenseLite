@@ -7,6 +7,7 @@
 #include "result_fusion.hpp"
 #include "code_indexer.hpp"
 #include "memory_engine.hpp"
+#include "vector/turboquant_index.hpp"
 #include <mutex>
 #include <string>
 #include <vector>
@@ -18,6 +19,9 @@ public:
 
     void set_code_indexer(CodeIndexer* indexer);
     void set_memory_engine(MemoryEngine* engine);
+    void set_vector_index(TurboQuantIndex* index);
+    void set_workspace_id(const std::string& workspace_id) { workspace_id_ = workspace_id; }
+    const std::string& workspace_id() const { return workspace_id_; }
 
     std::vector<SearchResult> search(const std::string& query,
                                      const std::string& active_task = "",
@@ -36,5 +40,7 @@ private:
     std::mutex mutex_;
     CodeIndexer* code_indexer_ = nullptr;
     MemoryEngine* memory_engine_ = nullptr;
+    TurboQuantIndex* vector_index_ = nullptr;
+    std::string workspace_id_ = "default";
     std::vector<StructuralChunk> custom_chunks_;
 };

@@ -1,4 +1,5 @@
 #include "DenseLiteEngine.hpp"
+#include "decision_engine.hpp"
 #include "RequestAnalyzer.hpp"
 #include "Formatter.hpp"
 #include "Router.hpp"
@@ -15,6 +16,8 @@
 #include "settings_manager.hpp"
 #include "path_service.hpp"
 #include "model_registry_db.hpp"
+#include "vector_search.hpp"
+#include "infer.hpp"
 #include <iostream>
 #include <chrono>
 #include <mutex>
@@ -30,8 +33,26 @@ DenseLiteEngine::DenseLiteEngine(std::map<std::string, DenseModel>& resident_mod
     for (const auto& pair : models) {
         tokenizer_registry_.register_tokenizer(pair.first, &pair.second.vocab, pair.second.config.eos_token_id);
     }
-    memory_engine_.init(DatabasePaths::memory_db(base_dir));
+    std::string zvec_path = PathService::instance().get_data_dir() + "/denselite_zvec";
+    memory_engine_.init(DatabasePaths::memory_db(base_dir), zvec_path);
     code_indexer_.init(DatabasePaths::symbols_db(base_dir));
+
+    search_engine_.set_vector_index(&turboquant_index_);
+    std::string tq_path = PathService::instance().get_data_dir() + "/denselite_tq.dlvq";
+    turboquant_index_.load(tq_path);
+
+    DenseModel* nomic_ptr = nullptr;
+    if (models.count("nomic")) nomic_ptr = &models["nomic"];
+    else if (models.count("embedding")) nomic_ptr = &models["embedding"];
+    else if (models.count("nomic_embed")) nomic_ptr = &models["nomic_embed"];
+    if (nomic_ptr) {
+        VectorSearch::set_embedding_model(nomic_ptr);
+        VectorSearch::set_embedding_fn([nomic_ptr](const std::string& text) {
+            if (!nomic_ptr || nomic_ptr->vocab.tokens.empty()) return std::vector<float>{};
+            auto tokens = tokenize(nomic_ptr->vocab, text);
+            return compute_embedding(*nomic_ptr, tokens);
+        });
+    }
 }
 
 InferenceSession DenseLiteEngine::get_or_create_session(const std::string& session_id) {
@@ -89,14 +110,16 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
 
     auto inf_cfg = SettingsManager::instance().get_inference_config();
 
+    DecisionOutput dec;
     // 1. ROUTING & RECALL
     session.status = SessionStatus::ROUTING;
     if (inf_cfg.routing_mode == "off" || (!parsed_req.model.empty() && parsed_req.model != "denselite")) {
         session.task_type = "general";
         std::cout << "[Engine] Routing bypassed (mode: " << inf_cfg.routing_mode << ", requested: " << parsed_req.model << ")" << std::endl;
     } else {
-        RoutingDecision decision = Router::analyze_request(parsed_req);
-        session.task_type = decision.intent;
+        dec = DecisionEngine::instance().decide(user_query, &parsed_req);
+        session.task_type = dec.intent;
+        parsed_req.use_context = dec.requires_code_context || dec.requires_memory;
     }
     if (session.working_memory) {
         session.working_memory->set_objective(session.task_type);
@@ -184,6 +207,12 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     size_t default_ctx = (inf_cfg.context_window > 0) ? static_cast<size_t>(inf_cfg.context_window) : 8192;
     size_t ctx_cap = (resource_governor_.assess_eviction_stage() >= EvictionStage::SHRINK_CONTEXT) 
         ? std::min<size_t>(4096, default_ctx) : default_ctx;
+    
+    // Prune context if task is simple (DecisionEngine)
+    if (dec.complexity_score < 0.4f) {
+        ctx_cap = std::min<size_t>(2048, ctx_cap);
+    }
+    
     auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, ctx_cap);
     std::string prompt = opt_result.compiled_prompt;
     resource_governor_.track_inference_memory(prompt.size());
@@ -278,6 +307,13 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         evidence.evidence_says_complete = (action == ResponseAction::COMPLETE);
 
         if (CompletionPolicy::is_acceptable(session.task_type, output, session.iteration_results, evidence)) {
+            // NLI Entailment Continuation Check (Phase 5/6 bridge)
+            float entailment = DecisionEngine::instance().evaluate_entailment(output, user_query);
+            if (entailment < 0.4f && session.task_type != "general" && !user_query.empty()) {
+                session.status = SessionStatus::CONTINUING;
+                prompt += "\n" + output + "\nThe response did not fully satisfy the original request. Please continue resolving it.";
+                continue;
+            }
             session.status = SessionStatus::COMPLETED;
             break;
         }

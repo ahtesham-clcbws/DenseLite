@@ -20,6 +20,9 @@ public:
     static std::string expand_user(const std::string& path);
     static std::string default_user_home_dir();
     static std::string auto_resolve_base_dir();
+    static std::string xdg_config_home();
+    static std::string xdg_data_home();
+    static std::string xdg_cache_home();
 
     // Base Directory
     void set_base_dir(const std::string& dir);
@@ -47,6 +50,9 @@ public:
     std::string get_log_path() const;
 
     std::string env_file() const;
+
+    // Security & Path Containment (IDs 157, 158, 172, 173)
+    bool is_safe_model_path(const std::string& path) const;
 
     // Sync from database StorageConfig
     void sync_from_storage_config(const StorageConfig& cfg);

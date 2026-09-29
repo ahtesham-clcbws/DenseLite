@@ -8,6 +8,8 @@
 // State and Inference Logic
 // ============================================================================
 
+class VulkanCompute;
+
 // Holds the activations and KV cache for a single generation step
 struct InferenceState {
     std::vector<float> x;
@@ -16,6 +18,7 @@ struct InferenceState {
     std::vector<float> inv_freq;
     
     int current_pos = 0;
+    VulkanCompute* vulkan_compute = nullptr;
 };
 
 // Initializes the inference state based on the model config

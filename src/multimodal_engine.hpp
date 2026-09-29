@@ -11,6 +11,7 @@ struct TranscribeResult {
     std::string text;
     std::string detected_language = "en";
     float duration_seconds = 0.0f;
+    std::string engine_mode = "acoustic_spectral_fourier";
     std::string error_message;
 };
 
@@ -22,6 +23,7 @@ struct ImageGenerationResult {
     int steps = 20;
     int seed = 42;
     std::string format = "png";
+    std::string engine_mode = "latent_vae_synthesis";
     size_t data_bytes = 0;
     std::vector<uint8_t> rgba_data;
     std::string error_message;

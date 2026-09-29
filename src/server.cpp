@@ -13,14 +13,18 @@
 #include <set>
 #include <vector>
 #include <filesystem>
+#include <random>
 #include "settings/model_registry_db.hpp"
+#include "path_service.hpp"
+#include "vector_search.hpp"
+#include "infer.hpp"
 
 // ============================================================================
 // Main
 // ============================================================================
 int main(int argc, char** argv) {
-    // Resolve the DenseLite base directory dynamically (assumes executable is in build/)
-    std::string base_dir = std::filesystem::read_symlink("/proc/self/exe").parent_path().parent_path().string();
+    // Resolve the DenseLite base directory dynamically via PathService
+    std::string base_dir = PathService::instance().get_base_dir();
 
     // Zero-Touch Self-Healing Database Bootstrapper
     DatabaseMigrator::ensure_all_databases_ready(base_dir);
@@ -49,6 +53,19 @@ int main(int argc, char** argv) {
     auto env = ModelLoader::load_env(base_dir + "/.env");
     std::map<std::string, DenseModel> resident_models;
     ModelLoader::load_resident_models(base_dir, env, resident_models);
+
+    DenseModel* nomic_ptr = nullptr;
+    if (resident_models.count("nomic")) nomic_ptr = &resident_models["nomic"];
+    else if (resident_models.count("embedding")) nomic_ptr = &resident_models["embedding"];
+    else if (resident_models.count("nomic_embed")) nomic_ptr = &resident_models["nomic_embed"];
+    if (nomic_ptr) {
+        VectorSearch::set_embedding_model(nomic_ptr);
+        VectorSearch::set_embedding_fn([nomic_ptr](const std::string& text) {
+            if (!nomic_ptr || nomic_ptr->vocab.tokens.empty()) return std::vector<float>{};
+            auto tokens = tokenize(nomic_ptr->vocab, text);
+            return compute_embedding(*nomic_ptr, tokens);
+        });
+    }
     
     static httplib::Server* svr_ptr = nullptr;
     httplib::Server svr;
@@ -67,7 +84,24 @@ int main(int argc, char** argv) {
     DenseLiteEngine engine(resident_models, router, base_dir);
 
     auto srv_cfg = SettingsManager::instance().get_server_config();
-    std::string cors_origin = srv_cfg.cors_allowed_origins.empty() ? "*" : srv_cfg.cors_allowed_origins;
+
+    // P0-Security: Auto-generate API secret if auth is enabled but secret is empty
+    if (srv_cfg.enable_api_auth && srv_cfg.api_secret_key.empty()) {
+        static const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        std::random_device rd;
+        std::mt19937 rng(rd());
+        std::uniform_int_distribution<int> dist(0, sizeof(charset) - 2);
+        std::string generated(48, '\0');
+        for (char& c : generated) c = charset[dist(rng)];
+        srv_cfg.api_secret_key = generated;
+        SettingsManager::instance().set_server_config(srv_cfg);
+        std::cout << "[Security] Auto-generated API secret (48 chars). Retrieve via settings API." << std::endl;
+    }
+
+    // P0-Security: Enforce HTTP payload max length
+    svr.set_payload_max_length(static_cast<size_t>(srv_cfg.max_payload_mb) * 1024 * 1024);
+
+    std::string cors_origin = srv_cfg.cors_allowed_origins.empty() ? "" : srv_cfg.cors_allowed_origins;
     svr.set_default_headers({
         {"Access-Control-Allow-Origin", cors_origin.c_str()},
         {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"},

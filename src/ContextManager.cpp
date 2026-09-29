@@ -8,6 +8,7 @@
 void ContextManager::optimize_context(OpenAIRequest& req, int max_context_tokens, bool use_semantic_selection, DenseModel* nomic) {
     if (req.messages.empty()) return;
     
+    if (!nomic) nomic = VectorSearch::get_embedding_model();
     if (use_semantic_selection && nomic != nullptr) {
         req.messages = semantic_filter(req.messages, nomic);
     } else {
@@ -22,6 +23,7 @@ std::vector<OpenAIMessage> ContextManager::truncate_history(const std::vector<Op
 
 std::vector<OpenAIMessage> ContextManager::semantic_filter(const std::vector<OpenAIMessage>& messages, DenseModel* nomic) {
     if (messages.size() < 2) return messages;
+    if (!nomic) nomic = VectorSearch::get_embedding_model();
     if (!nomic) return truncate_history(messages, 8192);
 
     const auto& last_msg = messages.back();

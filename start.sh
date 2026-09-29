@@ -132,17 +132,45 @@ fi
 download_if_missing() {
     local file_name=$1
     local url=$2
+    local expected_sha256=$3
     local user_model="$HOME/.denselite/models/$file_name"
     local local_model="models/$file_name"
+    local target_file=""
 
-    if [ -f "$user_model" ] || [ -f "$local_model" ]; then
-        return 0
+    if [ -f "$user_model" ]; then
+        target_file="$user_model"
+    elif [ -f "$local_model" ]; then
+        target_file="$local_model"
+    fi
+
+    if [ -n "$target_file" ]; then
+        if [ -n "$expected_sha256" ]; then
+            local actual_sha=$(sha256sum "$target_file" 2>/dev/null | awk '{print $1}')
+            if [ "$actual_sha" = "$expected_sha256" ]; then
+                return 0
+            else
+                echo "[!] Integrity checksum mismatch on existing $file_name, re-downloading..." | tee -a "$LOG_FILE"
+                rm -f "$target_file"
+            fi
+        else
+            return 0
+        fi
     fi
 
     mkdir -p "$(dirname "$user_model")"
     echo "[-] Model missing: $file_name" | tee -a "$LOG_FILE"
     echo "    Downloading to ~/.denselite/models/$file_name..." | tee -a "$LOG_FILE"
     wget -q --show-progress "$url" -O "$user_model"
+
+    if [ -n "$expected_sha256" ]; then
+        local actual_sha=$(sha256sum "$user_model" 2>/dev/null | awk '{print $1}')
+        if [ "$actual_sha" != "$expected_sha256" ]; then
+            echo "[!] FATAL: Downloaded model checksum verification failed for $file_name!" | tee -a "$LOG_FILE"
+            rm -f "$user_model"
+            return 1
+        fi
+        echo "[+] Model checksum verified: $file_name (SHA-256 match)" | tee -a "$LOG_FILE"
+    fi
 }
 
 echo "[+] Verifying core and requested models from .env..." | tee -a "$LOG_FILE"
@@ -157,12 +185,14 @@ grep "^MODEL_.*_FILE=" .env | while read -r line; do
         continue
     fi
     
-    # Find matching URL variable
+    # Find matching URL and SHA256 variables
     url_var_name="${var_name/_FILE/_URL}"
     url=$(grep "^${url_var_name}=" .env | cut -d'=' -f2 | tr -d '"')
+    sha_var_name="${var_name/_FILE/_SHA256}"
+    sha=$(grep "^${sha_var_name}=" .env | cut -d'=' -f2 | tr -d '"')
     
     if [ -n "$url" ]; then
-        download_if_missing "$file_path" "$url"
+        download_if_missing "$file_path" "$url" "$sha"
     fi
 done
 

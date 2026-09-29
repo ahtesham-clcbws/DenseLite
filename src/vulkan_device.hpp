@@ -43,6 +43,9 @@ public:
     VkPhysicalDevice physical_device() const { return physical_device_; }
     VkDevice device() const { return device_; }
     VkQueue compute_queue() const { return compute_queue_; }
+    VkCommandPool command_pool() const { return command_pool_; }
+    const VkPhysicalDeviceMemoryProperties& memory_properties() const { return mem_properties_; }
+    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties) const;
 
 private:
     bool init_vulkan();

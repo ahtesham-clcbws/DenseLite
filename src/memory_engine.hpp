@@ -25,6 +25,20 @@ public:
     // Generates a complete memory context block (Working + Persistent + Recalled) for prompt injection
     std::string assemble_memory_context(const std::string& current_query);
 
+    std::vector<std::pair<MemoryEntry, float>> query_memories_vector(
+        const std::vector<float>& query_vec, size_t limit = 10, float threshold = 0.2f,
+        const MemoryScopeFilter& filter = MemoryScopeFilter{}) {
+        return store_.query_memories_vector(query_vec, limit, threshold, filter);
+    }
+
+    bool supersede_memory(const std::string& old_key, const std::string& new_key) {
+        return store_.supersede_memory(old_key, new_key);
+    }
+
+    bool touch_memory(const std::string& key) {
+        return store_.touch_memory(key);
+    }
+
     // Consolidates active session to archive and extracts durable memories
     ConsolidationResult end_session_and_archive();
 

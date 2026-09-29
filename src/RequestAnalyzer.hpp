@@ -4,6 +4,8 @@
 #include <vector>
 #include <map>
 
+struct DecisionOutput;
+
 // Structs representing parsed OpenAI requests
 struct OpenAIToolFunction {
     std::string name;
@@ -50,4 +52,7 @@ public:
     // 1. Analyzing (Prompt Classifier)
     // Categorizes the request based on content (e.g., "reasoning", "image", "text", "coding")
     static std::string categorize_request(const OpenAIRequest& req);
+
+    // 2. Decision Engine (Phase 2): Generates rich decision context and routing action
+    static struct DecisionOutput analyze_decision(const OpenAIRequest& req);
 };

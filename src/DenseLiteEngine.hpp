@@ -14,6 +14,7 @@
 #include "search_engine.hpp"
 #include "resource_governor.hpp"
 #include "multimodal_engine.hpp"
+#include "vector/turboquant_index.hpp"
 
 struct InferenceSession {
     std::string session_id;
@@ -52,6 +53,7 @@ private:
     SearchEngine search_engine_;
     ResourceGovernor resource_governor_;
     MultimodalEngine multimodal_engine_;
+    TurboQuantIndex turboquant_index_;
 
     InferenceSession get_or_create_session(const std::string& session_id);
     void execute_pipeline(InferenceSession& session, OpenAIRequest& parsed_req, httplib::Response& res);

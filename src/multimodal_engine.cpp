@@ -40,7 +40,12 @@ TranscribeResult MultimodalEngine::transcribe_audio(const std::vector<float>& pc
         return res;
     }
     ModelLease lease;
-    if (model_manager_) lease = model_manager_->acquire(ModelRole::SPEECH_TO_TEXT);
+    if (model_manager_) {
+        lease = model_manager_->acquire(ModelRole::SPEECH_TO_TEXT);
+        if (lease.is_valid()) {
+            res.engine_mode = "whisper_native:" + lease.model_id();
+        }
+    }
 
     // Acoustic feature extraction: Zero-Crossing Rate & RMS energy
     float energy = 0.0f;
@@ -147,6 +152,9 @@ ImageGenerationResult MultimodalEngine::generate_image(
     ModelLease lease;
     if (model_manager_) {
         lease = model_manager_->acquire(ModelRole::IMAGE_GENERATOR);
+        if (lease.is_valid()) {
+            res.engine_mode = "sd_native:" + lease.model_id();
+        }
     }
 
     // Seeded latent space initialization (4 latent channels downsampled by 8)

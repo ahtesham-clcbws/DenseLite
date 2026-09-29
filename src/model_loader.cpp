@@ -80,7 +80,7 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
     std::string db_path = DatabasePaths::settings_db(base_dir.empty() ? "." : base_dir);
     ModelDiscovery::auto_discover_and_register(base_dir, db_path);
 
-    std::string mbert_dir = base_dir.empty() ? "models/modernbert" : (base_dir + "/models/modernbert");
+    std::string mbert_dir = PathService::instance().get_models_dir() + "/modernbert";
     ModernBERTRouter::instance().initialize(mbert_dir);
 
     auto db_roles = ModelRegistryDB::get_all_role_bindings(db_path);
