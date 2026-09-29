@@ -24,13 +24,13 @@ public:
 
     // Main entry point: optimizes request messages, enforces invariants, and compiles prompt
     ContextOptimizationResult optimize_and_compile(const OpenAIRequest& req,
-                                                   const std::string& target_model = "qwen_main",
+                                                   const std::string& target_model = "general",
                                                    size_t total_context_limit = 8192);
 
     // Overload taking retrieved multi-signal search evidence (P5 contract)
     ContextOptimizationResult optimize_and_compile(const OpenAIRequest& req,
                                                    const std::vector<SearchResult>& search_evidence,
-                                                   const std::string& target_model = "qwen_main",
+                                                   const std::string& target_model = "general",
                                                    size_t total_context_limit = 8192);
 
     void set_tokenizer_registry(TokenizerRegistry* registry) {

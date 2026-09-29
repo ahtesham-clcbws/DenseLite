@@ -48,6 +48,13 @@ void test_gpu_admission_gate() {
         assert(vk.can_admit(huge_allocation) == false);
         assert(vk.allocate(huge_allocation) == false);
 
+        // Unified weights + scratch combined budget check
+        size_t weight_part = safe_ceiling / 2;
+        size_t scratch_overflow = (safe_ceiling / 2) + (1024 * 1024);
+        (void)weight_part;
+        (void)scratch_overflow;
+        assert(vk.can_admit(weight_part + scratch_overflow) == false);
+
         vk.release(small_allocation);
         assert(vk.allocated_bytes() == 0);
     } else {
@@ -169,31 +176,44 @@ void test_model_manager_on_demand_and_roles() {
     std::cout << "[Test 6] ModelManager Role Mapping & Placement Fallback..." << std::endl;
     ModelManager mgr;
 
-    ModelDescriptor d_needle;
-    d_needle.id = "needle";
-    d_needle.role = ModelRole::ROUTER;
-    d_needle.is_gguf = false;
-    d_needle.placement_policy = PlacementPolicy::CPU_RAM_ONLY;
-    mgr.registry().register_model(d_needle);
+    ModelDescriptor d_router;
+    d_router.id = "modernbert";
+    d_router.role = ModelRole::ROUTER;
+    d_router.is_gguf = false;
+    d_router.placement_policy = PlacementPolicy::CPU_RAM_ONLY;
+    mgr.registry().register_model(d_router);
+
+    ModelDescriptor d_general;
+    d_general.id = "llama_main";
+    d_general.role = ModelRole::GENERAL_REASONER;
+    d_general.is_gguf = false;
+    d_general.placement_policy = PlacementPolicy::GPU_PREFERRED;
+    d_general.estimated_weight_bytes = 1024 * 1024;
+    mgr.registry().register_model(d_general);
 
     ModelDescriptor d_coder;
-    d_coder.id = "qwen_coder";
+    d_coder.id = "deepseek_coder";
     d_coder.role = ModelRole::CODER;
     d_coder.is_gguf = false; // test stub
     d_coder.placement_policy = PlacementPolicy::GPU_PREFERRED;
     d_coder.estimated_weight_bytes = 1024 * 1024;
     mgr.registry().register_model(d_coder);
 
-    // Acquire needle role -> should auto-load stub and yield valid lease
-    ModelLease lease_needle = mgr.acquire(ModelRole::ROUTER);
-    assert(lease_needle.is_valid());
-    assert(lease_needle.model_id() == "needle");
-    assert(lease_needle.placement() == DevicePlacement::CPU_RAM);
+    // Acquire router role -> should auto-load stub and yield valid lease
+    ModelLease lease_router = mgr.acquire(ModelRole::ROUTER);
+    assert(lease_router.is_valid());
+    assert(lease_router.model_id() == "modernbert");
+    assert(lease_router.placement() == DevicePlacement::CPU_RAM);
+
+    // Acquire general role -> yields valid lease for llama_main
+    ModelLease lease_general = mgr.acquire(ModelRole::GENERAL_REASONER);
+    assert(lease_general.is_valid());
+    assert(lease_general.model_id() == "llama_main");
 
     // Acquire coder role -> should auto-load stub and yield valid lease
     ModelLease lease_coder = mgr.acquire(ModelRole::CODER);
     assert(lease_coder.is_valid());
-    assert(lease_coder.model_id() == "qwen_coder");
+    assert(lease_coder.model_id() == "deepseek_coder");
 
     std::cout << "  -> PASSED" << std::endl;
 }

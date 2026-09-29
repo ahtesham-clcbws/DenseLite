@@ -21,7 +21,7 @@ static json get_all_settings_json() {
     j["resource"] = {{"ram_budget_percent", ram_pct}, {"enable_gpu", rc.enable_gpu}, {"vram_budget_mb", rc.vram_budget_mb}};
     auto inf = sm.get_inference_config();
     j["inference"] = {
-        {"needle3_mode", inf.needle3_mode}, {"enable_tool_dedup", inf.enable_tool_dedup},
+        {"routing_mode", inf.routing_mode}, {"enable_tool_dedup", inf.enable_tool_dedup},
         {"enable_context_injection", inf.enable_context_injection}, {"context_window", inf.context_window},
         {"default_temperature", inf.default_temperature}, {"default_top_p", inf.default_top_p},
         {"repeat_penalty", inf.repeat_penalty}, {"repeat_last_n", inf.repeat_last_n},
@@ -57,7 +57,8 @@ static void apply_settings_json(const json& body) {
     auto& sm = SettingsManager::instance();
     if (body.contains("inference")) {
         auto inf = sm.get_inference_config(); auto j = body["inference"];
-        if (j.contains("needle3_mode")) inf.needle3_mode = j["needle3_mode"];
+        if (j.contains("routing_mode")) inf.routing_mode = j["routing_mode"];
+        else if (j.contains("needle3_mode")) inf.routing_mode = j["needle3_mode"];
         if (j.contains("enable_tool_dedup")) inf.enable_tool_dedup = j["enable_tool_dedup"];
         if (j.contains("enable_context_injection")) inf.enable_context_injection = j["enable_context_injection"];
         if (j.contains("context_window")) inf.context_window = j["context_window"];

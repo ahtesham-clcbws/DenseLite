@@ -48,7 +48,7 @@ InferenceConfig SettingsManager::get_inference_config() const {
     cfg.top_k = get_int("inference", "top_k", cfg.top_k);
     cfg.min_p = get_float("inference", "min_p", cfg.min_p);
     cfg.max_output_tokens = get_int("inference", "max_output_tokens", cfg.max_output_tokens);
-    cfg.needle3_mode = get_string("inference", "needle3_mode", cfg.needle3_mode);
+    cfg.routing_mode = get_string("inference", "routing_mode", get_string("inference", "needle3_mode", cfg.routing_mode));
     cfg.enable_tool_dedup = get_bool("inference", "enable_tool_dedup", cfg.enable_tool_dedup);
     cfg.context_window = get_int("inference", "context_window", cfg.context_window);
     cfg.enable_context_injection = get_bool("inference", "enable_context_injection", cfg.enable_context_injection);
@@ -61,7 +61,7 @@ void SettingsManager::set_inference_config(const InferenceConfig& c) {
     set_float("inference", "repeat_penalty", c.repeat_penalty); set_int("inference", "repeat_last_n", c.repeat_last_n);
     set_int("inference", "top_k", c.top_k); set_float("inference", "min_p", c.min_p);
     set_int("inference", "max_output_tokens", c.max_output_tokens);
-    set_string("inference", "needle3_mode", c.needle3_mode); set_bool("inference", "enable_tool_dedup", c.enable_tool_dedup);
+    set_string("inference", "routing_mode", c.routing_mode); set_bool("inference", "enable_tool_dedup", c.enable_tool_dedup);
     set_int("inference", "context_window", c.context_window); set_bool("inference", "enable_context_injection", c.enable_context_injection);
     set_string("inference", "system_prompt", c.system_prompt);
 }

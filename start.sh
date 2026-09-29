@@ -21,43 +21,67 @@ if [ ! -f ".env" ]; then
     echo ""
     echo "Please select the models you want to use. All models are Q8_0 quantized."
     
-    # 1. Select Main Qwen Model
+    # 1. Select Main Reasoner Model (Llama 3.2 1B Instruct)
     echo ""
-    echo "Select Main Qwen Model (General & Reasoning):"
-    select QWEN_MAIN in "Qwen2.5-1.5B-Abliterated (Recommended for >= 8GB RAM)" "Qwen2.5-0.5B-Abliterated (For low-spec systems)"; do
-        case $QWEN_MAIN in
-            "Qwen2.5-1.5B-Abliterated (Recommended for >= 8GB RAM)" ) QWEN_MAIN_FILE="Qwen2.5-1.5B-Instruct-abliterated.Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/hf-audio/qwen2.5-1.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-1.5b-instruct-abliterated.q8_0.gguf"; break;;
-            "Qwen2.5-0.5B-Abliterated (For low-spec systems)" ) QWEN_MAIN_FILE="Qwen2.5-0.5B-Instruct-abliterated.Q8_0.gguf"; QWEN_MAIN_URL="https://huggingface.co/hf-audio/qwen2.5-0.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-0.5b-instruct-abliterated.q8_0.gguf"; break;;
+    echo "Select Main Reasoner Model (General Reasoning & Orchestration):"
+    select MAIN_CHOICE in "Llama-3.2-1B-Instruct-Abliterated Q4_K_M (Recommended, ~800MB)" "Llama-3.2-1B-Instruct-Abliterated Q8_0 (High Precision, ~1.3GB)"; do
+        case $MAIN_CHOICE in
+            "Llama-3.2-1B-Instruct-Abliterated Q4_K_M (Recommended, ~800MB)" )
+                MAIN_FILE="Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf"
+                MAIN_URL="https://huggingface.co/mradermacher/Llama-3.2-1B-Instruct-abliterated-i1-GGUF/resolve/main/Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf"
+                break;;
+            "Llama-3.2-1B-Instruct-Abliterated Q8_0 (High Precision, ~1.3GB)" )
+                MAIN_FILE="Llama-3.2-1B-Instruct-abliterated.Q8_0.gguf"
+                MAIN_URL="https://huggingface.co/mradermacher/Llama-3.2-1B-Instruct-abliterated-GGUF/resolve/main/Llama-3.2-1B-Instruct-abliterated.Q8_0.gguf"
+                break;;
         esac
     done
 
-    # 2. Select Coder Qwen Model
+    # 2. Select Coder Model (DeepSeek-R1 Distill Qwen 1.5B)
     echo ""
-    echo "Select Qwen Coder Model:"
-    select QWEN_CODER in "Qwen2.5-Coder-1.5B-Abliterated (Recommended)" "Qwen2.5-Coder-0.5B-Abliterated (Faster, less accurate)"; do
-        case $QWEN_CODER in
-            "Qwen2.5-Coder-1.5B-Abliterated (Recommended)" ) QWEN_CODER_FILE="Qwen2.5-Coder-1.5B-Instruct-abliterated-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/hf-audio/qwen2.5-coder-1.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-coder-1.5b-instruct-abliterated-q8_0.gguf"; break;;
-            "Qwen2.5-Coder-0.5B-Abliterated (Faster, less accurate)" ) QWEN_CODER_FILE="Qwen2.5-Coder-0.5B-Instruct-abliterated-Q8_0.gguf"; QWEN_CODER_URL="https://huggingface.co/hf-audio/qwen2.5-coder-0.5b-instruct-abliterated-gguf/resolve/main/qwen2.5-coder-0.5b-instruct-abliterated-q8_0.gguf"; break;;
+    echo "Select Coding Model (Code Synthesis & AST Logic):"
+    select CODER_CHOICE in "DeepSeek-R1-Distill-Qwen-1.5B Q4_K_M (Recommended, ~1.1GB)" "DeepSeek-R1-Distill-Qwen-1.5B Q8_0 (High Precision, ~1.8GB)"; do
+        case $CODER_CHOICE in
+            "DeepSeek-R1-Distill-Qwen-1.5B Q4_K_M (Recommended, ~1.1GB)" )
+                CODER_FILE="DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+                CODER_URL="https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+                break;;
+            "DeepSeek-R1-Distill-Qwen-1.5B Q8_0 (High Precision, ~1.8GB)" )
+                CODER_FILE="DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf"
+                CODER_URL="https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf"
+                break;;
         esac
     done
 
-    # 3. Select SmolLM2 Model
+    # 3. Select SmolLM2 Model (Context Slicing / Formatter)
     echo ""
-    echo "Select SmolLM2 Model (Context Compression):"
-    select SMOLLM in "SmolLM2-360M (Standard)" "SmolLM2-135M (Minimal)"; do
-        case $SMOLLM in
-            "SmolLM2-360M (Standard)" ) SMOLLM_FILE="SmolLM2-360M-Instruct-Q8_0.gguf"; SMOLLM_URL="https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q8_0.gguf"; break;;
-            "SmolLM2-135M (Minimal)" ) SMOLLM_FILE="SmolLM2-135M-Instruct-Q8_0.gguf"; SMOLLM_URL="https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct-GGUF/resolve/main/smollm2-135m-instruct-q8_0.gguf"; break;;
+    echo "Select Formatter Model (Context Slicing & Injection):"
+    select SMOLLM_CHOICE in "SmolLM2-360M Q4_K_M (Standard, ~250MB)" "SmolLM2-135M Q4_K_M (Ultra-light, ~100MB)"; do
+        case $SMOLLM_CHOICE in
+            "SmolLM2-360M Q4_K_M (Standard, ~250MB)" )
+                SMOLLM_FILE="smollm2-360m-instruct-q4_k_m.gguf"
+                SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-360M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf"
+                break;;
+            "SmolLM2-135M Q4_K_M (Ultra-light, ~100MB)" )
+                SMOLLM_FILE="smollm2-135m-instruct-q4_k_m.gguf"
+                SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf"
+                break;;
         esac
     done
 
     # 4. Select Nomic Embed Model
     echo ""
-    echo "Select Nomic Embed Model:"
-    select NOMIC in "nomic-embed-text-v1.5 (Modern)" "nomic-embed-text-v1.0 (Legacy)"; do
-        case $NOMIC in
-            "nomic-embed-text-v1.5 (Modern)" ) NOMIC_FILE="nomic-embed-text-v1.5.Q8_0.gguf"; NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf"; break;;
-            "nomic-embed-text-v1.0 (Legacy)" ) NOMIC_FILE="nomic-embed-text-v1.0.Q8_0.gguf"; NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v1.0-GGUF/resolve/main/nomic-embed-text-v1.0.Q8_0.gguf"; break;;
+    echo "Select Vector Memory Embedder:"
+    select NOMIC_CHOICE in "nomic-embed-text-v2-moe Q4_K_M (Modern MoE, Recommended)" "nomic-embed-text-v1.5 Q8_0 (Legacy Dense)"; do
+        case $NOMIC_CHOICE in
+            "nomic-embed-text-v2-moe Q4_K_M (Modern MoE, Recommended)" )
+                NOMIC_FILE="nomic-embed-text-v2-moe.Q4_K_M.gguf"
+                NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/resolve/main/nomic-embed-text-v2-moe.Q4_K_M.gguf"
+                break;;
+            "nomic-embed-text-v1.5 Q8_0 (Legacy Dense)" )
+                NOMIC_FILE="nomic-embed-text-v1.5.Q8_0.gguf"
+                NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf"
+                break;;
         esac
     done
 
@@ -65,11 +89,11 @@ if [ ! -f ".env" ]; then
     cp env.example .env
     
     # Inject selections into .env using sed
-    sed -i "s|^MODEL_QWEN_MAIN_FILE=.*|MODEL_QWEN_MAIN_FILE=\"$QWEN_MAIN_FILE\"|" .env
-    sed -i "s|^MODEL_QWEN_MAIN_URL=.*|MODEL_QWEN_MAIN_URL=\"$QWEN_MAIN_URL\"|" .env
+    sed -i "s|^MODEL_MAIN_FILE=.*|MODEL_MAIN_FILE=\"$MAIN_FILE\"|" .env
+    sed -i "s|^MODEL_MAIN_URL=.*|MODEL_MAIN_URL=\"$MAIN_URL\"|" .env
     
-    sed -i "s|^MODEL_QWEN_CODER_FILE=.*|MODEL_QWEN_CODER_FILE=\"$QWEN_CODER_FILE\"|" .env
-    sed -i "s|^MODEL_QWEN_CODER_URL=.*|MODEL_QWEN_CODER_URL=\"$QWEN_CODER_URL\"|" .env
+    sed -i "s|^MODEL_CODER_FILE=.*|MODEL_CODER_FILE=\"$CODER_FILE\"|" .env
+    sed -i "s|^MODEL_CODER_URL=.*|MODEL_CODER_URL=\"$CODER_URL\"|" .env
     
     sed -i "s|^MODEL_SMOLLM2_FILE=.*|MODEL_SMOLLM2_FILE=\"$SMOLLM_FILE\"|" .env
     sed -i "s|^MODEL_SMOLLM2_URL=.*|MODEL_SMOLLM2_URL=\"$SMOLLM_URL\"|" .env
@@ -92,14 +116,16 @@ if [ ! -d "dependencies/onnxruntime" ] || [ ! -f "dependencies/onnxruntime/lib/l
     curl -L -s https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz | tar -xz -C dependencies/onnxruntime --strip-components=1
 fi
 
-if [ ! -f "models/modernbert/model.onnx" ]; then
-    echo "[+] Downloading internal ModernBERT Zero-Shot Intent Router..." | tee -a "$LOG_FILE"
+if [ ! -f "models/modernbert/model.onnx" ] || [ ! -f "models/modernbert/model.safetensors" ]; then
+    echo "[+] Downloading internal ModernBERT Zero-Shot Intent Router (MoritzLaurer/ModernBERT-large-zeroshot-v2.0)..." | tee -a "$LOG_FILE"
     mkdir -p models/modernbert
     curl -L -s -o models/modernbert/config.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/config.json
     curl -L -s -o models/modernbert/tokenizer.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/tokenizer.json
     curl -L -s -o models/modernbert/tokenizer_config.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/tokenizer_config.json
     curl -L -s -o models/modernbert/special_tokens_map.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/special_tokens_map.json
     curl -L -s -o models/modernbert/model.onnx https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/onnx/model_int8.onnx
+    curl -L -s -o models/modernbert/model.safetensors https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/model.safetensors
+    curl -L -s -o models/modernbert/README.md https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/raw/main/README.md
 fi
 
 # Function to download model if missing
@@ -126,8 +152,8 @@ grep "^MODEL_.*_FILE=" .env | while read -r line; do
     var_name=$(echo "$line" | cut -d'=' -f1)
     file_path=$(echo "$line" | cut -d'=' -f2 | tr -d '"')
     
-    # Needle3 is bundled in git, skip downloading it
-    if [[ "$file_path" == *"needle3"* ]]; then
+    # ModernBERT ONNX router is bundled in models/modernbert
+    if [[ "$file_path" == *"modernbert"* ]]; then
         continue
     fi
     

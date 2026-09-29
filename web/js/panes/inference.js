@@ -1,10 +1,10 @@
-// Inference and Needle Routing Pane Controller
+// Inference and ModernBERT Routing Pane Controller
 
 import { apiPost } from "../api.js";
 import { showToast } from "../toast.js";
 
 export function initInferenceForm(inf = {}) {
-  if (inf.needle3_mode) document.getElementById("inf-needle-mode").value = inf.needle3_mode;
+  if (inf.routing_mode) document.getElementById("inf-routing-mode").value = inf.routing_mode;
   if (inf.enable_tool_dedup !== undefined) document.getElementById("inf-tool-dedup").checked = inf.enable_tool_dedup;
   if (inf.enable_context_injection !== undefined) document.getElementById("inf-context-injection").checked = inf.enable_context_injection;
   if (inf.context_window) {
@@ -31,7 +31,7 @@ export function initInferenceForm(inf = {}) {
 export async function saveInferenceSettings() {
   const payload = {
     inference: {
-      needle3_mode: document.getElementById("inf-needle-mode")?.value || "hybrid",
+      routing_mode: document.getElementById("inf-routing-mode")?.value || "modernbert",
       enable_tool_dedup: document.getElementById("inf-tool-dedup")?.checked ?? true,
       enable_context_injection: document.getElementById("inf-context-injection")?.checked ?? true,
       context_window: parseInt(document.getElementById("inf-context-window")?.value || 65536),

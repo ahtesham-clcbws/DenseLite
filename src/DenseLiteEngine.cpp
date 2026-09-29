@@ -91,15 +91,11 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
 
     // 1. ROUTING & RECALL
     session.status = SessionStatus::ROUTING;
-    if (inf_cfg.needle3_mode == "off" || (!parsed_req.model.empty() && parsed_req.model != "denselite")) {
+    if (inf_cfg.routing_mode == "off" || (!parsed_req.model.empty() && parsed_req.model != "denselite")) {
         session.task_type = "general";
-        std::cout << "[Engine] Needle3 bypassed (mode: " << inf_cfg.needle3_mode << ", requested: " << parsed_req.model << ")" << std::endl;
+        std::cout << "[Engine] Routing bypassed (mode: " << inf_cfg.routing_mode << ", requested: " << parsed_req.model << ")" << std::endl;
     } else {
-        DenseModel* needle = (models.find("needle") != models.end()) ? &models.at("needle") : nullptr;
-        if (!needle && models.find("smollm2") != models.end()) {
-            needle = &models.at("smollm2");
-        }
-        RoutingDecision decision = Router::analyze_request(parsed_req, needle);
+        RoutingDecision decision = Router::analyze_request(parsed_req);
         session.task_type = decision.intent;
     }
     if (session.working_memory) {

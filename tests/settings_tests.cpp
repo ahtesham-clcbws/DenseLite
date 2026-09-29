@@ -78,7 +78,7 @@ void test_manager_seeding_and_types() {
     REQUIRE(rc.max_kv_tokens == 65536, "Max KV tokens must be 64K");
 
     InferenceConfig ic = mgr.get_inference_config();
-    REQUIRE(ic.needle3_mode == "modernbert", "Needle3 mode default must be modernbert");
+    REQUIRE(ic.routing_mode == "modernbert", "Routing mode default must be modernbert");
     REQUIRE(ic.enable_tool_dedup == true, "Tool dedup must be enabled");
 
     LoggingConfig lc = mgr.get_logging_config();

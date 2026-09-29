@@ -42,7 +42,7 @@ struct InferenceConfig {
     int top_k{40};
     float min_p{0.05f};
     int max_output_tokens{512};
-    std::string needle3_mode{"modernbert"}; // "modernbert", "gpu", "avx2", "hybrid", "cloud", "off"
+    std::string routing_mode{"modernbert"}; // "modernbert", "off"
     bool enable_tool_dedup{true};
     int context_window{65536};
     bool enable_context_injection{true};

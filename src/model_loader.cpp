@@ -143,9 +143,11 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
             resident_models[binding.model_id] = resident_models[binding.role].create_shared_reference();
         }
         if (binding.role == "general") {
+            resident_models["llama_main"] = resident_models["general"].create_shared_reference();
             resident_models["qwen_main"] = resident_models["general"].create_shared_reference();
             resident_models["qwen25_main"] = resident_models["general"].create_shared_reference();
         } else if (binding.role == "coder") {
+            resident_models["deepseek_coder"] = resident_models["coder"].create_shared_reference();
             resident_models["qwen_coder"] = resident_models["coder"].create_shared_reference();
             resident_models["qwen25_coder"] = resident_models["coder"].create_shared_reference();
         } else if (binding.role == "compressor") {

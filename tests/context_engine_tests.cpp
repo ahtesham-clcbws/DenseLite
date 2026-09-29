@@ -122,12 +122,12 @@ void test_context_engine_facade() {
     for (size_t id = 0; id < vocab.tokens.size(); ++id) {
         vocab.scores.push_back(0.0f);
     }
-    reg.register_tokenizer("qwen_main", &vocab, 1, 0);
+    reg.register_tokenizer("general", &vocab, 1, 0);
 
     ContextEngine engine(&reg);
 
     OpenAIRequest req;
-    req.model = "qwen_main";
+    req.model = "general";
     req.messages = {
         {"system", "System instruction"},
         {"user", "Turn 1"},
@@ -135,7 +135,7 @@ void test_context_engine_facade() {
         {"user", "Final question"}
     };
 
-    auto result = engine.optimize_and_compile(req, "qwen_main", 8192);
+    auto result = engine.optimize_and_compile(req, "general", 8192);
     assert(!result.compiled_prompt.empty());
     assert(result.budget_plan.generation_reserve >= 2048);
     assert(result.compiled_context.fits_budget);

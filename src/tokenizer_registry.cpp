@@ -3,7 +3,7 @@
 void TokenizerRegistry::register_tokenizer(const std::string& model_id, const Vocab* vocab, int eos_token_id, int bos_token_id) {
     std::lock_guard<std::mutex> lock(mutex_);
     tokenizers_[model_id] = std::make_unique<Tokenizer>(vocab, eos_token_id, bos_token_id);
-    if (default_model_id_.empty() || model_id == "qwen_main") {
+    if (default_model_id_.empty() || model_id == "general") {
         default_model_id_ = model_id;
     }
 }

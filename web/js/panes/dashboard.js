@@ -77,12 +77,12 @@ function renderModelsOverview(data) {
 
 function renderSettingsOverview(cfg) {
   if (!cfg) return;
-  const needleMode = document.getElementById("dash-needle-mode");
+  const routingMode = document.getElementById("dash-routing-mode");
   const ramBudget = document.getElementById("dash-ram-budget");
   const ctxWindow = document.getElementById("dash-ctx-window");
   const modelsDir = document.getElementById("dash-models-dir");
 
-  if (needleMode && cfg.inference) needleMode.textContent = cfg.inference.needle3_mode || "hybrid";
+  if (routingMode && cfg.inference) routingMode.textContent = cfg.inference.routing_mode || "modernbert";
   if (ramBudget && cfg.resource) ramBudget.textContent = (cfg.resource.ram_budget_percent || 45) + "%";
   if (ctxWindow && cfg.inference) ctxWindow.textContent = (cfg.inference.context_window || 65536).toLocaleString() + " tokens";
   if (modelsDir && cfg.storage) modelsDir.textContent = cfg.storage.models_dir || "~/.denselite/models";

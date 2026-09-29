@@ -5,13 +5,13 @@
 #include <cstddef>
 
 enum class ModelRole {
-    ROUTER,           // Needle
-    EMBEDDING,        // Nomic
-    FORMATTER,        // SmolLM2
-    GENERAL_REASONER, // Qwen Main
-    CODER,            // Qwen Coder
-    SPEECH_TO_TEXT,   // Whisper
-    IMAGE_GENERATOR   // SD 1.5
+    ROUTER,           // ModernBERT (MoritzLaurer/ModernBERT-large-zeroshot-v2.0)
+    EMBEDDING,        // Nomic Embed v2 MoE
+    FORMATTER,        // SmolLM2 360M
+    GENERAL_REASONER, // Llama 3.2 1B Instruct Abliterated
+    CODER,            // DeepSeek-R1 Distill Qwen 1.5B
+    SPEECH_TO_TEXT,   // Whisper Large V3 Turbo
+    IMAGE_GENERATOR   // SDXL Lightning 4-step
 };
 
 enum class DevicePlacement {

@@ -94,14 +94,22 @@ OpenAIRequest RequestAnalyzer::parse_request(const std::string& raw_json_body) {
 }
 
 std::string RequestAnalyzer::compile_prompt(const OpenAIRequest& req, const std::string& model_architecture) {
+    if (model_architecture.find("llama") != std::string::npos) {
+        std::string prompt = "<|begin_of_text|>";
+        for (const auto& msg : req.messages) {
+            prompt += "<|start_header_id|>" + msg.role + "<|end_header_id|>\n\n";
+            prompt += msg.content + "<|eot_id|>";
+        }
+        prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n";
+        return prompt;
+    }
+
     std::string prompt = "";
-    
-    // Qwen / ChatML format
+    // ChatML format (DeepSeek-R1 Distill Qwen / Qwen)
     for (const auto& msg : req.messages) {
         prompt += "<|im_start|>" + msg.role + "\n";
         prompt += msg.content + "\n<|im_end|>\n";
     }
-    
     prompt += "<|im_start|>assistant\n";
     return prompt;
 }

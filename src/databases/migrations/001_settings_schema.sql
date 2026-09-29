@@ -87,7 +87,7 @@ INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at)
     ('inference', 'top_k', '40', 'int', 1700000000000),
     ('inference', 'min_p', '0.05', 'float', 1700000000000),
     ('inference', 'max_output_tokens', '512', 'int', 1700000000000),
-    ('inference', 'needle3_mode', 'modernbert', 'string', 1700000000000),
+    ('inference', 'routing_mode', 'modernbert', 'string', 1700000000000),
     ('inference', 'enable_tool_dedup', 'true', 'bool', 1700000000000),
     ('inference', 'context_window', '65536', 'int', 1700000000000),
     ('inference', 'enable_context_injection', 'true', 'bool', 1700000000000),

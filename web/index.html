@@ -37,7 +37,7 @@
         </a>
         <a href="#/inference" class="nav-item" data-tab="inference" title="Inference Settings (Key: 2)">
           <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-          <span class="nav-text">Inference & Needle</span>
+          <span class="nav-text">Inference & Routing</span>
           <kbd class="nav-kbd">2</kbd>
         </a>
         <a href="#/models" class="nav-item" data-tab="models" title="Models & Roles (Key: 3)">
@@ -203,8 +203,8 @@
                 <div class="stat-big" id="dash-ram-budget">45%</div>
               </div>
               <div>
-                <span class="stat-sub">Needle3 Mode</span>
-                <div class="stat-big" id="dash-needle-mode" style="font-size:1.4rem">hybrid</div>
+                <span class="stat-sub">Routing Mode</span>
+                <div class="stat-big" id="dash-routing-mode" style="font-size:1.4rem">modernbert</div>
               </div>
               <div>
                 <span class="stat-sub">Context Capping</span>
@@ -247,7 +247,7 @@
         </div>
       </section>
 
-      <!-- Tab 2: Inference & Needle -->
+      <!-- Tab 2: Inference & Routing -->
       <section class="tab-pane" id="pane-inference">
         <div class="pane-header">
           <h3>Inference Routing & Context Controls</h3>
@@ -255,14 +255,12 @@
         </div>
         <div class="card-grid">
           <div class="card">
-            <h4>Needle3 Intent Routing</h4>
-            <p class="card-desc">Control cognitive routing and 0 ms bypass behavior.</p>
+            <h4>ModernBERT Intent Routing</h4>
+            <p class="card-desc">Control zero-shot classification routing and bypass behavior.</p>
             <div class="form-group">
-              <label for="inf-needle-mode">Needle3 Routing Mode</label>
-              <select id="inf-needle-mode" class="form-control">
-                <option value="hybrid">hybrid (Default - Cognitive Intent Analysis)</option>
-                <option value="deep">deep (Thorough multi-layer intent profiling)</option>
-                <option value="fast">fast (Lexical keyword heuristic)</option>
+              <label for="inf-routing-mode">Intent Routing Mode</label>
+              <select id="inf-routing-mode" class="form-control">
+                <option value="modernbert">modernbert (Default - Zero-Shot ONNX Classification)</option>
                 <option value="off">off (0 ms Bypass - Zero CPU Intent Overhead)</option>
               </select>
             </div>
@@ -818,7 +816,7 @@
         <ul style="margin-left:20px; margin-bottom:14px; font-size:0.85rem; color:var(--text-muted); line-height:1.6">
           <li><strong>Server:</strong> 0.0.0.0:9501, 4 threads, 32MB payload</li>
           <li><strong>Resource:</strong> 45% RAM budget, GPU enabled, 2048MB VRAM</li>
-          <li><strong>Inference:</strong> Needle3 hybrid mode, 65,536 context, temp 0.7</li>
+          <li><strong>Inference:</strong> ModernBERT routing, 65,536 context, temp 0.7</li>
           <li><strong>Storage:</strong> Default paths in <code>~/.denselite/</code></li>
         </ul>
         <p style="color:#f87171; font-size:0.85rem; font-weight:600">

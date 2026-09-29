@@ -41,10 +41,10 @@ public:
     static OpenAIRequest parse_request(const std::string& raw_json_body);
 
     // Compile the messages and tools into a single context string optimized for the target model
-    static std::string compile_prompt(const OpenAIRequest& req, const std::string& model_architecture = "qwen");
+    static std::string compile_prompt(const OpenAIRequest& req, const std::string& model_architecture = "llama");
 
     // ----------------------------------------------------------------------
-    // THE INTELLIGENT BRIDGE (Needle 3)
+    // THE INTELLIGENT BRIDGE (Semantic Intent Router)
     // ----------------------------------------------------------------------
 
     // 1. Analyzing (Prompt Classifier)
