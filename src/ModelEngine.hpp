@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <map>
+#include <mutex>
 #include "model.hpp"
 #include "sqlite_router.hpp"
 #include "RequestAnalyzer.hpp"
@@ -8,7 +9,7 @@
 // Abstraction for Model Execution (Cloud vs Local)
 class ModelEngine {
 public:
-    ModelEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router);
+    ModelEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router, std::mutex* models_mutex = nullptr);
 
     // Perform inference. Automatically routes to CloudAdapter or LocalInference.
     // Returns HTTP status code (e.g., 200, 404, 429).
@@ -18,6 +19,7 @@ public:
 private:
     std::map<std::string, DenseModel>& local_models;
     SQLiteRouter& sqlite_router;
+    std::mutex* models_mutex_ = nullptr;
 
     int infer_cloud(const std::string& model_name, const std::string& provider_url, const std::string& api_key, const OpenAIRequest& req, std::string& output);
     int infer_local(const std::string& model_name, const std::string& prompt, std::string& output, const OpenAIRequest& req);

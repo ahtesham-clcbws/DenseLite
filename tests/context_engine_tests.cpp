@@ -104,7 +104,15 @@ void test_context_compiler() {
     assert(compiled.task_tokens > 0);
     assert(compiled.prompt == expected);
 
-    std::cout << "  [PASS] ContextCompiler ChatML prompt generation\n";
+    // Test Llama 3 prompt compilation
+    std::string llama_prompt = ContextCompiler::format_llama3(msgs, true);
+    std::string llama_expected = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are an AI.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nPing<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n";
+    assert(llama_prompt == llama_expected);
+
+    auto compiled_llama = ContextCompiler::compile(msgs, nullptr, 1000, true, "llama-3_2-1b");
+    assert(compiled_llama.prompt == llama_expected);
+
+    std::cout << "  [PASS] ContextCompiler ChatML & Llama 3 prompt generation\n";
 }
 
 void test_context_engine_facade() {

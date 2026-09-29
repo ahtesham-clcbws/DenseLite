@@ -10,8 +10,10 @@
 #include <csignal>
 #include <iostream>
 #include <map>
+#include <set>
 #include <vector>
 #include <filesystem>
+#include "settings/model_registry_db.hpp"
 
 // ============================================================================
 // Main
@@ -64,16 +66,64 @@ int main(int argc, char** argv) {
 
     DenseLiteEngine engine(resident_models, router, base_dir);
 
+    auto srv_cfg = SettingsManager::instance().get_server_config();
+    std::string cors_origin = srv_cfg.cors_allowed_origins.empty() ? "*" : srv_cfg.cors_allowed_origins;
+    svr.set_default_headers({
+        {"Access-Control-Allow-Origin", cors_origin.c_str()},
+        {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
+        {"Access-Control-Allow-Headers", "Content-Type, Authorization"}
+    });
+
+    svr.Options(R"(/.*)", [](const httplib::Request&, httplib::Response& res) {
+        res.status = 204;
+    });
+
     svr.Post("/v1/chat/completions", [&](const httplib::Request& req, httplib::Response& res) {
+        auto cfg = SettingsManager::instance().get_server_config();
+        if (cfg.enable_api_auth) {
+            std::string auth = req.get_header_value("Authorization");
+            std::string expected = "Bearer " + cfg.api_secret_key;
+            if (auth.empty() || auth != expected) {
+                res.status = 401;
+                res.set_content("{\"error\":{\"message\":\"Unauthorized: Invalid API key\",\"type\":\"invalid_request_error\"}}", "application/json");
+                return;
+            }
+        }
         std::cout << "[Gateway] Received request (" << req.body.size() << " bytes)" << std::endl;
         engine.process(req.body, res);
     });
     
+    svr.Get("/v1/models", [&](const httplib::Request& req, httplib::Response& res) {
+        auto cfg = SettingsManager::instance().get_server_config();
+        if (cfg.enable_api_auth) {
+            std::string auth = req.get_header_value("Authorization");
+            if (auth.empty() || auth != "Bearer " + cfg.api_secret_key) {
+                res.status = 401;
+                res.set_content("{\"error\":{\"message\":\"Unauthorized\",\"type\":\"invalid_request_error\"}}", "application/json");
+                return;
+            }
+        }
+        std::string db = DatabasePaths::settings_db(base_dir);
+        auto registered = ModelRegistryDB::get_all_models(db);
+        std::set<std::string> model_ids = {"denselite"};
+        for (const auto& r : registered) model_ids.insert(r.model_id);
+        for (const auto& kv : resident_models) model_ids.insert(kv.first);
+
+        std::string json_str = "{\"object\":\"list\",\"data\":[";
+        bool first = true;
+        for (const auto& id : model_ids) {
+            if (!first) json_str += ",";
+            first = false;
+            json_str += "{\"id\":\"" + id + "\",\"object\":\"model\",\"created\":1700000000,\"owned_by\":\"denselite\"}";
+        }
+        json_str += "]}";
+        res.set_content(json_str, "application/json");
+    });
+
     svr.Get("/health", [](const httplib::Request&, httplib::Response& res) {
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
     
-    auto srv_cfg = SettingsManager::instance().get_server_config();
     std::cout << "[API] Server listening on http://" << srv_cfg.host << ":" << srv_cfg.port << std::endl;
     if (!svr.listen(srv_cfg.host.c_str(), srv_cfg.port)) {
         std::cerr << "\n[DenseLite Error] Failed to bind to http://" << srv_cfg.host << ":" << srv_cfg.port << "!\n"

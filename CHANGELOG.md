@@ -5,6 +5,28 @@ All notable changes to the DenseLite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-09-29
+
+### Added
+- **Native C++ System Tray Supervisor & Control Plane (`DenseLiteTray`)**: Zero-Python native C++17 tray daemon utilizing `libayatana-appindicator3` and `gtk+-3.0` (~6 MB RAM, 0% CPU idle). Hard-coupled lifecycle terminates engine process on exit.
+- **Glassmorphic Settings & Telemetry Dashboard (`web/`)**: Native ES module dashboard for live hardware gauges, real-time log streaming, model-role bindings, and inference controls.
+- **SQLite Control Plane Database Consolidation**: Consolidated control plane and settings into unified WAL-mode SQLite databases with self-healing automatic migration bootstrap.
+- **Model Registry & Dynamic Role Assignment (`model_roles`, `local_models`)**: Dynamic multi-role binding (`general`, `coder`, `router`, `embedding`, `compressor`, `audio_stt`, `image_gen`) with shared memory weight deduplication.
+- **ModernBERT Zero-Shot Intent Router**: Embedded ONNX Runtime C++ zero-shot classification evaluating sub-10ms intent routing across coding, reasoning, audio, image, and compressor domains.
+- **OpenAI Standard `GET /v1/models` Route**: Dynamic catalog querying active resident and registered models.
+- **Expanded CTest Suite**: 14 out of 14 CTest test suites passing 100% (including `SettingsEngine` and `ModelRegistry`).
+
+### Fixed & Hardened (Quantum Forensic Remediations)
+- **KV-03 (Cross-Architecture KV Deserialization Buffer Overflow Fix)**: Enforced header validation checking `num_layers`, `num_kv_heads`, and `head_dim` upon disk KV restoration, eliminating vector out-of-bounds `SIGSEGV` when switching models.
+- **KV-02 (Context Boundary Prefill Truncation & Desync Fix)**: Added sliding window prompt trimming before prefill when prompt exceeds allocated context budget, maintaining 100% token-to-cache synchronization.
+- **BUF-01 & KV-01 (Strict KV Buffer Bounds & Dynamic Multi-Model Serialization)**: Enforced strict bounds `state.current_pos < ctx_len - 1` across prefill and generation; implemented dynamic GQA serialization for Llama 3.2 1B (8 heads, 64 dim) and DeepSeek-R1.
+- **NUM-01 (Top-K Sampling Float Overflow & NaN Defense)**: Computed true maximal logit over top-$k$ sub-range, eliminating exponential overflow and NaN probability distribution crashes under low temperatures ($T \le 0.3$).
+- **MEM-02 (Vocab Bounds Guard on Embedding Forward Pass)**: Enforced `0 <= token_id < vocab_size` before GGUF mmap pointer dereference.
+- **CON-05 (Client Session Continuity)**: Preserved incoming client `session_id`, `conversation_id`, or `user` parameters, enabling prefix matching and multi-turn state caching.
+- **DB-02 & DB-03 (SQLite Null Safety & Batch Transaction Acceleration)**: Null-safe text extraction on nullable SQLite columns; wrapped batch inserts in transactions for up to 100x write acceleration.
+- **JSON-01 (Polymorphic Boolean Parameter Coercion)**: Coerced string/integer representations (`"true"`, `1`) to prevent request parsing abortion.
+- **INSP-01 (ModelInspector Compatibility Matrix Alignment)**: Added `"router"` role and `"modernbert"` architecture to ModelInspector compatibility rules.
+
 ## [3.3.0] - 2026-09-27
 
 ### Added

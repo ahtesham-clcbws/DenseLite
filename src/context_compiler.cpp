@@ -13,12 +13,31 @@ std::string ContextCompiler::format_chatml(const std::vector<OpenAIMessage>& mes
     return prompt;
 }
 
+std::string ContextCompiler::format_llama3(const std::vector<OpenAIMessage>& messages,
+                                           bool append_assistant_header) {
+    std::string prompt = "<|begin_of_text|>";
+    for (const auto& msg : messages) {
+        prompt += "<|start_header_id|>" + msg.role + "<|end_header_id|>\n\n";
+        prompt += msg.content + "<|eot_id|>";
+    }
+    if (append_assistant_header) {
+        prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n";
+    }
+    return prompt;
+}
+
 CompiledContext ContextCompiler::compile(const std::vector<OpenAIMessage>& messages,
                                          const Tokenizer* tokenizer,
                                          size_t max_input_tokens,
-                                         bool append_assistant_header) {
+                                         bool append_assistant_header,
+                                         const std::string& model_architecture) {
     CompiledContext result;
-    result.prompt = format_chatml(messages, append_assistant_header);
+    bool is_llama = (model_architecture.find("llama") != std::string::npos);
+    if (is_llama) {
+        result.prompt = format_llama3(messages, append_assistant_header);
+    } else {
+        result.prompt = format_chatml(messages, append_assistant_header);
+    }
 
     auto count_fn = [&](const std::string& text) -> size_t {
         if (tokenizer && tokenizer->is_valid()) {

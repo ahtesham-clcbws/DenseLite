@@ -26,7 +26,9 @@ struct ServerConfig {
 };
 
 struct ResourceConfig {
-    float ram_budget_percent{0.45f};
+    float ram_budget_percent{0.50f};
+    float gpu_budget_percent{0.85f};
+    float headroom_safety_multiplier{1.10f};
     int max_kv_tokens{65536};
     bool enable_gpu{true};
     int vram_budget_mb{2048};
@@ -40,7 +42,7 @@ struct InferenceConfig {
     int top_k{40};
     float min_p{0.05f};
     int max_output_tokens{512};
-    std::string needle3_mode{"hybrid"}; // "gpu", "avx2", "hybrid", "cloud", "off"
+    std::string needle3_mode{"modernbert"}; // "modernbert", "gpu", "avx2", "hybrid", "cloud", "off"
     bool enable_tool_dedup{true};
     int context_window{65536};
     bool enable_context_injection{true};

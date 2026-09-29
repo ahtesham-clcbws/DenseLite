@@ -30,7 +30,8 @@ add_executable(DenseLite
     src/model_manager.cpp
     src/RequestAnalyzer.cpp
     src/Formatter.cpp
-    src/NeedleRouter.cpp
+    src/Router.cpp
+    src/routing/modernbert_router.cpp
     src/ProviderErrorAnalyzer.cpp
     src/DenseLiteEngine.cpp
     src/sqlite_router.cpp
@@ -112,11 +113,23 @@ add_subdirectory(dependencies/zvec)
 find_package(OpenMP REQUIRED)
 find_package(OpenSSL REQUIRED)
 
+set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/onnxruntime")
 target_compile_definitions(DenseLite PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
-target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto vulkan treesitter_static)
+target_link_directories(DenseLite PRIVATE ${ONNXRUNTIME_DIR}/lib)
+target_link_libraries(DenseLite PRIVATE Threads::Threads sqlite3 zvec_shared OpenMP::OpenMP_CXX OpenSSL::SSL OpenSSL::Crypto vulkan treesitter_static onnxruntime)
+set_target_properties(DenseLite PROPERTIES BUILD_RPATH "${ONNXRUNTIME_DIR}/lib" INSTALL_RPATH "${ONNXRUNTIME_DIR}/lib")
 
 # Add include directory for headers
-target_include_directories(DenseLite PRIVATE src src/settings src/databases dependencies/vulkan/include dependencies/tree-sitter/lib/include)
+target_include_directories(DenseLite PRIVATE 
+    src 
+    src/settings 
+    src/databases 
+    src/routing
+    dependencies
+    dependencies/vulkan/include 
+    dependencies/tree-sitter/lib/include
+    ${ONNXRUNTIME_DIR}/include
+)
 
 # ============================================================================
 # Native System Tray & Control Plane (DenseLiteTray)
@@ -191,9 +204,13 @@ add_executable(test_lifecycle tests/model_lifecycle_tests.cpp
     src/settings/model_registry_db.cpp
     src/settings/model_discovery.cpp
     src/model_inspector.cpp
+    src/tokenizer.cpp
+    src/routing/modernbert_router.cpp
 )
-target_link_libraries(test_lifecycle PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
-target_include_directories(test_lifecycle PRIVATE src src/settings src/databases dependencies/vulkan/include)
+target_link_directories(test_lifecycle PRIVATE ${ONNXRUNTIME_DIR}/lib)
+target_link_libraries(test_lifecycle PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 onnxruntime)
+set_target_properties(test_lifecycle PROPERTIES BUILD_RPATH "${ONNXRUNTIME_DIR}/lib" INSTALL_RPATH "${ONNXRUNTIME_DIR}/lib")
+target_include_directories(test_lifecycle PRIVATE src src/settings src/databases src/routing dependencies dependencies/vulkan/include ${ONNXRUNTIME_DIR}/include)
 
 add_test(NAME MathCorrectness COMMAND test_math)
 add_test(NAME ModelConfigValidation COMMAND test_config)
@@ -263,9 +280,12 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/settings/model_discovery.cpp
     src/model_inspector.cpp
     src/infer.cpp
+    src/routing/modernbert_router.cpp
 )
-target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static)
-target_include_directories(benchmark_engine PRIVATE src src/settings src/databases dependencies/vulkan/include dependencies/tree-sitter/lib/include)
+target_link_directories(benchmark_engine PRIVATE ${ONNXRUNTIME_DIR}/lib)
+target_link_libraries(benchmark_engine PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 treesitter_static onnxruntime)
+set_target_properties(benchmark_engine PROPERTIES BUILD_RPATH "${ONNXRUNTIME_DIR}/lib" INSTALL_RPATH "${ONNXRUNTIME_DIR}/lib")
+target_include_directories(benchmark_engine PRIVATE src src/settings src/databases src/routing dependencies dependencies/vulkan/include dependencies/tree-sitter/lib/include ${ONNXRUNTIME_DIR}/include)
 
 add_executable(test_memory tests/memory_engine_tests.cpp
     src/working_memory.cpp
@@ -362,9 +382,13 @@ add_executable(test_multimodal tests/multimodal_tests.cpp
     src/settings/model_registry_db.cpp
     src/settings/model_discovery.cpp
     src/model_inspector.cpp
+    src/tokenizer.cpp
+    src/routing/modernbert_router.cpp
 )
-target_link_libraries(test_multimodal PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3)
-target_include_directories(test_multimodal PRIVATE src src/settings src/databases dependencies/vulkan/include)
+target_link_directories(test_multimodal PRIVATE ${ONNXRUNTIME_DIR}/lib)
+target_link_libraries(test_multimodal PRIVATE Threads::Threads OpenMP::OpenMP_CXX vulkan sqlite3 onnxruntime)
+set_target_properties(test_multimodal PROPERTIES BUILD_RPATH "${ONNXRUNTIME_DIR}/lib" INSTALL_RPATH "${ONNXRUNTIME_DIR}/lib")
+target_include_directories(test_multimodal PRIVATE src src/settings src/databases src/routing dependencies dependencies/vulkan/include ${ONNXRUNTIME_DIR}/include)
 add_test(NAME MultimodalEngine COMMAND test_multimodal)
 
 add_executable(test_session_kv tests/session_kv_tests.cpp

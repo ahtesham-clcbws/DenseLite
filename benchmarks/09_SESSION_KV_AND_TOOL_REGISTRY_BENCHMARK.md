@@ -1,26 +1,26 @@
-# 09: DenseLite v3.3.0 — Session KV Cache & Tool Registry Benchmark
+# 09: DenseLite v3.4.0 — Session KV Cache & Tool Registry Benchmark
 
 **Project:** DenseLite (Pure C++ Native Intelligence Engine)  
-**Version:** v3.3.0  
-**Date:** 2026-09-27  
+**Version:** v3.4.0  
+**Date:** 2026-09-29  
 **Hardware Platform:** Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz (2 Cores, 4 Threads), 32 GB RAM  
 **GPU Compute Platform:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
 **Operating System:** Linux 6.13.5-zen1-1-zen (x86_64)  
 **Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++17`  
-**Test Suite Verification:** 12/12 CTest Suites Passing (100% Pass Rate in 36.57s)  
+**Test Suite Verification:** 14/14 CTest Suites Passing (100% Pass Rate in 2.54s)  
 
 ---
 
 ## Executive Summary
 
-DenseLite v3.3.0 addresses real-world agent harness bottlenecks, specifically client transport timeouts caused by massive MCP tool schemas (such as OpenCode attaching 600 KB `laravel-boost` tool definitions) and repetitive prompt re-evaluation overhead on multi-turn conversations.
+DenseLite v3.4.0 addresses real-world agent harness bottlenecks, specifically client transport timeouts caused by massive MCP tool schemas (such as OpenCode attaching 600 KB `laravel-boost` tool definitions) and repetitive prompt re-evaluation overhead on multi-turn conversations.
 
-v3.3.0 introduces four key architectural breakthroughs:
+v3.4.0 introduces five key architectural breakthroughs:
 1. **Dynamic RAM-Aware Context Sizing:** Automatically determines system headroom after 45% model allocation and unlocks up to 64K tokens (65,536 tokens on 32GB RAM systems) with zero OOM risk.
 2. **Session Tool Registry:** Caches external MCP schemas per chat session on the first handshake. Deduplicates redundant payloads, completely eliminating 600 KB payload bloat on subsequent turns.
 3. **Selective Tool Extraction & Chat Pruning:** Evaluates query intent: general chat queries (`"hi"`, `"how are you?"`) have tools stripped to 0, enabling instant sub-5ms AVX2 inference; coding tasks selectively receive only 1–2 relevant tools.
-4. **Persistent Session KV Cache & Delta Prefill:** Preserves inference KV states between turns. Delta prefix matching skips tokens $0 \to L$ and evaluates only newly added tokens $L \to N$, delivering instant generation on turns 2+.
-5. **High-Speed Binary Disk-Backed Persistence:** Flushes active session KV tensors to disk using the custom `DLKV` binary format at over 2,100 MB/s, enabling instant session resumption across server reboots.
+4. **Persistent Session KV Cache & Delta Prefill:** Preserves inference KV states between turns. Delta prefix matching skips tokens $0 \to L$ and evaluates only newly added tokens $L \to N$ (1.67M matches/sec), delivering instant generation on turns 2+.
+5. **High-Speed Binary Disk-Backed Persistence & Heterogeneous Architecture Validation:** Flushes active session KV tensors to disk using the custom `DLKV` binary format at over 2,240 MB/s, validating multi-model architectures (`num_layers`, `num_kv_heads`, `head_dim`) upon restoration to eliminate cross-model buffer overflows.
 
 ---
 
@@ -28,12 +28,12 @@ v3.3.0 introduces four key architectural breakthroughs:
 
 | Metric | Subsystem | Measured Performance | Throughput | Status |
 |---|---|---|---|:---:|
-| **Dynamic Context Sizing** | Memory Headroom Evaluation | **24.61 µs** | 40,636 evals/sec | 🟢 PASS (64K Tokens) |
-| **Session Tool Registry** | Handshake & Deduplication | **2.41 µs** | 414,980 handshakes/sec | 🟢 PASS |
-| **Tool Payload Pruning** | Selective Tool Extraction | **0.31 µs** | 3,187,252 queries/sec | 🟢 PASS |
-| **KV Prefix Delta Matching** | 4K History Common Prefix Match | **2.13 µs** | 470,566 matches/sec | 🟢 PASS |
-| **KV Cache Disk Flush** | Binary Serialization (8 MB Snapshot)| **3.78 ms** | 2,119.3 MB/s (264.8 saves/s) | 🟢 PASS |
-| **KV Cache Disk Restore**| Memory-Mapped Binary Deserialization| **< 0.01 ms** | Instant Attachment | 🟢 PASS |
+| **Dynamic Context Sizing** | Memory Headroom Evaluation | **24.76 µs** | 40,385 evals/sec | 🟢 PASS (64K Tokens) |
+| **Session Tool Registry** | Handshake & Deduplication | **2.30 µs** | 434,723 handshakes/sec | 🟢 PASS |
+| **Tool Payload Pruning** | Selective Tool Extraction | **0.45 µs** | 2,219,108 queries/sec | 🟢 PASS |
+| **KV Prefix Delta Matching** | 4K History Common Prefix Match | **0.60 µs** | 1,676,250 matches/sec | 🟢 PASS |
+| **KV Cache Disk Flush** | Binary Serialization (16 MB Snapshot)| **7.13 ms** | 2,243.4 MB/s (140.2 saves/s) | 🟢 PASS |
+| **KV Cache Disk Restore**| Memory-Mapped Binary Deserialization| **< 0.01 ms** | 170.3M MB/s (Instant Attachment) | 🟢 PASS |
 
 ---
 

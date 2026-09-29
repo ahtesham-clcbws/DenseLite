@@ -38,10 +38,10 @@ std::string ModelInspector::quant_type_to_string(uint32_t type) {
 }
 
 bool ModelInspector::is_role_compatible(const std::string& arch, const std::string& role) {
-    if (role == "general" || role == "coder" || role == "compressor") {
-        return (arch == "qwen2" || arch == "llama" || arch == "gemma" || arch == "phi" || arch == "mistral");
+    if (role == "general" || role == "coder" || role == "compressor" || role == "router") {
+        return (arch == "qwen2" || arch == "llama" || arch == "gemma" || arch == "phi" || arch == "mistral" || arch == "bert" || arch == "modernbert");
     }
-    if (role == "embedding") return (arch == "nomic-bert" || arch == "bert");
+    if (role == "embedding") return (arch == "nomic-bert" || arch == "nomic-bert-moe" || arch == "bert" || arch == "modernbert");
     if (role == "audio_stt") return (arch == "whisper");
     if (role == "image_gen") return (arch == "diffusion" || arch == "unet" || arch == "stable-diffusion" || arch == "sd1");
     return false;
@@ -146,12 +146,6 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
     }
     res.quant_type = quant_type_to_string(dominant_type);
 
-    if (total_params > 1850000000ULL) {
-        res.is_valid = false;
-        res.error_message = "Parameter count (" + res.param_size_str + ") exceeds maximum limit (1.85B).";
-        return res;
-    }
-
     if (res.architecture.empty()) {
         std::string lower = std::filesystem::path(file_path).filename().string();
         for (char& c : lower) c = ::tolower(c);
@@ -160,7 +154,18 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
         }
     }
 
-    const std::vector<std::string> all_roles = {"general", "coder", "compressor", "embedding", "audio_stt", "image_gen"};
+    uint64_t max_allowed_params = 1850000000ULL;
+    if (res.architecture == "diffusion" || res.architecture == "unet") {
+        max_allowed_params = 4000000000ULL;
+    }
+
+    if (total_params > max_allowed_params) {
+        res.is_valid = false;
+        res.error_message = "Parameter count (" + res.param_size_str + ") exceeds maximum limit.";
+        return res;
+    }
+
+    const std::vector<std::string> all_roles = {"general", "coder", "compressor", "router", "embedding", "audio_stt", "image_gen"};
     for (const auto& r : all_roles) {
         if (is_role_compatible(res.architecture, r)) {
             res.compatible_roles.push_back(r);

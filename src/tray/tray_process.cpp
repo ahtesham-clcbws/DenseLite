@@ -39,6 +39,10 @@ bool TrayProcess::start(const std::string& base_dir) {
     std::lock_guard<std::mutex> lock(mutex_);
     std::string bin = base_dir + "/build/DenseLite";
     std::string log_path = base_dir + "/denselite.log";
+    std::string work_dir = base_dir + "/build";
+    const char* bin_cstr = bin.c_str();
+    const char* log_cstr = log_path.c_str();
+    const char* work_dir_cstr = work_dir.c_str();
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -47,18 +51,17 @@ bool TrayProcess::start(const std::string& base_dir) {
     }
 
     if (pid == 0) {
-        // Child process
+        // Child process: strictly async-signal-safe (zero heap allocations)
         setpgid(0, 0); // Detach into own process group
-        int fd = open(log_path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+        int fd = open(log_cstr, O_WRONLY | O_CREAT | O_APPEND, 0644);
         if (fd >= 0) {
             dup2(fd, STDOUT_FILENO);
             dup2(fd, STDERR_FILENO);
             close(fd);
         }
-        std::string work_dir = base_dir + "/build";
-        chdir(work_dir.c_str());
-        char* const args[] = { const_cast<char*>(bin.c_str()), nullptr };
-        execv(bin.c_str(), args);
+        chdir(work_dir_cstr);
+        char* const args[] = { const_cast<char*>(bin_cstr), nullptr };
+        execv(bin_cstr, args);
         _exit(127);
     }
 

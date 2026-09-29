@@ -19,9 +19,14 @@ public:
     static std::string format_chatml(const std::vector<OpenAIMessage>& messages,
                                      bool append_assistant_header = true);
 
+    // Compiles messages into a Llama 3 prompt formatted string
+    static std::string format_llama3(const std::vector<OpenAIMessage>& messages,
+                                     bool append_assistant_header = true);
+
     // Compiles messages, calculates exact token breakdown using tokenizer, and verifies budget
     static CompiledContext compile(const std::vector<OpenAIMessage>& messages,
                                    const Tokenizer* tokenizer,
                                    size_t max_input_tokens = 6144,
-                                   bool append_assistant_header = true);
+                                   bool append_assistant_header = true,
+                                   const std::string& model_architecture = "chatml");
 };

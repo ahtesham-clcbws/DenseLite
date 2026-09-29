@@ -99,12 +99,70 @@ void test_session_kv_cache_disk_persistence() {
     std::cout << "   -> PASS: SessionKVCacheManager disk persistence passed.\n";
 }
 
+void test_session_kv_cache_lru_eviction() {
+    std::cout << "[TEST] SessionKVCacheManager LRU Eviction...\n";
+    auto& kv_mgr = SessionKVCacheManager::instance();
+    std::string test_dir = "/tmp/denselite_kv_lru_test";
+    std::filesystem::remove_all(test_dir);
+    kv_mgr.set_cache_directory(test_dir);
+    kv_mgr.clear_all();
+    kv_mgr.set_max_active_sessions(2);
+
+    ModelConfig cfg;
+    cfg.num_layers = 1;
+    cfg.embedding_length = 32;
+    cfg.num_kv_heads = 2;
+    cfg.head_dim = 16;
+
+    // 1. Create sessions s1 and s2
+    auto s1 = kv_mgr.get_or_create("s1", &cfg);
+    s1->cached_tokens = {1, 2, 3};
+    s1->state.current_pos = 3;
+    s1->is_initialized = true;
+
+    auto s2 = kv_mgr.get_or_create("s2", &cfg);
+    s2->cached_tokens = {4, 5, 6};
+    s2->state.current_pos = 3;
+    s2->is_initialized = true;
+
+    assert(kv_mgr.get_active_session_count() == 2);
+
+    // Release local strong references so use_count == 1
+    s1.reset();
+    s2.reset();
+
+    // 2. Create s3 -> should evict oldest session (s1) to disk
+    auto s3 = kv_mgr.get_or_create("s3", &cfg);
+    s3->cached_tokens = {7, 8, 9};
+    s3->state.current_pos = 3;
+    s3->is_initialized = true;
+    s3.reset();
+
+    assert(kv_mgr.get_active_session_count() == 2);
+    assert(std::filesystem::exists(test_dir + "/s1.kv"));
+
+    // 3. Re-access s1 -> should restore from disk and evict s2
+    auto restored_s1 = kv_mgr.get_or_create("s1", &cfg);
+    assert(restored_s1 != nullptr);
+    assert(restored_s1->is_initialized == true);
+    assert(restored_s1->cached_tokens.size() == 3);
+    assert(restored_s1->cached_tokens[0] == 1);
+    assert(std::filesystem::exists(test_dir + "/s2.kv"));
+
+    // Cleanup
+    kv_mgr.set_max_active_sessions(SessionKVCacheManager::DEFAULT_MAX_ACTIVE_SESSIONS);
+    kv_mgr.clear_all();
+    std::filesystem::remove_all(test_dir);
+    std::cout << "   -> PASS: SessionKVCacheManager LRU eviction verified.\n";
+}
+
 int main() {
     std::cout << "========================================\n";
     std::cout << "[TEST] Phase 9: Session KV & Tool Tests\n";
     std::cout << "========================================\n";
     test_session_tool_registry();
     test_session_kv_cache_disk_persistence();
+    test_session_kv_cache_lru_eviction();
     std::cout << "\n>>> ALL PHASE 9 SESSION TESTS PASSED! <<<\n";
     return 0;
 }

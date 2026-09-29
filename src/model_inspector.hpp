@@ -15,7 +15,10 @@ struct ModelInspectionResult {
     std::string error_message;
 
     bool is_valid_gguf() const { return is_valid; }
-    bool is_supported_edge_size() const { return param_count <= 1850000000ULL; }
+    bool is_supported_edge_size() const {
+        if (architecture == "diffusion" || architecture == "unet") return param_count <= 4000000000ULL;
+        return param_count <= 1850000000ULL;
+    }
     bool is_role_compatible(const std::string& role) const {
         for (const auto& r : compatible_roles) {
             if (r == role) return true;

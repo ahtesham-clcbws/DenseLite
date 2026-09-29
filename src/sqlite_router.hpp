@@ -5,6 +5,8 @@
 #include <map>
 #include <sqlite3.h>
 
+#include <mutex>
+
 struct APIKeyStatus {
     std::string provider;
     int key_index;
@@ -17,6 +19,7 @@ class SQLiteRouter {
 private:
     sqlite3* db;
     std::vector<APIKeyStatus> in_memory_keys;
+    mutable std::mutex keys_mutex;
 
     void init_db();
     void sync_db();

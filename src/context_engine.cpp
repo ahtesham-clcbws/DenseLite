@@ -51,9 +51,9 @@ ContextOptimizationResult ContextEngine::optimize_and_compile(
     }
     result.compressed_messages_count = optimized_msgs.size();
 
-    // 4. Compile into ChatML and verify budget compliance
+    // 4. Compile into model-appropriate prompt template and verify budget compliance
     result.compiled_context = ContextCompiler::compile(
-        optimized_msgs, tokenizer, result.budget_plan.max_input_tokens);
+        optimized_msgs, tokenizer, result.budget_plan.max_input_tokens, true, target_model);
     result.compiled_prompt = result.compiled_context.prompt;
 
     return result;

@@ -1,7 +1,7 @@
 #include "DenseLiteEngine.hpp"
 #include "RequestAnalyzer.hpp"
 #include "Formatter.hpp"
-#include "NeedleRouter.hpp"
+#include "Router.hpp"
 #include "ContextManager.hpp"
 #include "ModelEngine.hpp"
 #include "Curator.hpp"
@@ -13,6 +13,8 @@
 #include "SessionKVCache.hpp"
 #include "database_paths.hpp"
 #include "settings_manager.hpp"
+#include "path_service.hpp"
+#include "model_registry_db.hpp"
 #include <iostream>
 #include <chrono>
 #include <mutex>
@@ -50,12 +52,18 @@ InferenceSession DenseLiteEngine::get_or_create_session(const std::string& sessi
     }
     session.iteration_count = 1;
     session.status = SessionStatus::CREATED;
+    session.working_memory = std::make_shared<WorkingMemory>();
     active_sessions[session.session_id] = session;
     return session;
 }
 
 void DenseLiteEngine::process(const std::string& request_body, httplib::Response& res) {
     OpenAIRequest parsed_req = RequestAnalyzer::parse_request(request_body);
+    if (parsed_req.messages.empty()) {
+        res.status = 400;
+        res.set_content("{\"error\":{\"message\":\"Invalid request: 'messages' is a required non-empty array\",\"type\":\"invalid_request_error\"}}", "application/json");
+        return;
+    }
     
     InferenceSession session = get_or_create_session(parsed_req.session_id);
     parsed_req.session_id = session.session_id;
@@ -68,6 +76,7 @@ void DenseLiteEngine::process(const std::string& request_body, httplib::Response
     std::lock_guard<std::mutex> lock(engine_mutex);
     if (session.status == SessionStatus::COMPLETED || session.status == SessionStatus::FAILED) {
         active_sessions.erase(session.session_id);
+        SessionToolRegistry::instance().clear_session(session.session_id);
     } else {
         active_sessions[session.session_id] = session;
     }
@@ -90,11 +99,13 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         if (!needle && models.find("smollm2") != models.end()) {
             needle = &models.at("smollm2");
         }
-        RoutingDecision decision = NeedleRouter::analyze_request(parsed_req, needle);
+        RoutingDecision decision = Router::analyze_request(parsed_req, needle);
         session.task_type = decision.intent;
     }
-    memory_engine_.working().set_objective(session.task_type);
-    memory_engine_.working().set_current_task(user_query);
+    if (session.working_memory) {
+        session.working_memory->set_objective(session.task_type);
+        session.working_memory->set_current_task(user_query);
+    }
 
     // 2. CONTEXT SANITIZATION & TOOL PRUNING
     if (!parsed_req.tools.empty()) {
@@ -134,7 +145,14 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     // 3. TARGET MODEL SELECTION & CLOUD OFFLOADING
     std::string target_model = parsed_req.model;
     if (target_model == "denselite" || target_model.empty()) {
-        target_model = (session.task_type == "coding") ? "qwen_coder" : "qwen_main";
+        std::string db_path = PathService::instance().settings_db();
+        if (session.task_type == "coding") {
+            target_model = ModelRegistryDB::get_model_for_role(db_path, "coder");
+            if (target_model.empty()) target_model = "deepseek-r1-distill-qwen-1_5b-q4_k_m";
+        } else {
+            target_model = ModelRegistryDB::get_model_for_role(db_path, "general");
+            if (target_model.empty()) target_model = "llama-3_2-1b-instruct-abliterated_i1-q4_k_m";
+        }
     }
 
     // Calculate total character footprint
@@ -183,11 +201,20 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
             res.set_content("{\"created\":1700000000,\"data\":[{\"b64_json\":\"[image_data:" + std::to_string(img_res.data_bytes) + "_bytes]\"}]}", "application/json");
             return;
         }
+    } else if (session.task_type == "audio") {
+        std::vector<uint8_t> pcm_data(user_query.begin(), user_query.end());
+        auto audio_res = multimodal_engine_.transcribe_pcm_bytes(pcm_data);
+        if (audio_res.success) {
+            session.status = SessionStatus::COMPLETED;
+            res.status = 200;
+            res.set_content("{\"text\":\"" + Formatter::json_escape(audio_res.text) + "\",\"language\":\"" + audio_res.detected_language + "\"}", "application/json");
+            return;
+        }
     }
 
     // 3. INFERENCE & INTERNAL CONTINUATION LOOP (Phase 6)
     session.status = SessionStatus::INFERRING;
-    ModelEngine model_engine(models, router);
+    ModelEngine model_engine(models, router, &engine_mutex);
     const int MAX_INTERNAL_TURNS = 3;
 
     for (int turn = 0; turn < MAX_INTERNAL_TURNS; ++turn) {
@@ -200,14 +227,21 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
             if (status_code == 200) { step_ok = true; break; }
 
             RecoveryAction action = RecoveryPolicy::determine_action(status_code, output);
+            auto resolve_fallback = [&]() -> std::string {
+                std::string s = ModelRegistryDB::get_model_for_role(PathService::instance().settings_db(), "general");
+                if (!s.empty()) return s;
+                if (models.count("general")) return "general";
+                return "llama-3_2-1b-instruct-abliterated_i1-q4_k_m";
+            };
+
             if (action == RecoveryAction::REDUCE_CONTEXT) {
                 opt_result = context_engine_.optimize_and_compile(parsed_req, {}, target_model, 4096);
                 prompt = opt_result.compiled_prompt;
             } else if (action == RecoveryAction::SWITCH_MODEL || action == RecoveryAction::SWITCH_PROVIDER || action == RecoveryAction::SWITCH_KEY) {
                 target_model = router.get_cheapest_model_for_provider("OPENROUTER", "text");
-                if (target_model.empty()) target_model = "qwen_main";
+                if (target_model.empty()) target_model = resolve_fallback();
             } else if (action == RecoveryAction::FALLBACK_LOCAL) {
-                target_model = "qwen_main";
+                target_model = resolve_fallback();
             } else if (action == RecoveryAction::FAIL_SESSION) {
                 break;
             }
@@ -230,7 +264,8 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         }
 
         if (action == ResponseAction::INVALID) {
-            target_model = "qwen_main"; // Fallback to safe local model
+            std::string s = ModelRegistryDB::get_model_for_role(PathService::instance().settings_db(), "general");
+            target_model = s.empty() ? "llama-3_2-1b-instruct-abliterated_i1-q4_k_m" : s;
             continue;
         }
 
@@ -255,6 +290,18 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
     // 4. CURATION & FORMATTING
     Curator curator;
     std::string final_output = curator.consolidate(session.iteration_results, session.task_type, search_hits);
-    std::string sse_response = Formatter::format_sse_delta(final_output) + Formatter::format_sse_done();
-    res.set_content(sse_response, "text/event-stream");
+    if (parsed_req.stream) {
+        std::string sse_response = Formatter::format_sse_delta(final_output) + Formatter::format_sse_done();
+        res.set_content(sse_response, "text/event-stream");
+    } else {
+        auto now_sec = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        std::string escaped_out = Formatter::json_escape(final_output);
+        std::string json_res = "{\"id\":\"chatcmpl-" + session.session_id + "\","
+                               "\"object\":\"chat.completion\","
+                               "\"created\":" + std::to_string(now_sec) + ","
+                               "\"model\":\"" + target_model + "\","
+                               "\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"" + escaped_out + "\"},\"finish_reason\":\"stop\"}]}";
+        res.set_content(json_res, "application/json");
+    }
 }

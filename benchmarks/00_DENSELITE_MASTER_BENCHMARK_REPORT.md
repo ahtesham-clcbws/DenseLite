@@ -1,21 +1,21 @@
-# 00: DenseLite v3.3.0 — Master System Benchmark Report
+# 00: DenseLite v3.4.0 — Master System Benchmark Report
 
 **Project:** DenseLite (Pure C++ Native Intelligence Engine)  
-**Version:** v3.3.0  
-**Date:** 2026-09-27  
+**Version:** v3.4.0  
+**Date:** 2026-09-29  
 **Hardware Platform:** Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz (2 Cores, 4 Threads), 32 GB RAM  
 **GPU Compute Platform:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
 **Operating System:** Linux 6.13.5-zen1-1-zen (x86_64)  
 **Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++17`  
-**Test Suite Verification:** 12/12 CTest Suites Passing (100% Pass Rate in 36.57s)  
+**Test Suite Verification:** 14/14 CTest Suites Passing (100% Pass Rate in 2.54s)  
 
 ---
 
 ## Executive Summary
 
-DenseLite v3.3.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict 2-thread CPU allocation (50% max host load) and a 14 GB RAM safety ceiling while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
+DenseLite v3.4.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict 2-thread CPU allocation (50% max host load) and a 14 GB RAM safety ceiling while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
 
-With v3.3.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation.
+With v3.4.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation, hardened with Phase 22–26 Quantum Systems remediations (`BUF-01`, `KV-01`, `KV-02`, `KV-03`, `NUM-01`, `MEM-02`, `CON-05`, `DB-02`, `DB-03`, `JSON-01`, `INSP-01`).
 
 ---
 
@@ -24,30 +24,30 @@ With v3.3.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 6
 | Subsystem | Core Metric | Measured Throughput / Latency | Target Baseline | Result |
 |---|---|:---:|:---:|:---:|
 | **AVX2 Math Core** | `dot_product_q8_fp32` | rel_err $< 1.1 \times 10^{-6}$ | rel_err $< 1.0 \times 10^{-5}$ | 🟢 PASS |
-| **Model Lifecycle** | RAII `ModelLease` Acquire/Release | **3,503,991 ops/sec** (0.28 µs) | $> 500,000$ ops/sec | 🟢 PASS |
+| **Model Lifecycle** | RAII `ModelLease` Acquire/Release | **5,396,617 ops/sec** (0.185 µs) | $> 500,000$ ops/sec | 🟢 PASS |
 | **Vulkan Hardware Gate** | 85% VRAM Ceiling Enforcement | **1,740 MiB Max** (307 MiB Display Reserve) | Strict 85% Gate | 🟢 PASS |
-| **BPE Tokenizer** | Native Trie BPE Encoding | **1,538,726 tokens/sec** | $> 500,000$ tokens/sec | 🟢 PASS |
-| **Fast Token Counting** | Zero-Allocation BPE Count | **1,629,299 tokens/sec** | $> 1,000,000$ tokens/sec | 🟢 PASS |
-| **Context Compilation** | End-to-End Budget + ChatML | **1,603 requests/sec** (623.9 µs) | $> 200$ requests/sec | 🟢 PASS |
-| **Persistent Memory** | Canonical SQLite Reads | **44,607 reads/sec** (22.42 µs) | $> 10,000$ reads/sec | 🟢 PASS |
-| **Semantic Recall** | Top-K Memory Recall | **9,581 recalls/sec** (104.37 µs) | $> 1,000$ recalls/sec | 🟢 PASS |
-| **Code Intelligence** | Tree-sitter AST File Parsing | **6,284 files/sec** (159.14 µs) | $> 500$ files/sec | 🟢 PASS |
-| **Delta Change Tracking** | 64-bit FNV-1a Hash Stream | **11,260,199 checks/s (3,286 MB/s)** | $> 500$ MB/s | 🟢 PASS |
-| **Vector Search** | 512-dim Cosine Similarity | **1,290,476 ops/sec** (774.9 ns) | $> 200,000$ ops/sec | 🟢 PASS |
-| **Result Fusion** | 40-Candidate Score Merging | **148,982 fusions/sec** (6.71 µs) | $> 10,000$ fusions/sec | 🟢 PASS |
-| **Response Analyzer** | 5-State Multi-Schema Parser | **398,168 parses/sec** (2.51 µs) | $> 50,000$ parses/sec | 🟢 PASS |
-| **Fault Recovery** | 7-Action Self-Healing Engine | **11,239,362 decisions/sec** (0.09 µs) | $> 500,000$ decisions/sec | 🟢 PASS |
-| **Completion Gate** | Evidence-Based Anti-Hallucination | **89,789,739 evals/sec** (0.01 µs) | $> 10,000,000$ evals/sec | 🟢 PASS |
-| **Thread Throttling** | OpenMP $\le 2$ Thread Cap | **144,000 enforcements/sec** (6.94 µs) | Strict 2 Threads | 🟢 PASS |
-| **Memory Eviction** | 6-Stage Progressive Cascade | **31,373 assessments/sec** (31.87 µs) | $> 5,000$ assessments/sec | 🟢 PASS |
-| **Speech-to-Text** | Whisper Audio Chunk Transcribe | **27,077 chunks/sec** (27,077x real-time)| $> 1,000$ chunks/sec | 🟢 PASS |
-| **Image Generation** | Diffusion Step Simulation | **13,467 passes/sec** (74.26 µs) | $> 1,000$ passes/sec | 🟢 PASS |
+| **BPE Tokenizer** | Native Trie BPE Encoding | **1,426,758 tokens/sec** | $> 500,000$ tokens/sec | 🟢 PASS |
+| **Fast Token Counting** | Zero-Allocation BPE Count | **1,527,724 tokens/sec** | $> 1,000,000$ tokens/sec | 🟢 PASS |
+| **Context Compilation** | End-to-End Budget + ChatML | **1,771 requests/sec** (564.51 µs) | $> 200$ requests/sec | 🟢 PASS |
+| **Persistent Memory** | Canonical SQLite Reads | **121,528 reads/sec** (8.23 µs) | $> 10,000$ reads/sec | 🟢 PASS |
+| **Semantic Recall** | Top-K Memory Recall | **12,689 recalls/sec** (78.81 µs) | $> 1,000$ recalls/sec | 🟢 PASS |
+| **Code Intelligence** | Tree-sitter AST File Parsing | **7,237 files/sec** (138.18 µs) | $> 500$ files/sec | 🟢 PASS |
+| **Delta Change Tracking** | 64-bit FNV-1a Hash Stream | **15,151,230 checks/s (4,421.5 MB/s)** | $> 500$ MB/s | 🟢 PASS |
+| **Vector Search** | 512-dim Cosine Similarity | **1,418,551 ops/sec** (704.9 ns) | $> 200,000$ ops/sec | 🟢 PASS |
+| **Result Fusion** | 40-Candidate Score Merging | **203,358 fusions/sec** (4.92 µs) | $> 10,000$ fusions/sec | 🟢 PASS |
+| **Response Analyzer** | 5-State Multi-Schema Parser | **470,336 parses/sec** (2.13 µs) | $> 50,000$ parses/sec | 🟢 PASS |
+| **Fault Recovery** | 7-Action Self-Healing Engine | **13,011,777 decisions/sec** (0.08 µs) | $> 500,000$ decisions/sec | 🟢 PASS |
+| **Completion Gate** | Evidence-Based Anti-Hallucination | **105,620,712 evals/sec** (0.01 µs) | $> 10,000,000$ evals/sec | 🟢 PASS |
+| **Thread Throttling** | OpenMP $\le 2$ Thread Cap | **1,217,537 enforcements/sec** (0.82 µs) | Strict 2 Threads | 🟢 PASS |
+| **Memory Eviction** | 6-Stage Progressive Cascade | **35,200 assessments/sec** (28.41 µs) | $> 5,000$ assessments/sec | 🟢 PASS |
+| **Speech-to-Text** | Whisper Audio Chunk Transcribe | **29,444 chunks/sec** (29,444x real-time)| $> 1,000$ chunks/sec | 🟢 PASS |
+| **Image Generation** | Diffusion Step Simulation | **14,847 passes/sec** (67.35 µs) | $> 1,000$ passes/sec | 🟢 PASS |
 | **Cloud LLM Routing** | HTTPS Multi-Provider Failover | **52.6 ms Latency / 100% Failover Resilient** | $< 100$ ms Gateway Overhead | 🟢 PASS |
-| **Dynamic Context Sizing**| 64K Context Headroom Scaling | **40,636 evals/sec (24.61 µs)** | 64K Tokens Allocated | 🟢 PASS |
-| **Session Tool Registry** | Handshake Schema Deduplication | **414,980 handshakes/sec (2.41 µs)** | 0-Schema Chat Pruning | 🟢 PASS |
-| **Tool Payload Pruning** | Selective Tool Schema Extraction | **3,187,252 queries/sec (0.31 µs)** | Sub-Microsecond Pruning | 🟢 PASS |
-| **KV Prefix Delta Match** | Common Token Sequence Matching | **470,566 matches/sec (2.13 µs)** | Delta Prefill Speedup | 🟢 PASS |
-| **Disk-Backed KV Flush** | Binary Serialization Throughput | **2,119.3 MB/s (3.78 ms per flush)** | Non-Blocking Persistence | 🟢 PASS |
+| **Dynamic Context Sizing**| 64K Context Headroom Scaling | **40,385 evals/sec (24.76 µs)** | 64K Tokens Allocated | 🟢 PASS |
+| **Session Tool Registry** | Handshake Schema Deduplication | **434,723 handshakes/sec (2.30 µs)** | 0-Schema Chat Pruning | 🟢 PASS |
+| **Tool Payload Pruning** | Selective Tool Schema Extraction | **2,219,108 queries/sec (0.45 µs)** | Sub-Microsecond Pruning | 🟢 PASS |
+| **KV Prefix Delta Match** | Common Token Sequence Matching | **1,676,250 matches/sec (0.60 µs)** | Delta Prefill Speedup | 🟢 PASS |
+| **Disk-Backed KV Flush** | Binary Serialization Throughput | **2,243.4 MB/s (140.2 saves/sec)** | Non-Blocking Persistence | 🟢 PASS |
 
 ---
 

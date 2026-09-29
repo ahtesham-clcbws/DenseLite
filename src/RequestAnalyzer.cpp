@@ -18,14 +18,23 @@ using json = nlohmann::json;
 
 OpenAIRequest RequestAnalyzer::parse_request(const std::string& raw_json_body) {
     OpenAIRequest req;
-    req.session_id = generate_session_id();
     
     try {
         json j = json::parse(raw_json_body);
+        if (j.contains("session_id") && j["session_id"].is_string() && !j["session_id"].get<std::string>().empty()) {
+            req.session_id = j["session_id"].get<std::string>();
+        } else if (j.contains("conversation_id") && j["conversation_id"].is_string() && !j["conversation_id"].get<std::string>().empty()) {
+            req.session_id = j["conversation_id"].get<std::string>();
+        } else if (j.contains("user") && j["user"].is_string() && !j["user"].get<std::string>().empty()) {
+            req.session_id = j["user"].get<std::string>();
+        } else {
+            req.session_id = generate_session_id();
+        }
         req.model = j.value("model", "denselite");
         req.max_tokens = j.value("max_completion_tokens", j.value("max_tokens", 512));
         req.temperature = j.value("temperature", 0.7f);
         req.repetition_penalty = j.value("repetition_penalty", 1.15f);
+        req.stream = j.value("stream", true);
         
         if (j.contains("messages") && j["messages"].is_array()) {
             for (const auto& msg : j["messages"]) {
@@ -61,12 +70,21 @@ OpenAIRequest RequestAnalyzer::parse_request(const std::string& raw_json_body) {
                 req.tools.push_back(tool);
             }
         }
+        auto parse_bool_val = [](const json& val) -> bool {
+            if (val.is_boolean()) return val.get<bool>();
+            if (val.is_number()) return val.get<int>() != 0;
+            if (val.is_string()) {
+                std::string s = val.get<std::string>();
+                return s == "true" || s == "1";
+            }
+            return false;
+        };
         if (j.contains("use_context")) {
-            req.use_context = j["use_context"].get<bool>();
+            req.use_context = parse_bool_val(j["use_context"]);
         } else if (j.contains("inject_context")) {
-            req.use_context = j["inject_context"].get<bool>();
+            req.use_context = parse_bool_val(j["inject_context"]);
         } else if (j.contains("rag")) {
-            req.use_context = j["rag"].get<bool>();
+            req.use_context = parse_bool_val(j["rag"]);
         }
     } catch (...) {
         std::cerr << "[RequestAnalyzer] Error parsing JSON request body" << std::endl;

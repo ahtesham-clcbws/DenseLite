@@ -20,6 +20,7 @@ bool MemoryStore::init(const std::string& sqlite_path, const std::string& zvec_p
         db_ = nullptr;
         return false;
     }
+    sqlite3_exec(db_, "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;", nullptr, nullptr, nullptr);
     return create_tables();
 }
 
@@ -93,6 +94,11 @@ bool MemoryStore::put_memory(const MemoryEntry& entry, const std::vector<float>&
     return ok;
 }
 
+static inline std::string safe_text(sqlite3_stmt* stmt, int col) {
+    const unsigned char* t = sqlite3_column_text(stmt, col);
+    return t ? reinterpret_cast<const char*>(t) : "";
+}
+
 bool MemoryStore::get_memory(const std::string& key, MemoryEntry& out) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!db_) return false;
@@ -104,10 +110,10 @@ bool MemoryStore::get_memory(const std::string& key, MemoryEntry& out) {
     sqlite3_bind_text(stmt, 1, key.c_str(), -1, SQLITE_STATIC);
     bool found = false;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        out.key = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        out.id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        out.key = safe_text(stmt, 0);
+        out.id = safe_text(stmt, 1);
         out.category = static_cast<MemoryCategory>(sqlite3_column_int(stmt, 2));
-        out.value = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        out.value = safe_text(stmt, 3);
         out.confidence = static_cast<float>(sqlite3_column_double(stmt, 4));
         out.updated_at = sqlite3_column_int64(stmt, 5);
         found = true;
@@ -147,10 +153,10 @@ std::vector<MemoryEntry> MemoryStore::query_memories_keyword(const std::string& 
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         MemoryEntry entry;
-        entry.key = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        entry.id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        entry.key = safe_text(stmt, 0);
+        entry.id = safe_text(stmt, 1);
         entry.category = static_cast<MemoryCategory>(sqlite3_column_int(stmt, 2));
-        entry.value = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        entry.value = safe_text(stmt, 3);
         entry.confidence = static_cast<float>(sqlite3_column_double(stmt, 4));
         entry.updated_at = sqlite3_column_int64(stmt, 5);
         results.push_back(std::move(entry));
@@ -170,10 +176,10 @@ std::vector<MemoryEntry> MemoryStore::load_all_persistent() {
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         MemoryEntry entry;
-        entry.key = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        entry.id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        entry.key = safe_text(stmt, 0);
+        entry.id = safe_text(stmt, 1);
         entry.category = static_cast<MemoryCategory>(sqlite3_column_int(stmt, 2));
-        entry.value = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        entry.value = safe_text(stmt, 3);
         entry.confidence = static_cast<float>(sqlite3_column_double(stmt, 4));
         entry.updated_at = sqlite3_column_int64(stmt, 5);
         results.push_back(std::move(entry));
@@ -200,7 +206,8 @@ bool MemoryStore::save_session(const SessionMemory& session) {
     sqlite3_step(stmt_s);
     sqlite3_finalize(stmt_s);
 
-    // Delete existing turns to cleanly rewrite session
+    // Delete existing turns and insert new turns in a single transaction
+    sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
     const char* del_sql = "DELETE FROM session_turns WHERE session_id = ?;";
     sqlite3_stmt* del_stmt = nullptr;
     if (sqlite3_prepare_v2(db_, del_sql, -1, &del_stmt, nullptr) == SQLITE_OK) {
@@ -212,7 +219,10 @@ bool MemoryStore::save_session(const SessionMemory& session) {
     const char* turn_sql = "INSERT INTO session_turns (session_id, turn_index, timestamp, role, content, tool_name, tool_args, tool_result) "
                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
     sqlite3_stmt* t_stmt = nullptr;
-    if (sqlite3_prepare_v2(db_, turn_sql, -1, &t_stmt, nullptr) != SQLITE_OK) return false;
+    if (sqlite3_prepare_v2(db_, turn_sql, -1, &t_stmt, nullptr) != SQLITE_OK) {
+        sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, nullptr);
+        return false;
+    }
 
     for (const auto& t : turns) {
         sqlite3_reset(t_stmt);
@@ -227,6 +237,7 @@ bool MemoryStore::save_session(const SessionMemory& session) {
         sqlite3_step(t_stmt);
     }
     sqlite3_finalize(t_stmt);
+    sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
     return true;
 }
 
@@ -244,11 +255,11 @@ bool MemoryStore::load_session(const std::string& session_id, SessionMemory& out
 
     sqlite3_bind_text(stmt, 1, session_id.c_str(), -1, SQLITE_STATIC);
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        std::string role = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        std::string content = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        std::string tool_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        std::string tool_args = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-        std::string tool_result = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        std::string role = safe_text(stmt, 0);
+        std::string content = safe_text(stmt, 1);
+        std::string tool_name = safe_text(stmt, 2);
+        std::string tool_args = safe_text(stmt, 3);
+        std::string tool_result = safe_text(stmt, 4);
 
         if (role == "tool") {
             out.add_tool_interaction(tool_name, tool_args, tool_result);
@@ -297,7 +308,7 @@ bool MemoryStore::get_archive(const std::string& session_id, std::string& summar
     sqlite3_bind_text(stmt, 1, session_id.c_str(), -1, SQLITE_STATIC);
     bool found = false;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        summary_out = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        summary_out = safe_text(stmt, 0);
         found = true;
     }
     sqlite3_finalize(stmt);

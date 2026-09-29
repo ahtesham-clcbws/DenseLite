@@ -7,16 +7,21 @@ DenseLite exposes a standard **OpenAI-compatible HTTP Gateway** on `http://local
 ## Gateway Endpoints & Available Models
 
 * **Base URL:** `http://localhost:9501/v1`
-* **Chat Endpoint:** `http://localhost:9501/v1/chat/completions`
-* **API Key:** Any string (e.g. `denselite` or leave blank if optional)
+* **Chat Endpoint:** `POST http://localhost:9501/v1/chat/completions`
+* **Models Catalog:** `GET http://localhost:9501/v1/models`
+* **Health Check:** `GET http://localhost:9501/health`
+* **API Key:** `Bearer <api_secret_key>` (or any string if authentication is disabled in Settings)
 
-### Supported Model Identifiers
-| Model ID | Execution Engine | Best Use Case |
+### Supported Model Identifiers & Roles
+| Model ID / Role | Execution Engine | Best Use Case |
 |---|---|---|
-| `denselite` | **Auto-Router (Recommended)** | Automatically selects coder, reasoner, or cloud |
-| `qwen_coder` | Local C++ AVX2 (1.5B Q8_0) | Fast code generation and refactoring |
-| `qwen_main` | Local C++ AVX2 (1.5B Q8_0) | Conversational text, summarization, general chat |
-| `openai/gpt-oss-20b`| Groq Cloud (52 ms latency) | Ultra-fast cloud text & reasoning |
+| `denselite` | **ModernBERT Auto-Router (Recommended)** | Zero-shot intent classification into general, coder, or cloud |
+| `general` | Local C++ AVX2 (Llama-3.2-1B-Instruct) | General chat, summarization, conversational reasoning |
+| `coder` | Local C++ AVX2 (DeepSeek-R1-Distill-1.5B) | Advanced coding, syntax reasoning, and refactoring |
+| `compressor` | Local C++ AVX2 (SmolLM2-360M) | Context compression and memory consolidation |
+| `router` | Embedded ONNX Runtime (ModernBERT-Large) | Sub-10ms intent classification and capability routing |
+| `embedding` | Local C++ AVX2 (Nomic-Embed-Text-v2-MoE) | Dense semantic vectors & hybrid retrieval |
+| `openai/gpt-oss-20b` | Groq Cloud | Ultra-fast cloud text & reasoning fallback |
 | `gemini-2.5-flash` | Google Gemini Cloud | Complex cloud reasoning with auto-fallback |
 
 ---

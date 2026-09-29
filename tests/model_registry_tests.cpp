@@ -61,6 +61,11 @@ void test_model_registry_crud_and_multi_role() {
     std::filesystem::remove_all(sandbox);
     DatabaseMigrator::ensure_all_databases_ready(sandbox, false);
     std::string db_path = sandbox + "/src/databases/denselite_settings.db";
+    sqlite3* test_db = nullptr;
+    if (sqlite3_open(db_path.c_str(), &test_db) == SQLITE_OK) {
+        sqlite3_exec(test_db, "DELETE FROM model_roles;", nullptr, nullptr, nullptr);
+        sqlite3_close(test_db);
+    }
 
     LocalModelRecord m1;
     m1.model_id = "qwen_shared";
@@ -147,6 +152,7 @@ void test_model_inspector_logic() {
     REQUIRE(insp.is_role_compatible("general"), "Qwen2 compatible with general");
     REQUIRE(insp.is_role_compatible("coder"), "Qwen2 compatible with coder");
     REQUIRE(insp.is_role_compatible("compressor"), "Qwen2 compatible with compressor");
+    REQUIRE(insp.is_role_compatible("router"), "Qwen2 compatible with router");
     REQUIRE(!insp.is_role_compatible("embedding"), "Qwen2 NOT compatible with embedding");
     REQUIRE(!insp.is_role_compatible("audio_stt"), "Qwen2 NOT compatible with audio_stt");
 

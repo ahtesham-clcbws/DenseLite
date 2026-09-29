@@ -2,6 +2,7 @@
 #include "tray_process.hpp"
 #include "tray_server.hpp"
 #include "path_service.hpp"
+#include "settings_manager.hpp"
 #include <unistd.h>
 #include <signal.h>
 #include <fstream>
@@ -50,7 +51,8 @@ void TrayApp::update_status_ui() {
             app_indicator_set_icon_full(indicator_, running ? "denselite_active" : "denselite_idle", "DenseLite Status");
         }
         if (item_status_) {
-            std::string label = running ? "● DenseLite: RUNNING (:9501)" : "○ DenseLite: STOPPED";
+            int port = SettingsManager::instance().get_server_config().port;
+            std::string label = running ? ("● DenseLite: RUNNING (:" + std::to_string(port) + ")") : "○ DenseLite: STOPPED";
             gtk_menu_item_set_label(GTK_MENU_ITEM(item_status_), label.c_str());
         }
         if (item_toggle_) {

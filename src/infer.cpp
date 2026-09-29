@@ -58,21 +58,16 @@ std::vector<int> tokenize(const Vocab& vocab, const std::string& text) {
 std::string detokenize(const Vocab& vocab, int token_id) {
     if (token_id >= 0 && token_id < (int)vocab.tokens.size()) {
         std::string s = vocab.tokens[token_id];
-        
-        // Replace all instances of Ġ (0xC4 0xA0) with space
         size_t pos = 0;
         while ((pos = s.find("\xC4\xA0", pos)) != std::string::npos) {
             s.replace(pos, 2, " ");
             pos += 1;
         }
-        
-        // Replace all instances of Ċ (0xC4 0x8A) with newline
         pos = 0;
         while ((pos = s.find("\xC4\x8A", pos)) != std::string::npos) {
             s.replace(pos, 2, "\n");
             pos += 1;
         }
-        
         return s;
     }
     return "";
@@ -110,27 +105,61 @@ void dequantize_q8_row(const block_q8_0* x, float* y, int num_blocks) {
     }
 }
 
-void matvec_q8(const Tensor& w, const float* x, float* out, int in_features, int out_features) {
-    int nb = in_features / 32;
-    const block_q8_0* w_data = (const block_q8_0*)w.data;
-    #pragma omp parallel for
-    for (int i = 0; i < out_features; ++i) {
-        out[i] = math::dot_product_q8_fp32(&w_data[i * nb], x, nb);
+void dequantize_q4_row(const block_q4_0* x, float* y, int num_blocks) {
+    for (int i = 0; i < num_blocks; ++i) {
+        float d = fp16_to_fp32(x[i].d);
+        for (int j = 0; j < 16; ++j) {
+            int x0 = (x[i].qs[j] & 0x0F) - 8;
+            int x1 = (x[i].qs[j] >> 4) - 8;
+            y[i * 32 + j] = x0 * d;
+            y[i * 32 + j + 16] = x1 * d;
+        }
     }
+}
+
+void matvec(const Tensor& w, const float* x, float* out, int in_features, int out_features) {
+    int nb = in_features / 32;
+    if (w.type == TensorType::Q4_0) {
+        const block_q4_0* w_data = static_cast<const block_q4_0*>(w.data);
+        #pragma omp parallel for
+        for (int i = 0; i < out_features; ++i) {
+            out[i] = math::dot_product_q4_0_fp32(&w_data[i * nb], x, nb);
+        }
+    } else {
+        const block_q8_0* w_data = static_cast<const block_q8_0*>(w.data);
+        #pragma omp parallel for
+        for (int i = 0; i < out_features; ++i) {
+            out[i] = math::dot_product_q8_fp32(&w_data[i * nb], x, nb);
+        }
+    }
+}
+
+inline void matvec_q8(const Tensor& w, const float* x, float* out, int in_features, int out_features) {
+    matvec(w, x, out, in_features, out_features);
 }
 
 void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits) {
     auto& config = model.config;
     
-    // 1. Token Embedding Lookup (Q8_0 dequantize)
+    // 1. Token Embedding Lookup (Q4_0 / Q8_0 dequantize)
+    if (token_id < 0 || token_id >= (int)config.vocab_size) {
+        std::cerr << "[Infer] Invalid token_id: " << token_id << " (vocab_size: " << config.vocab_size << ")" << std::endl;
+        return;
+    }
     if (model.tensors.count("token_embd.weight") == 0) {
         std::cerr << "Missing token_embd.weight" << std::endl;
         return;
     }
     
-    const block_q8_0* embd_data = (const block_q8_0*)model.tensors["token_embd.weight"].data;
+    const auto& embd_tensor = model.tensors["token_embd.weight"];
     int embd_blocks = config.embedding_length / 32;
-    dequantize_q8_row(&embd_data[token_id * embd_blocks], state.x.data(), embd_blocks);
+    if (embd_tensor.type == TensorType::Q4_0) {
+        const block_q4_0* embd_data = static_cast<const block_q4_0*>(embd_tensor.data);
+        dequantize_q4_row(&embd_data[token_id * embd_blocks], state.x.data(), embd_blocks);
+    } else {
+        const block_q8_0* embd_data = static_cast<const block_q8_0*>(embd_tensor.data);
+        dequantize_q8_row(&embd_data[token_id * embd_blocks], state.x.data(), embd_blocks);
+    }
     
     // Model-driven transformer layer dimensions (Level 1: Qwen2/Llama family)
     int head_dim = config.head_dim;
@@ -171,7 +200,7 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
         matvec_q8(model.tensors[lp + "attn_v.weight"], state.x.data(), v.data(),
                   config.embedding_length, num_kv_features);
         
-        // Add biases ONCE
+        // Add biases if present
         if (model.tensors.count(lp + "attn_q.bias")) {
             float* b = (float*)model.tensors[lp + "attn_q.bias"].data;
             for (int i = 0; i < (int)config.embedding_length; ++i) q[i] += b[i];
@@ -184,9 +213,6 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
             float* b = (float*)model.tensors[lp + "attn_v.bias"].data;
             for (int i = 0; i < num_kv_features; ++i) v[i] += b[i];
         }
-        
-        // Apply RoPE (Standard/type-0: consecutive pairs (x0,x1),(x2,x3)...)
-        // GGUF conversion de-interleaves Q/K weights so standard RoPE is correct
         math::rope(q.data(), state.current_pos, config.num_heads, head_dim, state.inv_freq.data());
         math::rope(k.data(), state.current_pos, config.num_kv_heads, head_dim, state.inv_freq.data());
         
@@ -197,8 +223,10 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
         
         // Store K and V into cache at current position
         int cache_offset = pos * num_kv_features;
-        std::memcpy(&state.k_cache[l][cache_offset], k.data(), num_kv_features * sizeof(float));
-        std::memcpy(&state.v_cache[l][cache_offset], v.data(), num_kv_features * sizeof(float));
+        if (static_cast<size_t>(cache_offset + num_kv_features) <= state.k_cache[l].size()) {
+            std::memcpy(&state.k_cache[l][cache_offset], k.data(), num_kv_features * sizeof(float));
+            std::memcpy(&state.v_cache[l][cache_offset], v.data(), num_kv_features * sizeof(float));
+        }
         
         // Compute attention for each Q head
         
@@ -309,13 +337,17 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
 
     int base_ctx = context_budget > 0 ? context_budget : (model.config.context_length > 0 ? model.config.context_length : 4096);
     int ctx_len = std::min(base_ctx, 65536);
-
+    
+    std::vector<int> effective_tokens;
     size_t start_prefill_idx = 0;
-
+    std::unique_lock<std::mutex> kv_lock;
     if (session_kv) {
+        kv_lock = std::unique_lock<std::mutex>(session_kv->state_mutex);
         if (!session_kv->is_initialized || session_kv->max_context_allocated < ctx_len) {
             init_inference_state(model.config, ctx_len, session_kv->state);
             session_kv->max_context_allocated = ctx_len;
+            session_kv->num_kv_heads = model.config.num_kv_heads;
+            session_kv->head_dim = model.config.head_dim;
             session_kv->is_initialized = true;
             session_kv->cached_tokens.clear();
         } else {
@@ -335,6 +367,18 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         state_ptr = &local_state;
     }
 
+    if (prompt_tokens.size() >= static_cast<size_t>(ctx_len)) {
+        size_t keep = ctx_len - 1;
+        effective_tokens.assign(prompt_tokens.end() - keep, prompt_tokens.end());
+        start_prefill_idx = 0;
+        if (session_kv) {
+            session_kv->cached_tokens.clear();
+            session_kv->state.current_pos = 0;
+        }
+    } else {
+        effective_tokens = prompt_tokens;
+    }
+
     InferenceState& state = *state_ptr;
     std::vector<float> logits(model.config.vocab_size);
     
@@ -345,54 +389,41 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
     std::vector<int> generated_tokens;
     generated_tokens.reserve(max_tokens);
     
-    // 1. Delta Prefill: process only un-cached prompt tokens
-    for (size_t i = start_prefill_idx; i < prompt_tokens.size() - 1; ++i) {
-        forward_pass(model, state, prompt_tokens[i], logits);
+    // 1. Delta Prefill: process only un-cached prompt tokens within allocated KV bounds
+    for (size_t i = start_prefill_idx; i < effective_tokens.size() - 1; ++i) {
+        if (state.current_pos >= ctx_len - 1) break;
+        forward_pass(model, state, effective_tokens[i], logits);
         state.current_pos++;
     }
 
     if (session_kv) {
-        session_kv->cached_tokens = prompt_tokens;
+        session_kv->cached_tokens = effective_tokens;
     }
     
     // 2. Start generation from the last prompt token
-    int current_token = prompt_tokens.back();
-    
+    int current_token = effective_tokens.back();
     constexpr int TOP_K = 40;
     std::vector<std::pair<float, int>> candidates(model.config.vocab_size);
     
-
-
-    
     for (int step = 0; step < max_tokens; ++step) {
+        if (state.current_pos >= ctx_len - 1) break;
         forward_pass(model, state, current_token, logits);
         
-        // --- Repetition Penalty ---
-        // Multiplicative penalty: divide logits of previously seen tokens
-        // if logit > 0, divide by penalty; if logit < 0, multiply by penalty
+        // Repetition Penalty (multiplicative)
         if (repetition_penalty != 1.0f) {
             for (int tok : generated_tokens) {
                 if (tok >= 0 && tok < (int)model.config.vocab_size) {
-                    if (logits[tok] > 0.0f) {
-                        logits[tok] /= repetition_penalty;
-                    } else {
-                        logits[tok] *= repetition_penalty;
-                    }
+                    logits[tok] = (logits[tok] > 0.0f) ? (logits[tok] / repetition_penalty) : (logits[tok] * repetition_penalty);
                 }
             }
         }
         
         int next_token;
-        
         if (temperature <= 0.01f) {
-            // Pure greedy (temperature ≈ 0)
             next_token = 0;
             float max_val = logits[0];
             for (int i = 1; i < (int)model.config.vocab_size; ++i) {
-                if (logits[i] > max_val) {
-                    max_val = logits[i];
-                    next_token = i;
-                }
+                if (logits[i] > max_val) { max_val = logits[i]; next_token = i; }
             }
         } else {
             // --- Top-K Sampling with Temperature ---
@@ -408,21 +439,35 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
                               [](const auto& a, const auto& b) { return a.first > b.first; });
             
             // Temperature-scaled softmax over top-k
-            float max_logit = candidates[0].first;
+            float max_logit = -1e9f;
+            for (int i = 0; i < k; ++i) {
+                if (candidates[i].first > max_logit) max_logit = candidates[i].first;
+            }
             std::vector<float> probs(k);
             float sum = 0.0f;
             for (int i = 0; i < k; ++i) {
                 probs[i] = std::exp((candidates[i].first - max_logit) / temperature);
                 sum += probs[i];
             }
-            for (int i = 0; i < k; ++i) {
-                probs[i] /= sum;
+            if (sum <= 0.0f || std::isnan(sum) || std::isinf(sum)) {
+                int best_idx = 0;
+                float best_val = candidates[0].first;
+                for (int i = 1; i < k; ++i) {
+                    if (candidates[i].first > best_val) {
+                        best_val = candidates[i].first;
+                        best_idx = i;
+                    }
+                }
+                next_token = candidates[best_idx].second;
+            } else {
+                for (int i = 0; i < k; ++i) {
+                    probs[i] /= sum;
+                }
+                // Sample from the distribution
+                std::discrete_distribution<int> dist(probs.begin(), probs.end());
+                int sampled_idx = dist(rng);
+                next_token = candidates[sampled_idx].second;
             }
-            
-            // Sample from the distribution
-            std::discrete_distribution<int> dist(probs.begin(), probs.end());
-            int sampled_idx = dist(rng);
-            next_token = candidates[sampled_idx].second;
         }
         
         // Stop on EOS tokens before streaming them (model-driven detection)
@@ -430,7 +475,7 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         if (!is_eos && next_token >= 0 && next_token < (int)model.vocab.tokens.size()) {
             const std::string& tok_str = model.vocab.tokens[next_token];
             if (tok_str == "<|im_end|>" || tok_str == "<|endoftext|>" || tok_str == "</s>" || 
-                tok_str == "<eos>" || tok_str == "<|im_start|>") {
+                tok_str == "<eos>" || tok_str == "<|im_start|>" || tok_str == "<|eot_id|>") {
                 is_eos = true;
             }
         }

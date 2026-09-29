@@ -61,18 +61,18 @@ int main() {
     std::cout << "========================================\n";
 
     bool smollm_ok = test_model_config(
-        "SmolLM2-360M", resolve_test_model("SmolLM2-360M-Instruct-Q8_0.gguf"),
+        "SmolLM2-360M", resolve_test_model("smollm2-360m-instruct-q4_k_m.gguf"),
         960, 15, 5, 64, 2560, 32, 49152, 100000.0f
     );
 
     bool coder_ok = test_model_config(
-        "Qwen2.5-Coder-1.5B", resolve_test_model("Qwen2.5-Coder-1.5B-Instruct-abliterated-Q8_0.gguf"),
-        1536, 12, 2, 128, 8960, 28, 151936, 1000000.0f
+        "DeepSeek-R1-Distill-Qwen-1.5B", resolve_test_model("DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"),
+        1536, 12, 2, 128, 8960, 28, 151936, 10000.0f
     );
 
     bool main_ok = test_model_config(
-        "Qwen2.5-1.5B-Main", resolve_test_model("Qwen2.5-1.5B-Instruct-abliterated.Q8_0.gguf"),
-        1536, 12, 2, 128, 8960, 28, 151936, 1000000.0f
+        "Llama-3.2-1B", resolve_test_model("Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf"),
+        2048, 32, 8, 64, 8192, 16, 128256, 500000.0f
     );
 
     if (smollm_ok && coder_ok && main_ok) {

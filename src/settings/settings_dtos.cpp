@@ -22,6 +22,8 @@ void SettingsManager::set_server_config(const ServerConfig& c) {
 ResourceConfig SettingsManager::get_resource_config() const {
     ResourceConfig cfg;
     cfg.ram_budget_percent = get_float("resource", "ram_budget_percent", cfg.ram_budget_percent);
+    cfg.gpu_budget_percent = get_float("resource", "gpu_budget_percent", cfg.gpu_budget_percent);
+    cfg.headroom_safety_multiplier = get_float("resource", "headroom_safety_multiplier", cfg.headroom_safety_multiplier);
     cfg.max_kv_tokens = get_int("resource", "max_kv_tokens", cfg.max_kv_tokens);
     cfg.enable_gpu = get_bool("resource", "enable_gpu", cfg.enable_gpu);
     cfg.vram_budget_mb = get_int("resource", "vram_budget_mb", cfg.vram_budget_mb);
@@ -29,8 +31,12 @@ ResourceConfig SettingsManager::get_resource_config() const {
 }
 
 void SettingsManager::set_resource_config(const ResourceConfig& c) {
-    set_float("resource", "ram_budget_percent", c.ram_budget_percent); set_int("resource", "max_kv_tokens", c.max_kv_tokens);
-    set_bool("resource", "enable_gpu", c.enable_gpu); set_int("resource", "vram_budget_mb", c.vram_budget_mb);
+    set_float("resource", "ram_budget_percent", c.ram_budget_percent);
+    set_float("resource", "gpu_budget_percent", c.gpu_budget_percent);
+    set_float("resource", "headroom_safety_multiplier", c.headroom_safety_multiplier);
+    set_int("resource", "max_kv_tokens", c.max_kv_tokens);
+    set_bool("resource", "enable_gpu", c.enable_gpu);
+    set_int("resource", "vram_budget_mb", c.vram_budget_mb);
 }
 
 InferenceConfig SettingsManager::get_inference_config() const {

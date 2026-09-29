@@ -1,15 +1,15 @@
-#include "NeedleRouter.hpp"
+#include "Router.hpp"
+#include "routing/modernbert_router.hpp"
+#include "settings/settings_manager.hpp"
 #include "infer.hpp"
 #include <iostream>
 
 #include "../dependencies/json.hpp"
 using json = nlohmann::json;
 
-RoutingDecision NeedleRouter::parse_decision_json(const std::string& json_output) {
+RoutingDecision Router::parse_decision_json(const std::string& json_output) {
     RoutingDecision decision = {"text", "general", "low", "none"};
-    
     try {
-        // Attempt to extract json from any possible prefix/suffix text
         size_t start = json_output.find_first_of('{');
         size_t end = json_output.find_last_of('}');
         if (start != std::string::npos && end != std::string::npos && end >= start) {
@@ -29,16 +29,25 @@ RoutingDecision NeedleRouter::parse_decision_json(const std::string& json_output
             }
         }
     } catch (const std::exception& e) {
-        std::cerr << "[NeedleRouter] JSON parsing failed, using fallback: " << e.what() << std::endl;
+        std::cerr << "[Router] JSON parsing failed, using fallback: " << e.what() << std::endl;
     }
-    
     return decision;
 }
 
-RoutingDecision NeedleRouter::analyze_request(const OpenAIRequest& req, DenseModel* needle_model) {
+RoutingDecision Router::analyze_request(const OpenAIRequest& req, DenseModel* needle_model) {
     std::string user_message = "";
     if (!req.messages.empty()) {
         user_message = req.messages.back().content;
+    }
+
+    auto inf_cfg = SettingsManager::instance().get_inference_config();
+    if (inf_cfg.needle3_mode == "modernbert") {
+        if (!ModernBERTRouter::instance().is_available()) {
+            ModernBERTRouter::instance().initialize("models/modernbert");
+        }
+        if (ModernBERTRouter::instance().is_available()) {
+            return ModernBERTRouter::instance().route(user_message);
+        }
     }
 
     // Fast Path (Sub-millisecond): Avoid CPU generation for obvious/short queries
@@ -52,20 +61,17 @@ RoutingDecision NeedleRouter::analyze_request(const OpenAIRequest& req, DenseMod
     std::string prompt = "<|im_start|>system\n" + system_prompt + "\n<|im_end|>\n<|im_start|>user\n" + user_message + "\n<|im_end|>\n<|im_start|>assistant\n{";
     
     std::vector<int> tokens = tokenize(needle_model->vocab, prompt);
-    
     std::string raw_output = "{";
     generate(*needle_model, tokens, [&](const std::string& token_text) {
         raw_output += token_text;
-    }, 128, 0.0f, 1.0f); // Fast, deterministic generation
+    }, 128, 0.0f, 1.0f);
 
-    std::cout << "[NeedleRouter] Raw LLM Decision: " << raw_output << std::endl;
-    
+    std::cout << "[Router] Raw LLM Decision: " << raw_output << std::endl;
     RoutingDecision decision = parse_decision_json(raw_output);
     
-    // Fallback if LLM hallucinates an invalid intent
     if (decision.intent != "reasoning" && decision.intent != "coding" && 
         decision.intent != "image" && decision.intent != "audio" && decision.intent != "text") {
-        std::cout << "[NeedleRouter] Hallucinated intent '" << decision.intent << "', falling back to regex." << std::endl;
+        std::cout << "[Router] Hallucinated intent '" << decision.intent << "', falling back to regex." << std::endl;
         decision.intent = RequestAnalyzer::categorize_request(req);
     }
     

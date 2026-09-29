@@ -39,13 +39,16 @@ static std::string derive_model_id(const std::string& filename) {
     std::string lower = filename;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
+    if (lower.find("llama-3.2-1b") != std::string::npos || lower.find("llama-3_2") != std::string::npos) return "llama-3_2-1b-instruct-abliterated_i1-q4_k_m";
+    if (lower.find("deepseek-r1") != std::string::npos) return "deepseek-r1-distill-qwen-1_5b-q4_k_m";
     if (lower.find("qwen2.5-coder") != std::string::npos) return "qwen25_coder";
     if (lower.find("qwen2.5") != std::string::npos) return "qwen25_main";
     if (lower.find("smollm2") != std::string::npos || lower.find("smol") != std::string::npos) return "smollm2";
     if (lower.find("nomic-embed") != std::string::npos || lower.find("nomic") != std::string::npos) return "nomic_embed";
+    if (lower.find("whisper-large-v3-turbo") != std::string::npos || lower.find("turbo") != std::string::npos) return "whisper_turbo";
     if (lower.find("whisper") != std::string::npos || lower.find("ggml-base") != std::string::npos) return "whisper_base";
-    if (lower.find("stable-diffusion") != std::string::npos || lower.find("sd-v1") != std::string::npos ||
-        lower.find("sd15") != std::string::npos || lower.find("v1-5") != std::string::npos) return "sd15";
+    if (lower.find("sdxl_lightning") != std::string::npos || lower.find("sdxl-lightning") != std::string::npos) return "sdxl_lightning_4step";
+    if (lower.find("stable-diffusion") != std::string::npos || lower.find("sd15") != std::string::npos) return "sd15";
 
     std::string stem = fs::path(filename).stem().string();
     std::string clean;
@@ -63,18 +66,19 @@ static void bind_roles_for_id(const std::string& db_path, const std::string& mod
         return false;
     };
 
-    if (model_id == "qwen25_main" && !has_role("general")) {
+    if ((model_id == "llama-3_2-1b-instruct-abliterated_i1-q4_k_m" || model_id == "qwen25_main") && !has_role("general")) {
         ModelRegistryDB::bind_role(db_path, "general", model_id, true);
-    } else if (model_id == "qwen25_coder" && !has_role("coder")) {
+    } else if ((model_id == "deepseek-r1-distill-qwen-1_5b-q4_k_m" || model_id == "qwen25_coder") && !has_role("coder")) {
         ModelRegistryDB::bind_role(db_path, "coder", model_id, true);
     } else if (model_id == "smollm2" && !has_role("compressor")) {
         ModelRegistryDB::bind_role(db_path, "compressor", model_id, true);
     } else if (model_id == "nomic_embed" && !has_role("embedding")) {
         ModelRegistryDB::bind_role(db_path, "embedding", model_id, true);
-    } else if (model_id == "whisper_base" && !has_role("audio_stt")) {
+    } else if ((model_id == "whisper_turbo" || model_id == "whisper_base") && !has_role("audio_stt")) {
         ModelRegistryDB::bind_role(db_path, "audio_stt", model_id, true);
-    } else if (model_id == "sd15" && !has_role("image_gen")) {
+    } else if ((model_id == "sdxl_lightning_4step" || model_id == "sd15") && !has_role("image_gen")) {
         ModelRegistryDB::bind_role(db_path, "image_gen", model_id, true);
+        ModelRegistryDB::bind_role(db_path, "vision_sd", model_id, true);
     }
 }
 

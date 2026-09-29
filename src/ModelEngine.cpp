@@ -3,10 +3,16 @@
 #include "infer.hpp" // For AVX2 inference
 #include "SessionKVCache.hpp"
 #include "resource_governor.hpp"
+#include "ModelLoader.hpp"
+#include "path_service.hpp"
+#include "settings/model_registry_db.hpp"
+#include <filesystem>
 #include <iostream>
 
-ModelEngine::ModelEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router)
-    : local_models(resident_models), sqlite_router(router) {}
+static std::mutex g_default_models_mutex;
+
+ModelEngine::ModelEngine(std::map<std::string, DenseModel>& resident_models, SQLiteRouter& router, std::mutex* models_mutex)
+    : local_models(resident_models), sqlite_router(router), models_mutex_(models_mutex) {}
 
 #include "../dependencies/json.hpp"
 
@@ -23,6 +29,10 @@ int ModelEngine::infer(const std::string& model_name, const OpenAIRequest& req, 
     } else {
         APIKeyStatus key_status = sqlite_router.get_next_available_key(provider);
         std::string api_key = key_status.key_value;
+        if (api_key.empty()) {
+            output = "{\"error\": \"No active API key configured or available for provider: " + provider + "\"}";
+            return 429;
+        }
         std::string provider_url = sqlite_router.get_provider_url(provider);
         return infer_cloud(model_name, provider_url, api_key, req, output);
     }
@@ -137,20 +147,57 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
 int ModelEngine::infer_local(const std::string& model_name, const std::string& prompt, std::string& output, const OpenAIRequest& req) {
     std::cout << "[ModelEngine] Routing inference to Local AVX2 engine for model: " << model_name << "\n";
     
-    auto it = local_models.find(model_name);
-    if (it == local_models.end()) {
-        output = "Error: Local model not loaded in RAM.";
+    DenseModel* target_model_ptr = nullptr;
+    {
+        std::unique_lock<std::mutex> lock(models_mutex_ ? *models_mutex_ : g_default_models_mutex);
+        auto it = local_models.find(model_name);
+        if (it == local_models.end()) {
+            std::string db_path = PathService::instance().settings_db();
+            LocalModelRecord rec;
+            std::string model_file;
+            if (ModelRegistryDB::get_model(db_path, model_name, rec) && std::filesystem::exists(rec.file_path)) {
+                model_file = rec.file_path;
+            } else {
+                std::string candidate = PathService::instance().get_models_dir() + "/" + model_name;
+                if (std::filesystem::exists(candidate)) {
+                    model_file = candidate;
+                } else if (std::filesystem::exists(candidate + ".gguf")) {
+                    model_file = candidate + ".gguf";
+                }
+            }
+
+            if (!model_file.empty()) {
+                std::cout << "[ModelEngine] Lazy loading local model on demand: " << model_file << std::endl;
+                DenseModel loaded;
+                std::string err;
+                if (ModelLoader::load_model(model_file, loaded, err)) {
+                    local_models[model_name] = std::move(loaded);
+                    it = local_models.find(model_name);
+                } else {
+                    std::cerr << "[ModelEngine] Failed lazy loading " << model_file << ": " << err << std::endl;
+                }
+            }
+        }
+
+        if (it != local_models.end()) {
+            target_model_ptr = &it->second;
+        }
+    }
+
+    if (!target_model_ptr) {
+        output = "Error: Local model '" + model_name + "' not loaded in RAM and not found on disk.";
         return 500;
     }
 
-    std::vector<int> tokens = tokenize(it->second.vocab, prompt);
+    DenseModel& active_model = *target_model_ptr;
+    std::vector<int> tokens = tokenize(active_model.vocab, prompt);
     
     std::string result_text;
     auto stream_cb = [&](const std::string& text) {
         result_text += text;
     };
     
-    auto session_kv = SessionKVCacheManager::instance().get_or_create(req.session_id, &it->second.config);
+    auto session_kv = SessionKVCacheManager::instance().get_or_create(req.session_id, &active_model.config);
     auto inf_cfg = SettingsManager::instance().get_inference_config();
     float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
     int eff_max = (req.max_tokens > 0) ? req.max_tokens : inf_cfg.max_output_tokens;
@@ -159,7 +206,7 @@ int ModelEngine::infer_local(const std::string& model_name, const std::string& p
         dynamic_budget = static_cast<size_t>(inf_cfg.context_window);
     }
     float rep_pen = (inf_cfg.repeat_penalty > 0.0f) ? inf_cfg.repeat_penalty : 1.15f;
-    generate(it->second, tokens, stream_cb, eff_max, eff_temp, rep_pen, session_kv.get(), static_cast<int>(dynamic_budget));
+    generate(active_model, tokens, stream_cb, eff_max, eff_temp, rep_pen, session_kv.get(), static_cast<int>(dynamic_budget));
 
     if (!req.session_id.empty()) {
         SessionKVCacheManager::instance().save_to_disk(req.session_id);

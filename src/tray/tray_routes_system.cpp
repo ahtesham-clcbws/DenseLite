@@ -14,7 +14,12 @@ using json = nlohmann::json;
 
 static double get_proc_rss_mb() {
     long pages = 0;
-    std::ifstream statm("/proc/self/statm");
+    pid_t child_pid = TrayProcess::instance().get_pid();
+    std::string path = (child_pid > 0) ? ("/proc/" + std::to_string(child_pid) + "/statm") : "/proc/self/statm";
+    std::ifstream statm(path);
+    if (!statm.is_open() && child_pid > 0) {
+        statm.open("/proc/self/statm");
+    }
     if (statm >> pages >> pages) {
         long page_size = sysconf(_SC_PAGESIZE);
         return (pages * page_size) / (1024.0 * 1024.0);

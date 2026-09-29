@@ -80,9 +80,27 @@ if [ ! -f ".env" ]; then
     echo "[+] Configuration saved to .env" | tee -a "$LOG_FILE"
 fi
 
-# 2. Check and Auto-Download Models
+# 2. Check and Auto-Download Models & Runtime Engines
 mkdir -p "$HOME/.denselite/models"
-mkdir -p models/needle3
+mkdir -p "$HOME/.denselite/models/vision"
+mkdir -p "$HOME/.denselite/models/whisper"
+mkdir -p models/modernbert
+
+if [ ! -d "dependencies/onnxruntime" ] || [ ! -f "dependencies/onnxruntime/lib/libonnxruntime.so" ]; then
+    echo "[+] Downloading prebuilt ONNX Runtime C++ release..." | tee -a "$LOG_FILE"
+    mkdir -p dependencies/onnxruntime
+    curl -L -s https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz | tar -xz -C dependencies/onnxruntime --strip-components=1
+fi
+
+if [ ! -f "models/modernbert/model.onnx" ]; then
+    echo "[+] Downloading internal ModernBERT Zero-Shot Intent Router..." | tee -a "$LOG_FILE"
+    mkdir -p models/modernbert
+    curl -L -s -o models/modernbert/config.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/config.json
+    curl -L -s -o models/modernbert/tokenizer.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/tokenizer.json
+    curl -L -s -o models/modernbert/tokenizer_config.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/tokenizer_config.json
+    curl -L -s -o models/modernbert/special_tokens_map.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/special_tokens_map.json
+    curl -L -s -o models/modernbert/model.onnx https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/onnx/model_int8.onnx
+fi
 
 # Function to download model if missing
 download_if_missing() {
@@ -95,8 +113,9 @@ download_if_missing() {
         return 0
     fi
 
+    mkdir -p "$(dirname "$user_model")"
     echo "[-] Model missing: $file_name" | tee -a "$LOG_FILE"
-    echo "    Downloading to ~/.denselite/models/..." | tee -a "$LOG_FILE"
+    echo "    Downloading to ~/.denselite/models/$file_name..." | tee -a "$LOG_FILE"
     wget -q --show-progress "$url" -O "$user_model"
 }
 

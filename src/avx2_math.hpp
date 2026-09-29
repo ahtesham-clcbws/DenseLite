@@ -86,6 +86,63 @@ inline float dot_product_q8_fp32(const block_q8_0* __restrict x, const float* __
 }
 
 // ----------------------------------------------------------------------------
+// 1b. Q4_0 x FP32 Dot Product (Core MatMul Kernel for Q4 Models)
+// ----------------------------------------------------------------------------
+// Dequantizes an 18-byte Q4_0 block on the fly and computes the dot product
+// against 32 FP32 activation values using AVX2 nibble unpacking.
+inline float dot_product_q4_0_fp32(const block_q4_0* __restrict x, const float* __restrict y, int nb) {
+    __m256 acc = _mm256_setzero_ps();
+    const __m128i mask_0f = _mm_set1_epi8(0x0F);
+    const __m128i offset_8 = _mm_set1_epi8(8);
+    
+    for (int i = 0; i < nb; ++i) {
+        // Step 1: Scale extraction
+        __m128i d_16 = _mm_set1_epi16(x[i].d);
+        __m128 d_32 = _mm_cvtph_ps(d_16);
+        __m256 vd = _mm256_broadcastss_ps(d_32);
+        
+        // Step 2: Load 16 bytes of packed nibbles (32 weights)
+        __m128i vqs = _mm_loadu_si128((const __m128i*)&x[i].qs[0]);
+        
+        // Step 3: Extract low and high nibbles, subtracting offset 8
+        __m128i vq_lo = _mm_sub_epi8(_mm_and_si128(vqs, mask_0f), offset_8);
+        __m128i vq_hi = _mm_sub_epi8(_mm_and_si128(_mm_srli_epi16(vqs, 4), mask_0f), offset_8);
+        
+        // Step 4: Expand 8-bit integers to 32-bit integers
+        __m256i vi0 = _mm256_cvtepi8_epi32(vq_lo);
+        __m256i vi1 = _mm256_cvtepi8_epi32(_mm_srli_si128(vq_lo, 8));
+        __m256i vi2 = _mm256_cvtepi8_epi32(vq_hi);
+        __m256i vi3 = _mm256_cvtepi8_epi32(_mm_srli_si128(vq_hi, 8));
+        
+        // Step 5: Convert to float and apply scale
+        __m256 vf0 = _mm256_mul_ps(_mm256_cvtepi32_ps(vi0), vd);
+        __m256 vf1 = _mm256_mul_ps(_mm256_cvtepi32_ps(vi1), vd);
+        __m256 vf2 = _mm256_mul_ps(_mm256_cvtepi32_ps(vi2), vd);
+        __m256 vf3 = _mm256_mul_ps(_mm256_cvtepi32_ps(vi3), vd);
+        
+        // Step 6: Load activations and accumulate
+        __m256 vy0 = _mm256_loadu_ps(&y[i * 32 + 0]);
+        __m256 vy1 = _mm256_loadu_ps(&y[i * 32 + 8]);
+        __m256 vy2 = _mm256_loadu_ps(&y[i * 32 + 16]);
+        __m256 vy3 = _mm256_loadu_ps(&y[i * 32 + 24]);
+        
+        acc = _mm256_fmadd_ps(vf0, vy0, acc);
+        acc = _mm256_fmadd_ps(vf1, vy1, acc);
+        acc = _mm256_fmadd_ps(vf2, vy2, acc);
+        acc = _mm256_fmadd_ps(vf3, vy3, acc);
+    }
+    
+    // Step 7: Horizontal reduction
+    __m128 acc_hi = _mm256_extractf128_ps(acc, 1);
+    __m128 acc_lo = _mm256_castps256_ps128(acc);
+    __m128 sum128 = _mm_add_ps(acc_hi, acc_lo);
+    sum128 = _mm_hadd_ps(sum128, sum128);
+    sum128 = _mm_hadd_ps(sum128, sum128);
+    
+    return _mm_cvtss_f32(sum128);
+}
+
+// ----------------------------------------------------------------------------
 // 2. RMSNorm (SIMD Optimized)
 // ----------------------------------------------------------------------------
 inline void rmsnorm(float* __restrict out, const float* __restrict x, int size, float eps, const float* __restrict weight) {

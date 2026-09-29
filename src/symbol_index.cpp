@@ -26,6 +26,7 @@ bool SymbolIndex::init(const std::string& db_path) {
         db_ = nullptr;
         return false;
     }
+    sqlite3_exec(db_, "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;", nullptr, nullptr, nullptr);
     owns_db_ = true;
     return create_table();
 }
@@ -78,6 +79,11 @@ bool SymbolIndex::remove_file_symbols(const std::string& file_path) {
     return ok;
 }
 
+static inline std::string safe_text(sqlite3_stmt* stmt, int col) {
+    const unsigned char* t = sqlite3_column_text(stmt, col);
+    return t ? reinterpret_cast<const char*>(t) : "";
+}
+
 bool SymbolIndex::insert_chunks(const std::vector<StructuralChunk>& chunks) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!db_) return false;
@@ -87,6 +93,7 @@ bool SymbolIndex::insert_chunks(const std::vector<StructuralChunk>& chunks) {
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 
+    sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
     for (const auto& c : chunks) {
         sqlite3_reset(stmt);
         sqlite3_bind_text(stmt, 1, c.file_path.c_str(), -1, SQLITE_STATIC);
@@ -100,6 +107,7 @@ bool SymbolIndex::insert_chunks(const std::vector<StructuralChunk>& chunks) {
         sqlite3_step(stmt);
     }
     sqlite3_finalize(stmt);
+    sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
     return true;
 }
 
@@ -118,14 +126,14 @@ std::vector<StructuralChunk> SymbolIndex::find_by_symbol(const std::string& symb
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         StructuralChunk c;
-        c.file_path = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        c.symbol = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        c.parent_symbol = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        c.language = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        c.file_path = safe_text(stmt, 0);
+        c.symbol = safe_text(stmt, 1);
+        c.parent_symbol = safe_text(stmt, 2);
+        c.language = safe_text(stmt, 3);
         c.start_line = sqlite3_column_int(stmt, 4);
         c.end_line = sqlite3_column_int(stmt, 5);
         c.source_hash = static_cast<uint64_t>(sqlite3_column_int64(stmt, 6));
-        c.content = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        c.content = safe_text(stmt, 7);
         results.push_back(std::move(c));
     }
     sqlite3_finalize(stmt);
@@ -145,14 +153,14 @@ std::vector<StructuralChunk> SymbolIndex::get_file_symbols(const std::string& fi
     sqlite3_bind_text(stmt, 1, file_path.c_str(), -1, SQLITE_STATIC);
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         StructuralChunk c;
-        c.file_path = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        c.symbol = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        c.parent_symbol = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        c.language = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        c.file_path = safe_text(stmt, 0);
+        c.symbol = safe_text(stmt, 1);
+        c.parent_symbol = safe_text(stmt, 2);
+        c.language = safe_text(stmt, 3);
         c.start_line = sqlite3_column_int(stmt, 4);
         c.end_line = sqlite3_column_int(stmt, 5);
         c.source_hash = static_cast<uint64_t>(sqlite3_column_int64(stmt, 6));
-        c.content = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        c.content = safe_text(stmt, 7);
         results.push_back(std::move(c));
     }
     sqlite3_finalize(stmt);

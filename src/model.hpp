@@ -10,6 +10,15 @@
 // GGUF Block Structures (Low-Level Memory Layout)
 // ============================================================================
 
+#pragma pack(push, 1)
+struct block_q4_0 {
+    uint16_t d;     // 16-bit float (FP16) scaling factor
+    uint8_t qs[16]; // 32 quantized 4-bit weights packed into 16 bytes
+};
+#pragma pack(pop)
+
+static_assert(sizeof(block_q4_0) == 18, "block_q4_0 must be exactly 18 bytes");
+
 // A Q8_0 block in GGUF is exactly 34 bytes.
 // It contains a 16-bit float (FP16) scaling factor 'd',
 // followed by 32 quantized 8-bit integers.
@@ -33,7 +42,18 @@ static_assert(sizeof(block_q8_0) == 34, "block_q8_0 must be exactly 34 bytes");
 enum class TensorType {
     FP32 = 0,
     FP16 = 1,
-    Q8_0 = 8
+    Q4_0 = 2,
+    Q4_1 = 3,
+    Q5_0 = 6,
+    Q5_1 = 7,
+    Q8_0 = 8,
+    Q8_1 = 9,
+    Q2_K = 10,
+    Q3_K = 11,
+    Q4_K = 12,
+    Q5_K = 13,
+    Q6_K = 14,
+    Q8_K = 15
 };
 
 struct Tensor {

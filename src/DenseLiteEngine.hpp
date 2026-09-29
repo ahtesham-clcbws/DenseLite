@@ -24,6 +24,7 @@ struct InferenceSession {
     int iteration_count = 0;
     std::vector<std::string> iteration_results;
     bool waiting_for_tool = false;
+    std::shared_ptr<WorkingMemory> working_memory;
 };
 
 class DenseLiteEngine {

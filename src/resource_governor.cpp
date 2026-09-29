@@ -172,7 +172,11 @@ size_t ResourceGovernor::calculate_dynamic_context_tokens() {
         return 65536;
     } else if (dynamic_kv_budget >= REQ_32K) {
         return 32768;
-    } else {
+    } else if (dynamic_kv_budget >= 16384ULL * BYTES_PER_TOKEN) {
         return 16384;
+    } else {
+        size_t tokens = dynamic_kv_budget / BYTES_PER_TOKEN;
+        tokens = (tokens / 1024) * 1024;
+        return std::clamp<size_t>(tokens, 2048, 8192);
     }
 }

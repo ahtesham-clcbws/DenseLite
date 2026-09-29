@@ -3,7 +3,7 @@
 import { apiGet, apiPost } from "../api.js";
 import { showToast } from "../toast.js";
 
-const DEFAULT_ROLES = ["general", "coder", "compressor", "embedding", "audio_stt", "image_gen"];
+const DEFAULT_ROLES = ["general", "coder", "router", "compressor", "embedding", "audio_stt", "image_gen"];
 
 export async function fetchModels() {
   try {

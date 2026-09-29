@@ -74,11 +74,11 @@ void test_manager_seeding_and_types() {
     REQUIRE(sc.host == "0.0.0.0", "Default host must be 0.0.0.0");
 
     ResourceConfig rc = mgr.get_resource_config();
-    REQUIRE(rc.ram_budget_percent >= 0.44f && rc.ram_budget_percent <= 0.46f, "RAM budget must be ~0.45");
+    REQUIRE(rc.ram_budget_percent >= 0.49f && rc.ram_budget_percent <= 0.51f, "RAM budget must be ~0.50");
     REQUIRE(rc.max_kv_tokens == 65536, "Max KV tokens must be 64K");
 
     InferenceConfig ic = mgr.get_inference_config();
-    REQUIRE(ic.needle3_mode == "hybrid", "Needle3 mode default must be hybrid");
+    REQUIRE(ic.needle3_mode == "modernbert", "Needle3 mode default must be modernbert");
     REQUIRE(ic.enable_tool_dedup == true, "Tool dedup must be enabled");
 
     LoggingConfig lc = mgr.get_logging_config();
