@@ -60,11 +60,7 @@ size_t ResourceGovernor::get_process_rss_bytes() {
 }
 
 int ResourceGovernor::get_max_allowed_threads() {
-    int cfg_threads = SettingsManager::instance().get_server_config().threads;
-    if (cfg_threads > 0) return cfg_threads;
-    int hw_concurrency = std::thread::hardware_concurrency();
-    if (hw_concurrency == 0) hw_concurrency = 4;
-    return std::max(1, hw_concurrency / 2); // 50% CPU allocation
+    return HardwareManager::get_max_allowed_threads();
 }
 
 void ResourceGovernor::enforce_thread_limits() {
