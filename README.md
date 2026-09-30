@@ -44,7 +44,7 @@ With v4.0.0, DenseLite introduces **Native C++ Tray Supervisor & WebUI Dashboard
 - **Tree-sitter Code Intelligence**: AST syntax-aware code parsing, structural symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and 64-bit FNV-1a incremental delta change tracking (4.42 GB/s).
 - **Unified Multi-Signal Search**: Combined Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter retrieval with deterministic `ResultFusion` scoring (203K fusions/s). *Note: Semantic search uses the 4-bit AVX2 TurboQuant exhaustive SIMD scan (not ANN).*
 - **Evidence-Based Autonomous Agent Loop**: 5-state response parsing with stop-reason discrimination, 7-action self-healing fault recovery (13.0M decisions/s), and anti-hallucination completion verification (105.6M evals/s).
-- **2-Core Resource Governance**: Dynamic OpenMP compute thread budgeting through `ResourcePolicy` and a 6-stage progressive eviction cascade for low-power edge laptops. Linux/WSL2 use `/proc`; macOS uses Mach/sysctl accounting (macOS validation pending).
+- **2-Core Resource Governance**: Dynamic OpenMP compute thread budgeting through `ResourcePolicy` and a 6-stage progressive eviction cascade for low-power edge laptops. Linux/WSL2 use `/proc`.
 - **On-Demand Leased Multimodal Engine**: Offline speech-to-text with Whisper.cpp (29.4K chunks/sec) and Stable Diffusion image generation (0-byte permanent RAM footprint). *Capabilities represent synthetic prototype benchmarks and are not yet optimized for production workloads.*
 
 > [!WARNING]
@@ -214,7 +214,7 @@ To ensure stable performance with local LLM fallback and semantic routing, we re
 | **Memory (RAM)** | Model- and context-dependent; host must allow enough managed RAM according to `ResourcePolicy`'s headroom rules. Resident-model fit depends on policy allocation. |
 | **Storage** | 10 GB Free Space (NVMe strongly recommended; SATA SSDs may be less responsive and take 10x longer to load models) |
 | **CPU** | 2 physical cores / 4 hardware threads (reference host; AVX2 + FMA required for native GGUF) |
-| **OS** | Linux / macOS / WSL2 on Windows |
+| **OS** | Linux / WSL2 on Windows |
 
 ---
 

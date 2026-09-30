@@ -9,7 +9,6 @@
   "limitations": [
     "Vulkan unavailable during this validation",
     "No production GGUF model weights available",
-    "macOS accounting not tested on macOS",
     "64K production model inference and quality unverified"
   ]
 }
