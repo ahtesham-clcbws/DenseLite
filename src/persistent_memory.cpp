@@ -38,12 +38,14 @@ std::vector<MemoryEntry> PersistentMemory::get_all_by_category(MemoryCategory ca
     return result;
 }
 
-std::vector<MemoryEntry> PersistentMemory::get_all() const {
+std::vector<MemoryEntry> PersistentMemory::get_all(const MemoryScopeFilter& filter) const {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<MemoryEntry> result;
     result.reserve(entries_.size());
     for (const auto& pair : entries_) {
-        result.push_back(pair.second);
+        if (filter.matches(pair.second)) {
+            result.push_back(pair.second);
+        }
     }
     return result;
 }

@@ -77,7 +77,7 @@ public:
     bool remove_entry(const std::string& key);
 
     std::vector<MemoryEntry> get_all_by_category(MemoryCategory cat) const;
-    std::vector<MemoryEntry> get_all() const;
+    std::vector<MemoryEntry> get_all(const MemoryScopeFilter& filter = MemoryScopeFilter{}) const;
     size_t count() const;
 
     std::string format_context_rules(const MemoryScopeFilter& filter = MemoryScopeFilter{}) const;

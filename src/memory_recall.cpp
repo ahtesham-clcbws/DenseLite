@@ -48,9 +48,8 @@ std::vector<RecalledMemory> MemoryRecall::recall(const std::string& query, size_
 
     // 1. Check in-memory persistent rules/conventions first
     if (persistent_mem_) {
-        auto all_p = persistent_mem_->get_all();
+        auto all_p = persistent_mem_->get_all(filter);
         for (const auto& entry : all_p) {
-            if (!filter.matches(entry)) continue;
             float score = std::max(compute_lexical_similarity(query, entry.key),
                                    compute_lexical_similarity(query, entry.value));
             if (score > 0.1f) {

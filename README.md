@@ -418,6 +418,7 @@ DenseLite is designed with no external ML runtime dependencies (e.g., Ollama, ll
 1. **TurboQuant SIMD Engine** (`src/vector/`):
    - **What it is:** A completely custom, zero-dependency exhaustive cosine-similarity engine optimized with AVX2 and FMA intrinsics.
    - **Why we use it:** Instead of pushing a 50,000-token conversation history to an LLM, DenseLite embeds user queries and uses TurboQuant to instantly search past context for only the most semantically relevant chunks. This saves massive token costs and processing time.
+   - **Limitation:** TurboQuant performs an exhaustive SIMD scan. It does not provide HNSW/DiskANN-style sub-linear scaling, which is an acceptable trade-off for typical local context sizes.
 2. **nlohmann/json** (`dependencies/json.hpp`):
    - **What it is:** The premier C++ JSON library.
    - **Why we use it:** Robust, crash-proof parsing of inbound HTTP request payloads and outbound SSE streams. String-manipulation logic for JSON is inherently unsafe and brittle; `nlohmann/json` ensures integrity.

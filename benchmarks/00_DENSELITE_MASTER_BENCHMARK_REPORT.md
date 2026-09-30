@@ -62,7 +62,7 @@ This benchmark suite is organized into 10 sequentially sorted reference reports:
 - [02_INFERENCE_AND_RUNTIME_BENCHMARK.md](02_INFERENCE_AND_RUNTIME_BENCHMARK.md): Pure C++ AVX2 forward pass, multi-model throughput, and TTFT.
 - [03_LIFECYCLE_AND_MEMORY_SAFETY.md](03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII lease throughput, Vulkan 85% ceiling, and bounded KV cache.
 - [04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md](04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md): Trie BPE encoding/decoding, generation reserve invariants, and ChatML compilation.
-- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, Zvec ANN recall, Tree-sitter AST indexing, and FNV-1a delta tracking.
+- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant SIMD exhaustive recall, Tree-sitter AST indexing, and FNV-1a delta tracking.
 - [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval, ResultFusion, 5-state response parsing, and 7-action self-healing.
 - [07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md](07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md): 2-core CPU throttling, 6-stage progressive eviction, Whisper STT, and Stable Diffusion.
 - [08_FINAL_REALITY_AUDIT_MATRIX.md](08_FINAL_REALITY_AUDIT_MATRIX.md): Comprehensive verification matrix proving 100% of claimed features delivered with zero regressions.

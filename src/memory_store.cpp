@@ -348,7 +348,7 @@ std::vector<std::pair<MemoryEntry, float>> MemoryStore::query_memories_vector(
 
         auto mask = turboquant_->build_allowlist_mask(allowed_ids);
 
-        size_t fetch_limit = std::max<size_t>(2000, limit * 100);
+        size_t fetch_limit = limit;
         auto tq_hits = turboquant_->search(query_vec, fetch_limit, mask.data());
         if (tq_hits.empty()) return scored;
 
