@@ -23,7 +23,7 @@ public:
     MemoryConsolidator& consolidator() { return consolidator_; }
 
     // Generates a complete memory context block (Working + Persistent + Recalled) for prompt injection
-    std::string assemble_memory_context(const std::string& current_query);
+    std::string assemble_memory_context(const std::string& current_query, const MemoryScopeFilter& filter = MemoryScopeFilter{});
 
     std::vector<std::pair<MemoryEntry, float>> query_memories_vector(
         const std::vector<float>& query_vec, size_t limit = 10, float threshold = 0.2f,

@@ -113,8 +113,8 @@ INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at)
 
 -- Seed Initial Model Roles
 INSERT OR IGNORE INTO model_roles (role, model_id, is_active, updated_at) VALUES
-    ('general', 'llama-3_2-1b-instruct-abliterated_i1-q4_k_m', 1, 1700000000000),
-    ('coder', 'deepseek-r1-distill-qwen-1_5b-q4_k_m', 1, 1700000000000),
+    ('general', 'llama-3_2-1b-instruct-abliterated_i1-q4_0', 1, 1700000000000),
+    ('coder', 'deepseek-r1-distill-qwen-1_5b-q4_0', 1, 1700000000000),
     ('compressor', 'smollm2', 1, 1700000000000),
     ('embedding', 'nomic_embed', 1, 1700000000000),
     ('image_gen', 'sdxl_lightning_4step', 1, 1700000000000),

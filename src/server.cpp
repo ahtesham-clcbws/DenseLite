@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
     svr.set_payload_max_length(static_cast<size_t>(srv_cfg.max_payload_mb) * 1024 * 1024);
 
     // Hardware Rule: Clamp HTTP worker threads to the strict 50% CPU limit
-    int clamped_threads = std::min((int)srv_cfg.threads, HardwareManager::instance().get_max_threads());
+    int clamped_threads = HardwareManager::get_max_allowed_threads();
     if (clamped_threads <= 0) clamped_threads = 1;
     svr.new_task_queue = [clamped_threads] { return new httplib::ThreadPool(clamped_threads); };
 

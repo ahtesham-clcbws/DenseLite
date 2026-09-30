@@ -344,3 +344,18 @@ load_error:
     index_by_id_.clear();
     return false;
 }
+
+std::vector<uint64_t> TurboQuantIndex::build_allowlist_mask(const std::vector<std::string>& allowed_ids) const {
+    std::lock_guard<std::mutex> lock(mtx_);
+    if (vectors_.empty()) return {};
+    size_t num_blocks = (vectors_.size() + 63) / 64;
+    std::vector<uint64_t> mask(num_blocks, 0ULL);
+    for (const auto& id : allowed_ids) {
+        auto it = index_by_id_.find(id);
+        if (it != index_by_id_.end()) {
+            uint32_t idx = it->second;
+            mask[idx / 64] |= (1ULL << (idx % 64));
+        }
+    }
+    return mask;
+}

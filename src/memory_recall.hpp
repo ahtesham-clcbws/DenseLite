@@ -15,7 +15,7 @@ public:
     MemoryRecall(PersistentMemory* persistent_mem, MemoryStore* memory_store);
 
     // Recalls the top-K relevant memories given a query text
-    std::vector<RecalledMemory> recall(const std::string& query, size_t limit = 5);
+    std::vector<RecalledMemory> recall(const std::string& query, size_t limit = 5, const MemoryScopeFilter& filter = MemoryScopeFilter());
 
     // Formats recalled memories into a prompt context section
     std::string format_recalled_context(const std::vector<RecalledMemory>& memories) const;

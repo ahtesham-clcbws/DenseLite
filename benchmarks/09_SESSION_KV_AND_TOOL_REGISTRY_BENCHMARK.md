@@ -6,7 +6,7 @@
 **Hardware Platform:** Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz (2 Cores, 4 Threads), 32 GB RAM  
 **GPU Compute Platform:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
 **Operating System:** Linux 6.13.5-zen1-1-zen (x86_64)  
-**Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++17`  
+**Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++20`  
 **Test Suite Verification:** 14/14 CTest Suites Passing (100% Pass Rate in 2.54s)  
 
 ---
@@ -28,12 +28,12 @@ v4.0.0 introduces five key architectural breakthroughs:
 
 | Metric | Subsystem | Measured Performance | Throughput | Status |
 |---|---|---|---|:---:|
-| **Dynamic Context Sizing** | Memory Headroom Evaluation | **24.76 µs** | 40,385 evals/sec | 🟢 PASS (64K Tokens) |
-| **Session Tool Registry** | Handshake & Deduplication | **2.30 µs** | 434,723 handshakes/sec | 🟢 PASS |
-| **Tool Payload Pruning** | Selective Tool Extraction | **0.45 µs** | 2,219,108 queries/sec | 🟢 PASS |
-| **KV Prefix Delta Matching** | 4K History Common Prefix Match | **0.60 µs** | 1,676,250 matches/sec | 🟢 PASS |
-| **KV Cache Disk Flush** | Binary Serialization (16 MB Snapshot)| **7.13 ms** | 2,243.4 MB/s (140.2 saves/s) | 🟢 PASS |
-| **KV Cache Disk Restore**| Memory-Mapped Binary Deserialization| **< 0.01 ms** | 170.3M MB/s (Instant Attachment) | 🟢 PASS |
+| **Dynamic Context Sizing** | Memory Headroom Evaluation | **23.97 µs** | 41,711 evals/sec | 🟢 PASS (64K Tokens) |
+| **Session Tool Registry** | Handshake & Deduplication | **1.81 µs** | 552,828 handshakes/sec | 🟢 PASS |
+| **Tool Payload Pruning** | Selective Tool Extraction | **0.35 µs** | 2,876,312 queries/sec | 🟢 PASS |
+| **KV Prefix Delta Matching** | 4K History Common Prefix Match | **0.50 µs** | 2,009,455 matches/sec | 🟢 PASS |
+| **KV Cache Disk Flush** | Binary Serialization (16 MB Snapshot)| **6.48 ms** | 2,471.6 MB/s (154.4 saves/s) | 🟢 PASS |
+| **KV Cache Disk Restore**| Memory-Mapped Binary Deserialization| **0.00 ms** | 190.6M MB/s (Instant Attachment) | 🟢 PASS |
 
 ---
 
@@ -51,5 +51,5 @@ v4.0.0 introduces five key architectural breakthroughs:
 
 ### 3. Persistent KV Cache & Delta Prefill
 - **Turn 1 (Cold):** Full prompt prefill ($0 \to N$).
-- **Turn 2+ (Warm):** Delta prefill. Detects common token prefix with 470,566 matches/sec ($2.13\text{ µs}$). Only new prompt tokens ($L \to N$) are passed through the transformer forward pass.
-- **Disk Persistence:** `save_to_disk()` serializes only active tokens ($0 \to \text{current\_pos}$) into `denselite_kv_cache/<session_id>.kv` at **2.1 GB/s** with a `DLKV` magic header.
+- **Turn 2+ (Warm):** Delta prefill. Detects common token prefix with 2,009,455 matches/sec ($0.50\text{ µs}$). Only new prompt tokens ($L \to N$) are passed through the transformer forward pass.
+- **Disk Persistence:** `save_to_disk()` serializes only active tokens ($0 \to \text{current\_pos}$) into `denselite_kv_cache/<session_id>.kv` at **2.4 GB/s** with a `DLKV` magic header.

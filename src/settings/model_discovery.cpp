@@ -39,8 +39,8 @@ static std::string derive_model_id(const std::string& filename) {
     std::string lower = filename;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
-    if (lower.find("llama-3.2-1b") != std::string::npos || lower.find("llama-3_2") != std::string::npos) return "llama-3_2-1b-instruct-abliterated_i1-q4_k_m";
-    if (lower.find("deepseek-r1") != std::string::npos) return "deepseek-r1-distill-qwen-1_5b-q4_k_m";
+    if (lower.find("llama-3.2-1b") != std::string::npos || lower.find("llama-3_2") != std::string::npos) return "llama-3_2-1b-instruct-abliterated_i1-q4_0";
+    if (lower.find("deepseek-r1") != std::string::npos) return "deepseek-r1-distill-qwen-1_5b-q4_0";
     if (lower.find("qwen2.5-coder") != std::string::npos) return "qwen25_coder";
     if (lower.find("qwen2.5") != std::string::npos) return "qwen25_main";
     if (lower.find("smollm2") != std::string::npos || lower.find("smol") != std::string::npos) return "smollm2";
@@ -66,9 +66,9 @@ static void bind_roles_for_id(const std::string& db_path, const std::string& mod
         return false;
     };
 
-    if ((model_id == "llama-3_2-1b-instruct-abliterated_i1-q4_k_m" || model_id == "qwen25_main") && !has_role("general")) {
+    if ((model_id == "llama-3_2-1b-instruct-abliterated_i1-q4_0" || model_id == "qwen25_main") && !has_role("general")) {
         ModelRegistryDB::bind_role(db_path, "general", model_id, true);
-    } else if ((model_id == "deepseek-r1-distill-qwen-1_5b-q4_k_m" || model_id == "qwen25_coder") && !has_role("coder")) {
+    } else if ((model_id == "deepseek-r1-distill-qwen-1_5b-q4_0" || model_id == "qwen25_coder") && !has_role("coder")) {
         ModelRegistryDB::bind_role(db_path, "coder", model_id, true);
     } else if (model_id == "smollm2" && !has_role("compressor")) {
         ModelRegistryDB::bind_role(db_path, "compressor", model_id, true);

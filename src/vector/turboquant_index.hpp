@@ -46,6 +46,9 @@ public:
         size_t top_k = 10,
         const uint64_t* allowlist_mask = nullptr) const;
 
+    // Build a 64-bit aligned allowlist mask for a subset of IDs
+    std::vector<uint64_t> build_allowlist_mask(const std::vector<std::string>& allowed_ids) const;
+
     size_t size() const;
     size_t dimension() const { return dim_; }
     size_t memory_bytes() const;

@@ -34,9 +34,9 @@ With v4.0.0, DenseLite introduces **Native C++ Tray Supervisor & WebUI Dashboard
 - **Strict Inference Binding**: If a model is assigned to the GPU (Free VRAM ≥ Model + Overhead), its memory is allocated in Vulkan. If VRAM is insufficient, the model silently falls back to System RAM. Transformer inference always runs strictly on CPU via AVX2. No hybrid layer splitting is allowed.
 - **Host-Bound KV Cache via RAM Mapping**: The KV Cache MUST always reside in System RAM to prevent OOM errors at large context windows, regardless of execution context. When inferring, DL computes attention directly in Host RAM.
 - **RAII ModelLease & Eviction Guards**: Reference-counted model leases (`active_users`) prevent unmapping or memory eviction during active inference (5.39M ops/sec).
-- **Native C++ Runtime**: Zero external runtime dependency CPU transformer forward pass (`infer.cpp`) with AVX2 + FMA intrinsics, Q4_0 / Q8_0 dequantization, dynamic RoPE (`RopeConfig`), RMSNorm, and SwiGLU. (C/C++ static dependencies only).
+- **Native C++ Runtime**: Native CPU transformer forward pass (statically linked, no Python/Node) (`infer.cpp`) with AVX2 + FMA intrinsics, Q4_0 / Q8_0 dequantization, dynamic RoPE (`RopeConfig`), RMSNorm, and SwiGLU. (C/C++ static dependencies only).
 - **Hardened Hardware Governance**: DenseLite strictly manages resource allocation via `ResourceGovernor`.
-  - **GPU Safety Ceiling**: If an LLM is in the GPU, inference is natively executed on the GPU. DenseLite will **never** use the GPU above a strict **85% VRAM ceiling**.
+  - **GPU Safety Ceiling**: GPU VRAM admission is enforced strictly, though active LLM inference currently runs via CPU AVX2. DenseLite will **never** use the GPU above a strict **85% VRAM ceiling**.
   - **CPU Core Constraint**: Enforces a strict 50% CPU thread cap (e.g., maximum 2 threads on a 4-thread device).
   - **RAM Safety Ceiling**: Strict memory allocation boundaries (50% max host RAM, typically ~16 GB). KV cache is always stored exclusively in host RAM.
 - **Native Trie BPE Tokenizer & Context Engine**: Trie-based tokenization (1.42M tok/s), zero-alloc fast counting (1.52M tok/s), strict $\ge 25\%$ generation reserve invariant, and ChatML context compilation.
@@ -337,7 +337,7 @@ A single, ultra-lightweight C++ binary (`DenseLite`) with zero external runtime 
 Zvec acts as the **semantic retrieval index**. Context is composed of three conceptual layers:
 1. **ContextStore:** Stores conversation chunks and metadata.
 2. **EmbeddingEngine:** (Nomic Embed) converts chunks to high-dimensional floats.
-3. **VectorIndex:** (**Zvec**) performs HNSW/DiskANN distance calculations.
+3. **VectorIndex:** TurboQuant SIMD engine performs exhaustive cosine calculations.
 
 Unlike SQLite's exact string matching (`LIKE '%code%'`), Zvec understands semantic meaning, allowing DenseLite to find the most relevant context across a 10,000-message conversation in sub-milliseconds.
 
@@ -416,7 +416,7 @@ DenseLite/
 DenseLite is designed with zero runtime dependencies. However, it leverages a few specialized build-time libraries to ensure high performance:
 
 1. **Alibaba Zvec** (`dependencies/zvec/`):
-   - **What it is:** A production-grade C++ vector search engine using HNSW and DiskANN.
+   - **What it is:** A production-grade 4-bit compressed vector search engine.
    - **Why we use it:** Instead of pushing a 50,000-token conversation history to an LLM, DenseLite embeds user queries and uses Zvec to instantly search past context for only the most semantically relevant chunks. This saves massive token costs and processing time.
 2. **nlohmann/json** (`dependencies/json.hpp`):
    - **What it is:** The premier C++ JSON library.

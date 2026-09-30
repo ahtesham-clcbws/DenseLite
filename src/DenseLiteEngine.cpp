@@ -175,10 +175,10 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         std::string db_path = PathService::instance().settings_db();
         if (session.task_type == "coding") {
             target_model = ModelRegistryDB::get_model_for_role(db_path, "coder");
-            if (target_model.empty()) target_model = "deepseek-r1-distill-qwen-1_5b-q4_k_m";
+            if (target_model.empty()) target_model = "deepseek-r1-distill-qwen-1_5b-q4_0";
         } else {
             target_model = ModelRegistryDB::get_model_for_role(db_path, "general");
-            if (target_model.empty()) target_model = "llama-3_2-1b-instruct-abliterated_i1-q4_k_m";
+            if (target_model.empty()) target_model = "llama-3_2-1b-instruct-abliterated_i1-q4_0";
         }
     }
 
@@ -272,7 +272,7 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
                 std::string s = ModelRegistryDB::get_model_for_role(PathService::instance().settings_db(), "general");
                 if (!s.empty()) return s;
                 if (models.count("general")) return "general";
-                return "llama-3_2-1b-instruct-abliterated_i1-q4_k_m";
+                return "llama-3_2-1b-instruct-abliterated_i1-q4_0";
             };
 
             if (action == RecoveryAction::REDUCE_CONTEXT) {
@@ -306,7 +306,7 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
 
         if (action == ResponseAction::INVALID) {
             std::string s = ModelRegistryDB::get_model_for_role(PathService::instance().settings_db(), "general");
-            target_model = s.empty() ? "llama-3_2-1b-instruct-abliterated_i1-q4_k_m" : s;
+            target_model = s.empty() ? "llama-3_2-1b-instruct-abliterated_i1-q4_0" : s;
             continue;
         }
 

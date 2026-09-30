@@ -43,13 +43,14 @@ float MemoryRecall::compute_lexical_similarity(const std::string& query, const s
     return static_cast<float>(matches) / static_cast<float>(q_tokens.size());
 }
 
-std::vector<RecalledMemory> MemoryRecall::recall(const std::string& query, size_t limit) {
+std::vector<RecalledMemory> MemoryRecall::recall(const std::string& query, size_t limit, const MemoryScopeFilter& filter) {
     std::vector<RecalledMemory> results;
 
     // 1. Check in-memory persistent rules/conventions first
     if (persistent_mem_) {
         auto all_p = persistent_mem_->get_all();
         for (const auto& entry : all_p) {
+            if (!filter.matches(entry)) continue;
             float score = std::max(compute_lexical_similarity(query, entry.key),
                                    compute_lexical_similarity(query, entry.value));
             if (score > 0.1f) {
@@ -64,7 +65,7 @@ std::vector<RecalledMemory> MemoryRecall::recall(const std::string& query, size_
 
     // 2. Query canonical SQLite storage
     if (memory_store_) {
-        auto db_entries = memory_store_->query_memories_keyword(query, limit);
+        auto db_entries = memory_store_->query_memories_keyword(query, limit, filter);
         for (const auto& entry : db_entries) {
             // Avoid duplicate keys
             bool exists = false;

@@ -80,7 +80,7 @@ public:
     std::vector<MemoryEntry> get_all() const;
     size_t count() const;
 
-    std::string format_context_rules() const;
+    std::string format_context_rules(const MemoryScopeFilter& filter = MemoryScopeFilter{}) const;
     void clear();
 
 private:

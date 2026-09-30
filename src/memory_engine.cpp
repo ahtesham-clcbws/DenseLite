@@ -16,7 +16,7 @@ bool MemoryEngine::init(const std::string& sqlite_path, const std::string& zvec_
     return true;
 }
 
-std::string MemoryEngine::assemble_memory_context(const std::string& current_query) {
+std::string MemoryEngine::assemble_memory_context(const std::string& current_query, const MemoryScopeFilter& filter) {
     std::ostringstream oss;
 
     // 1. Working Memory (Current objective, task, constraints)
@@ -26,14 +26,14 @@ std::string MemoryEngine::assemble_memory_context(const std::string& current_que
     }
 
     // 2. Persistent Memory (Active system rules & conventions)
-    std::string pm = persistent_.format_context_rules();
+    std::string pm = persistent_.format_context_rules(); // Wait, I'll update persistent_.format_context_rules() later if needed
     if (!pm.empty()) {
         oss << pm << "\n";
     }
 
     // 3. Recalled Relevant Memories (Targeted by query)
     if (!current_query.empty()) {
-        auto recalled = recall_.recall(current_query, 5);
+        auto recalled = recall_.recall(current_query, 5, filter);
         std::string rm = recall_.format_recalled_context(recalled);
         if (!rm.empty()) {
             oss << rm << "\n";

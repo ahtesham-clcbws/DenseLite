@@ -331,8 +331,25 @@ std::vector<std::pair<MemoryEntry, float>> MemoryStore::query_memories_vector(
     if (!db_ || query_vec.empty()) return scored;
 
     if (turboquant_) {
+        // Build scope-aware allowlist mask
+        std::vector<std::string> allowed_ids;
+        std::string scope_sql = "SELECT key FROM memories WHERE 1=1";
+        if (filter.active_only) scope_sql += " AND status = 'active'";
+        if (!filter.workspace_id.empty()) scope_sql += " AND (workspace_id = '" + filter.workspace_id + "' OR workspace_id = 'default' OR visibility = 'public')";
+        
+        sqlite3_stmt* scope_stmt = nullptr;
+        if (sqlite3_prepare_v2(db_, scope_sql.c_str(), -1, &scope_stmt, nullptr) == SQLITE_OK) {
+            while (sqlite3_step(scope_stmt) == SQLITE_ROW) {
+                const char* k = reinterpret_cast<const char*>(sqlite3_column_text(scope_stmt, 0));
+                if (k) allowed_ids.push_back(k);
+            }
+            sqlite3_finalize(scope_stmt);
+        }
+
+        auto mask = turboquant_->build_allowlist_mask(allowed_ids);
+
         size_t fetch_limit = std::max<size_t>(2000, limit * 100);
-        auto tq_hits = turboquant_->search(query_vec, fetch_limit);
+        auto tq_hits = turboquant_->search(query_vec, fetch_limit, mask.data());
         if (tq_hits.empty()) return scored;
 
         std::string placeholders;

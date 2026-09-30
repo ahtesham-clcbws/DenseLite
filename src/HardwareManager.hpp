@@ -12,14 +12,15 @@
 class HardwareManager {
 public:
     static int get_max_allowed_threads() {
-        int configured_threads = SettingsManager::instance().get_server_config().threads;
-        if (configured_threads > 0) return configured_threads;
-
         int hw_concurrency = std::thread::hardware_concurrency();
         if (hw_concurrency == 0) hw_concurrency = 4; // fallback
         
-        int allowed_threads = std::max(1, hw_concurrency / 2);
-        return allowed_threads;
+        int hw_limit = std::max(1, hw_concurrency / 2);
+
+        int configured_threads = SettingsManager::instance().get_server_config().threads;
+        if (configured_threads > 0) return std::min(configured_threads, hw_limit);
+
+        return hw_limit;
     }
 
     static size_t get_max_allowed_ram_bytes() {

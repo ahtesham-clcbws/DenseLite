@@ -53,14 +53,17 @@ size_t PersistentMemory::count() const {
     return entries_.size();
 }
 
-std::string PersistentMemory::format_context_rules() const {
+std::string PersistentMemory::format_context_rules(const MemoryScopeFilter& filter) const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (entries_.empty()) return "";
 
     std::ostringstream oss;
+    bool has_rules = false;
     oss << "[Persistent System Knowledge & Rules]\n";
     for (const auto& pair : entries_) {
         const auto& e = pair.second;
+        if (!filter.matches(e)) continue;
+        has_rules = true;
         std::string cat_str;
         switch (e.category) {
             case MemoryCategory::RULE: cat_str = "Rule"; break;
@@ -70,6 +73,8 @@ std::string PersistentMemory::format_context_rules() const {
         }
         oss << "[" << cat_str << "] " << e.key << ": " << e.value << "\n";
     }
+    
+    if (!has_rules) return "";
     return oss.str();
 }
 
