@@ -44,8 +44,8 @@ With v4.0.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 6
 | **Completion Gate** | Evidence-Based Anti-Hallucination | **105,620,712 evals/sec** (0.01 µs) | $> 10,000,000$ evals/sec | 🟢 PASS |
 | **Thread Throttling** | OpenMP $\le 2$ Thread Cap | **1,217,537 enforcements/sec** (0.82 µs) | Strict 2 Threads | 🟢 PASS |
 | **Memory Eviction** | 6-Stage Progressive Cascade | **35,200 assessments/sec** (28.41 µs) | $> 5,000$ assessments/sec | 🟢 PASS |
-| **Speech-to-Text** | Whisper Audio Chunk Transcribe | **29,444 chunks/sec** (29,444x real-time)| $> 1,000$ chunks/sec | 🟢 PASS |
-| **Image Generation** | Diffusion Step Simulation | **14,847 passes/sec** (67.35 µs) | $> 1,000$ passes/sec | 🟢 PASS |
+| **Speech-to-Text** | Whisper Audio Chunk Transcribe | **29,444 chunks/sec** (29,444x real-time)| $> 1,000$ chunks/sec | ⚠️ SYNTHETIC |
+| **Image Generation** | Diffusion Step Simulation | **14,847 passes/sec** (67.35 µs) | $> 1,000$ passes/sec | ⚠️ SYNTHETIC |
 | **Cloud LLM Routing** | HTTPS Multi-Provider Failover | **52.6 ms Latency / 100% Failover Resilient** | $< 100$ ms Gateway Overhead | 🟢 PASS |
 | **Dynamic Context Sizing**| 64K Context Headroom Scaling | **40,385 evals/sec (24.76 µs)** | 64K Tokens Allocated | 🟢 PASS |
 | **Session Tool Registry** | Handshake Schema Deduplication | **434,723 handshakes/sec (2.30 µs)** | 0-Schema Chat Pruning | 🟢 PASS |
@@ -65,5 +65,5 @@ This benchmark suite is organized into 10 sequentially sorted reference reports:
 - [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant SIMD exhaustive recall, Tree-sitter AST indexing, and FNV-1a delta tracking.
 - [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval, ResultFusion, 5-state response parsing, and 7-action self-healing.
 - [07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md](07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md): 2-core CPU throttling, 6-stage progressive eviction, Whisper STT, and Stable Diffusion.
-- [08_FINAL_REALITY_AUDIT_MATRIX.md](08_FINAL_REALITY_AUDIT_MATRIX.md): Comprehensive verification matrix proving 100% of claimed features delivered with zero regressions.
+- [08_FINAL_REALITY_AUDIT_MATRIX.md](08_FINAL_REALITY_AUDIT_MATRIX.md): Comprehensive verification matrix proving core features delivered, alongside documented synthetic multimodal paths and unbenchmarked 64K perplexity limitations.
 - [09_SESSION_KV_AND_TOOL_REGISTRY_BENCHMARK.md](09_SESSION_KV_AND_TOOL_REGISTRY_BENCHMARK.md): Session Tool Registry, Dynamic 64K Context Sizing, and Disk-Backed Persistent Session KV Cache.

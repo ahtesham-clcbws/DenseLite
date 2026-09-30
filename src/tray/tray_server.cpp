@@ -1,6 +1,7 @@
 #include "tray_server.hpp"
 #include "tray_routes.hpp"
-#include "../HardwareManager.hpp"
+#include "../ResourcePolicy.hpp"
+#include "../settings/settings_manager.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -52,7 +53,7 @@ bool TrayServer::start(const std::string& base_dir, int port) {
     port_ = port;
     server_ = std::make_unique<httplib::Server>();
     
-    int clamped_threads = HardwareManager::get_max_allowed_threads();
+    int clamped_threads = ResourcePolicy::compute_safe_thread_limit(SettingsManager::instance().get_server_config().threads);
     if (clamped_threads <= 0) clamped_threads = 1;
     server_->new_task_queue = [clamped_threads] { return new httplib::ThreadPool(clamped_threads); };
     

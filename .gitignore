@@ -12,3 +12,4 @@ denselite.log
 REPO_MAP.xml
 denselite_kv_cache/
 dependencies/onnxruntime/
+.env.local

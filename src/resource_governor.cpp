@@ -1,4 +1,5 @@
 #include "resource_governor.hpp"
+#include "ResourcePolicy.hpp"
 #include "settings_manager.hpp"
 #include "model.hpp"
 #include <thread>
@@ -10,10 +11,7 @@
 
 ResourceGovernor::ResourceGovernor(VulkanDevice* gpu_device)
     : gpu_device_(gpu_device) {
-    size_t total_ram = get_host_total_ram_bytes();
-    float pct = SettingsManager::instance().get_resource_config().ram_budget_percent;
-    if (pct <= 0.0f || pct > 1.0f) pct = 0.45f;
-    max_allowed_ram_bytes_ = static_cast<size_t>(total_ram * pct);
+    max_allowed_ram_bytes_ = ResourcePolicy::compute_safe_ram_ceiling(SettingsManager::instance().get_resource_config().ram_budget_percent);
 }
 
 size_t ResourceGovernor::get_host_total_ram_bytes() {
@@ -60,7 +58,7 @@ size_t ResourceGovernor::get_process_rss_bytes() {
 }
 
 int ResourceGovernor::get_max_allowed_threads() {
-    return HardwareManager::get_max_allowed_threads();
+    return ResourcePolicy::compute_safe_thread_limit(SettingsManager::instance().get_server_config().threads);
 }
 
 void ResourceGovernor::enforce_thread_limits() {

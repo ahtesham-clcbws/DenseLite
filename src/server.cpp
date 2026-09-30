@@ -1,7 +1,9 @@
 #include "httplib.h"
 #include "gguf_parser.hpp"
 #include "DenseLiteEngine.hpp"
-#include "HardwareManager.hpp"
+#include "ResourcePolicy.hpp"
+#include "settings_manager.hpp"
+#include <omp.h>
 #include "ModelLoader.hpp"
 #include "database_migrator.hpp"
 #include "database_paths.hpp"
@@ -48,7 +50,9 @@ int main(int argc, char** argv) {
     std::string version = SettingsManager::instance().get_version();
     
     std::cout << "Starting DenseLite Gateway (V" << version << ")..." << std::endl;
-    HardwareManager::enforce_limits();
+    int threads = ResourcePolicy::compute_safe_thread_limit(SettingsManager::instance().get_server_config().threads);
+    omp_set_num_threads(threads);
+    std::cout << "[Server] Enforcing Limits -> Max Threads: " << threads << std::endl;
     
     auto env = ModelLoader::load_env(base_dir + "/.env");
     std::map<std::string, DenseModel> resident_models;
@@ -107,7 +111,7 @@ int main(int argc, char** argv) {
     svr.set_payload_max_length(static_cast<size_t>(srv_cfg.max_payload_mb) * 1024 * 1024);
 
     // Hardware Rule: Clamp HTTP worker threads to the strict 50% CPU limit
-    int clamped_threads = HardwareManager::get_max_allowed_threads();
+    int clamped_threads = ResourcePolicy::compute_safe_thread_limit(SettingsManager::instance().get_server_config().threads);
     if (clamped_threads <= 0) clamped_threads = 1;
     svr.new_task_queue = [clamped_threads] { return new httplib::ThreadPool(clamped_threads); };
 

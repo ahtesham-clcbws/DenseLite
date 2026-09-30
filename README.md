@@ -315,7 +315,7 @@ struct InferenceSession {
 };
 ```
 
-### The V3.0 Transformation
+### Historical Context: The V3.0 Transition
 
 - **Stripped `server.cpp`:** Removed monolithic logic from the HTTP server, relegating it to a pure routing gateway.
 - **Added ModernBERT Zero-Shot Intent Routing:** Replaced legacy heuristic matching with `ModernBERTRouter` (`MoritzLaurer/ModernBERT-large-zeroshot-v2.0`), classifying intents into coding, reasoning, image, audio, and compression with sub-10ms ONNX execution.
@@ -324,7 +324,7 @@ struct InferenceSession {
 - **Abstracted `ModelEngine` & Added `Curator`:** Extracted inference into a dedicated engine and added a Curator layer to consolidate multi-turn results before serializing.
 - **Revealed the Custom AVX2 Engine:** Committed to the custom, hand-rolled C++ Transformer engine (`infer.cpp`) running Llama 3.2 1B Instruct and DeepSeek-R1 Distill Qwen 1.5B natively.
 
-### What We Have Now
+### Current Architecture (v4.0.0)
 
 A single, ultra-lightweight C++ binary (`DenseLite`) requiring no Ollama, llama.cpp, or MNN external runtimes. It manages the entire state machine of an `InferenceSession`, slices context infinitely via `TurboQuant`, falls back to its internal `AVX2` engine when offline, and flawlessly orchestrates the Zed IDE.
 
