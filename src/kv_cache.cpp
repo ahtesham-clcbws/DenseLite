@@ -64,7 +64,7 @@ bool KVCache::allocate(const ModelConfig& config, size_t max_context_budget, Vul
     current_tokens_ = 0;
 
     // Hardware Governance Rule: KV Cache MUST ALWAYS reside in Host RAM
-    // even if the model execution context is GPU (Streaming over PCIe).
+    // even if a Vulkan execution path is later adopted.
 
     // Fallback: 100% Host Memory (bounded)
     placement_ = DevicePlacement::CPU_RAM;

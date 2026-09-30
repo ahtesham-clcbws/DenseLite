@@ -16,7 +16,7 @@
 DenseLite v4.0.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict 2-thread CPU allocation (50% max host load) and a 16 GB RAM safety ceiling while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
 
 With v4.0.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation. Furthermore, the engine is fortified with **Phase 1-4 Hardening**, which includes:
-- **Strict Hardware Governance & VRAM Gate:** Enforcement of an 85% VRAM ceiling, PCIe streaming of KV Cache, and deterministic GPU vs CPU execution binding.
+- **Strict Hardware Governance & VRAM Gate:** Enforcement of an 85% VRAM ceiling, deterministic CPU/GPU admission gates, and strict RAM-bound KV caching.
 - **ModernBERT Strict Routing:** Zero-shot intent classification explicitly overriding legacy heuristic fallbacks.
 - **Unification of TurboQuant:** Direct routing of VectorSearch and MemoryStore queries through SIMD-accelerated exhaustive scans.
 - **Core Semantic Fixes:** NLI evaluation downgraded from hard heuristic decisions, proper JSON exception bubbling, and strict session/workspace DB isolation.

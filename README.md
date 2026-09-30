@@ -489,7 +489,7 @@ DenseLite is designed to be an ultra-lightweight citizen on any operating system
 |---|---|---|
 | **CPU** | 50% of total capacity | On a 2-core/4-thread machine → 2 threads max |
 | **RAM** | 50% of total capacity | On 32GB → 16GB ceiling |
-| **GPU** | 85% of total VRAM | GPU-preferred models (≤3B) must not exceed 85% of physical VRAM. Fallback silently to RAM/CPU if limit exceeded. KV cache always streaming via PCIe. |
+| **GPU** | 85% of total VRAM | GPU-preferred models (≤3B) must not exceed 85% of physical VRAM. Fallback silently to RAM/CPU if limit exceeded. KV cache is strictly RAM-bound (CPU inference). |
 
 **Deterministic Memory Eviction Order** (when RAM budget is breached):
 
