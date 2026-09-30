@@ -1,5 +1,6 @@
 #include "tray_server.hpp"
 #include "tray_routes.hpp"
+#include "../HardwareManager.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -50,6 +51,11 @@ bool TrayServer::start(const std::string& base_dir, int port) {
     base_dir_ = base_dir;
     port_ = port;
     server_ = std::make_unique<httplib::Server>();
+    
+    int clamped_threads = HardwareManager::get_max_allowed_threads();
+    if (clamped_threads <= 0) clamped_threads = 1;
+    server_->new_task_queue = [clamped_threads] { return new httplib::ThreadPool(clamped_threads); };
+    
     register_routes(*server_, base_dir_);
     thread_ = std::make_unique<std::thread>([this]() {
         server_->listen("127.0.0.1", port_);
