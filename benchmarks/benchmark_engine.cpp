@@ -319,7 +319,9 @@ void benchmark_phase3_tokenizer_context() {
     const int E2E_ITERS = 2000;
     start = Clock::now();
     for (int i = 0; i < E2E_ITERS; ++i) {
-        auto res = engine.optimize_and_compile(req, "qwen_main", 4096);
+        ModelConfig cfg;
+        cfg.architecture = "qwen_main";
+        auto res = engine.optimize_and_compile(req, "qwen_main", cfg, 4096);
         (void)res;
     }
     end = Clock::now();

@@ -13,6 +13,9 @@ struct SessionKVState {
     int max_context_allocated = 0;
     int num_kv_heads = 0;
     int head_dim = 0;
+    uint32_t model_hash = 0;
+    std::string model_identity = "";
+    std::string tokenizer_identity = "";
     bool is_initialized = false;
     int64_t last_accessed_ms = 0;
     bool in_use = false;

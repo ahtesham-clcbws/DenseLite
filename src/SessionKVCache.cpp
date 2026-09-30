@@ -7,7 +7,25 @@
 #include <limits>
 
 constexpr uint32_t DLKV_MAGIC = 0x444C4B56; // "DLKV"
-constexpr uint32_t DLKV_VERSION = 1;
+constexpr uint32_t DLKV_VERSION = 3;
+
+static uint32_t compute_model_hash(const ModelConfig& cfg) {
+    uint32_t hash = 2166136261u;
+    auto add_str = [&](const std::string& s) {
+        for (char c : s) { hash ^= static_cast<uint8_t>(c); hash *= 16777619u; }
+    };
+    auto add_u32 = [&](uint32_t v) {
+        for (int i = 0; i < 4; ++i) { hash ^= (v & 0xFF); hash *= 16777619u; v >>= 8; }
+    };
+    add_str(cfg.architecture);
+    add_u32(cfg.vocab_size);
+    add_u32(cfg.num_layers);
+    add_u32(cfg.num_heads);
+    add_u32(cfg.num_kv_heads);
+    add_u32(cfg.head_dim);
+    add_u32(cfg.intermediate_dim);
+    return hash;
+}
 
 static int64_t current_time_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -33,9 +51,20 @@ bool SessionKVCacheManager::save_to_disk_internal(const std::string& session_id,
     if (!out.is_open()) return false;
 
     uint32_t magic = DLKV_MAGIC;
-    uint32_t version = DLKV_VERSION;
+    uint32_t version = 3;
     out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
     out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+    out.write(reinterpret_cast<const char*>(&s->model_hash), sizeof(s->model_hash));
+
+    // Write model_identity
+    uint32_t mi_len = s->model_identity.size();
+    out.write(reinterpret_cast<const char*>(&mi_len), sizeof(mi_len));
+    if (mi_len > 0) out.write(s->model_identity.c_str(), mi_len);
+    
+    // Write tokenizer_identity
+    uint32_t ti_len = s->tokenizer_identity.size();
+    out.write(reinterpret_cast<const char*>(&ti_len), sizeof(ti_len));
+    if (ti_len > 0) out.write(s->tokenizer_identity.c_str(), ti_len);
 
     int32_t num_layers = static_cast<int32_t>(s->state.k_cache.size());
     int32_t num_kv_heads = (s->num_kv_heads > 0) ? s->num_kv_heads : 2;
@@ -108,6 +137,8 @@ std::shared_ptr<SessionKVState> SessionKVCacheManager::get_or_create(const std::
     if (config) {
         new_state->num_kv_heads = config->num_kv_heads;
         new_state->head_dim = config->head_dim;
+        new_state->model_hash = compute_model_hash(*config);
+        new_state->model_identity = config->model_id;
     }
     sessions_[session_id] = new_state;
 
@@ -120,7 +151,29 @@ std::shared_ptr<SessionKVState> SessionKVCacheManager::get_or_create(const std::
                 uint32_t magic = 0, version = 0;
                 in.read(reinterpret_cast<char*>(&magic), sizeof(magic));
                 in.read(reinterpret_cast<char*>(&version), sizeof(version));
-                if (magic == DLKV_MAGIC && version == DLKV_VERSION) {
+                if (magic == DLKV_MAGIC && (version >= 1 && version <= 3)) {
+                    uint32_t disk_model_hash = 0;
+                    std::string disk_model_id = "";
+                    std::string disk_tok_id = "";
+                    
+                    if (version >= 2) {
+                        in.read(reinterpret_cast<char*>(&disk_model_hash), sizeof(disk_model_hash));
+                    }
+                    if (version >= 3) {
+                        uint32_t mi_len = 0;
+                        in.read(reinterpret_cast<char*>(&mi_len), sizeof(mi_len));
+                        if (mi_len > 0 && mi_len < 4096) {
+                            disk_model_id.resize(mi_len);
+                            in.read(&disk_model_id[0], mi_len);
+                        }
+                        uint32_t ti_len = 0;
+                        in.read(reinterpret_cast<char*>(&ti_len), sizeof(ti_len));
+                        if (ti_len > 0 && ti_len < 4096) {
+                            disk_tok_id.resize(ti_len);
+                            in.read(&disk_tok_id[0], ti_len);
+                        }
+                    }
+
                     int32_t num_layers = 0, num_kv_heads = 0, head_dim = 0, max_ctx = 0, cur_pos = 0;
                     in.read(reinterpret_cast<char*>(&num_layers), sizeof(num_layers));
                     in.read(reinterpret_cast<char*>(&num_kv_heads), sizeof(num_kv_heads));
@@ -135,6 +188,19 @@ std::shared_ptr<SessionKVState> SessionKVCacheManager::get_or_create(const std::
                                   << session_id << " (cached: " << num_layers << "L/" << num_kv_heads << "H/" << head_dim 
                                   << "D vs active: " << config->num_layers << "L/" << config->num_kv_heads << "H/" 
                                   << config->head_dim << "D)" << std::endl;
+                        return new_state;
+                    }
+
+                    uint32_t expected_hash = compute_model_hash(*config);
+                    if (version >= 2 && disk_model_hash != expected_hash) {
+                        std::cout << "[SessionKVCache] Discarding disk cache for session " << session_id 
+                                  << " (model hash mismatch: expected " << expected_hash << " got " << disk_model_hash << ")" << std::endl;
+                        return new_state;
+                    }
+
+                    if (version >= 3 && !config->model_id.empty() && disk_model_id != config->model_id) {
+                        std::cout << "[SessionKVCache] Discarding disk cache for session " << session_id 
+                                  << " (model identity mismatch: expected " << config->model_id << " got " << disk_model_id << ")" << std::endl;
                         return new_state;
                     }
 

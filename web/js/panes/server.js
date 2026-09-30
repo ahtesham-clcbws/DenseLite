@@ -37,7 +37,7 @@ export async function saveServerSettings() {
       max_payload_mb: parseInt(document.getElementById("srv-max-payload")?.value || 32),
       enable_api_auth: document.getElementById("srv-enable-auth")?.checked ?? false,
       api_secret_key: document.getElementById("srv-api-secret")?.value || "",
-      cors_allowed_origins: document.getElementById("srv-cors-origins")?.value || "*",
+      cors_allowed_origins: document.getElementById("srv-cors-origins")?.value || "",
       n_batch: parseInt(document.getElementById("srv-n-batch")?.value || 512)
     },
     resource: {

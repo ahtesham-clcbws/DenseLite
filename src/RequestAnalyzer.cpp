@@ -86,31 +86,54 @@ OpenAIRequest RequestAnalyzer::parse_request(const std::string& raw_json_body) {
         } else if (j.contains("rag")) {
             req.use_context = parse_bool_val(j["rag"]);
         }
+    } catch (const std::exception& e) {
+        std::cerr << "[RequestAnalyzer] Error parsing JSON request body: " << e.what() << std::endl;
+        throw std::invalid_argument("Malformed JSON in request body");
     } catch (...) {
         std::cerr << "[RequestAnalyzer] Error parsing JSON request body" << std::endl;
+        throw std::invalid_argument("Malformed JSON in request body");
     }
     
     return req;
 }
 
-std::string RequestAnalyzer::compile_prompt(const OpenAIRequest& req, const std::string& model_architecture) {
-    if (model_architecture.find("llama") != std::string::npos) {
-        std::string prompt = "<|begin_of_text|>";
+std::string RequestAnalyzer::compile_prompt(const OpenAIRequest& req, const ModelConfig& config) {
+    bool is_llama = false;
+    bool is_chatml = false;
+
+    if (!config.chat_template.empty()) {
+        if (config.chat_template.find("<|start_header_id|>") != std::string::npos) {
+            is_llama = true;
+        } else if (config.chat_template.find("<|im_start|>") != std::string::npos) {
+            is_chatml = true;
+        }
+    }
+    
+    // Fallback to architecture if template doesn't clarify
+    if (!is_llama && !is_chatml) {
+        if (config.architecture.find("llama") != std::string::npos) {
+            is_llama = true;
+        } else {
+            is_chatml = true; // Default fallback
+        }
+    }
+
+    std::string prompt = "";
+    if (is_llama) {
+        prompt = "<|begin_of_text|>";
         for (const auto& msg : req.messages) {
             prompt += "<|start_header_id|>" + msg.role + "<|end_header_id|>\n\n";
             prompt += msg.content + "<|eot_id|>";
         }
         prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n";
-        return prompt;
+    } else {
+        // ChatML format
+        for (const auto& msg : req.messages) {
+            prompt += "<|im_start|>" + msg.role + "\n";
+            prompt += msg.content + "\n<|im_end|>\n";
+        }
+        prompt += "<|im_start|>assistant\n";
     }
-
-    std::string prompt = "";
-    // ChatML format (DeepSeek-R1 Distill Qwen / Qwen)
-    for (const auto& msg : req.messages) {
-        prompt += "<|im_start|>" + msg.role + "\n";
-        prompt += msg.content + "\n<|im_end|>\n";
-    }
-    prompt += "<|im_start|>assistant\n";
     return prompt;
 }
 

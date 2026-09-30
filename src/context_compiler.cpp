@@ -30,9 +30,28 @@ CompiledContext ContextCompiler::compile(const std::vector<OpenAIMessage>& messa
                                          const Tokenizer* tokenizer,
                                          size_t max_input_tokens,
                                          bool append_assistant_header,
-                                         const std::string& model_architecture) {
+                                         const ModelConfig& config) {
     CompiledContext result;
-    bool is_llama = (model_architecture.find("llama") != std::string::npos);
+    bool is_llama = false;
+    bool is_chatml = false;
+
+    if (!config.chat_template.empty()) {
+        if (config.chat_template.find("<|start_header_id|>") != std::string::npos) {
+            is_llama = true;
+        } else if (config.chat_template.find("<|im_start|>") != std::string::npos) {
+            is_chatml = true;
+        }
+    }
+    
+    // Fallback
+    if (!is_llama && !is_chatml) {
+        if (config.architecture.find("llama") != std::string::npos) {
+            is_llama = true;
+        } else {
+            is_chatml = true; // Default
+        }
+    }
+
     if (is_llama) {
         result.prompt = format_llama3(messages, append_assistant_header);
     } else {

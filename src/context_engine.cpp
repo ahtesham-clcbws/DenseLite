@@ -5,13 +5,14 @@ ContextEngine::ContextEngine(TokenizerRegistry* tokenizer_registry)
 
 ContextOptimizationResult ContextEngine::optimize_and_compile(
     const OpenAIRequest& req,
-    const std::string& target_model,
+    const std::string& target_model_id,
+    const ModelConfig& target_model_config,
     size_t total_context_limit) {
 
     ContextOptimizationResult result;
     result.original_messages_count = req.messages.size();
 
-    const Tokenizer* tokenizer = registry_ ? registry_->get_tokenizer(target_model) : nullptr;
+    const Tokenizer* tokenizer = registry_ ? registry_->get_tokenizer(target_model_id) : nullptr;
 
     auto count_tokens_fn = [&](const std::string& text) -> size_t {
         if (tokenizer && tokenizer->is_valid()) {
@@ -53,7 +54,7 @@ ContextOptimizationResult ContextEngine::optimize_and_compile(
 
     // 4. Compile into model-appropriate prompt template and verify budget compliance
     result.compiled_context = ContextCompiler::compile(
-        optimized_msgs, tokenizer, result.budget_plan.max_input_tokens, true, target_model);
+        optimized_msgs, tokenizer, result.budget_plan.max_input_tokens, true, target_model_config);
     result.compiled_prompt = result.compiled_context.prompt;
 
     return result;
@@ -62,11 +63,12 @@ ContextOptimizationResult ContextEngine::optimize_and_compile(
 ContextOptimizationResult ContextEngine::optimize_and_compile(
     const OpenAIRequest& req,
     const std::vector<SearchResult>& search_evidence,
-    const std::string& target_model,
+    const std::string& target_model_id,
+    const ModelConfig& target_model_config,
     size_t total_context_limit) {
 
     if (search_evidence.empty()) {
-        return optimize_and_compile(req, target_model, total_context_limit);
+        return optimize_and_compile(req, target_model_id, target_model_config, total_context_limit);
     }
 
     OpenAIRequest enriched_req = req;
@@ -92,6 +94,6 @@ ContextOptimizationResult ContextEngine::optimize_and_compile(
         enriched_req.messages.insert(enriched_req.messages.begin(), OpenAIMessage{"system", evidence_block, "", ""});
     }
 
-    return optimize_and_compile(enriched_req, target_model, total_context_limit);
+    return optimize_and_compile(enriched_req, target_model_id, target_model_config, total_context_limit);
 }
 

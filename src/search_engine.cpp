@@ -48,7 +48,10 @@ std::vector<SearchResult> SearchEngine::search(const std::string& query,
         for (const auto& mem : memory_engine_->persistent().get_all()) {
             memory_texts.emplace_back(mem.key, mem.value);
         }
-        for (const auto& mem : memory_engine_->store().query_memories_keyword(query, 20)) {
+        MemoryScopeFilter scope_filter;
+        scope_filter.workspace_id = workspace_id_;
+        scope_filter.active_only = true;
+        for (const auto& mem : memory_engine_->store().query_memories_keyword(query, 20, scope_filter)) {
             memory_texts.emplace_back(mem.key, mem.value);
         }
     }
@@ -115,9 +118,6 @@ std::vector<SearchResult> SearchEngine::search(const std::string& query,
                 all_candidates.push_back(std::move(r));
             }
         }
-
-        auto semantic_hits = VectorSearch::search_semantic_text(query, all_candidates);
-        all_candidates.insert(all_candidates.end(), semantic_hits.begin(), semantic_hits.end());
     }
 
     // 4. Assign task relevance if active_task is provided

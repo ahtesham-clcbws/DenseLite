@@ -76,6 +76,7 @@ struct RopeConfig {
 
 struct ModelConfig {
     std::string architecture;        // e.g. "qwen2", "llama"
+    std::string model_id;            // e.g. "qwen2.5-0.5B"
     uint32_t context_length = 0;
     uint32_t embedding_length = 0;
     uint32_t num_layers = 0;
@@ -87,6 +88,7 @@ struct ModelConfig {
     int eos_token_id = -1;           // Dynamic EOS token ID
     float rms_norm_eps = 1e-6f;
     uint32_t alignment = 32;         // Defaults to 32 in GGUF
+    std::string chat_template;
     RopeConfig rope;
 };
 
@@ -116,6 +118,11 @@ struct MmapBuffer {
     }
 };
 
+enum class DeviceContext {
+    CPU,
+    GPU
+};
+
 // Represents the entire loaded model
 struct DenseModel {
     ModelConfig config;
@@ -127,6 +134,8 @@ struct DenseModel {
     size_t mmap_size = 0;
     std::shared_ptr<MmapBuffer> mmap_buffer;
 
+    DeviceContext execution_context = DeviceContext::CPU;
+
     DenseModel create_shared_reference() const {
         DenseModel ref;
         ref.config = this->config;
@@ -135,6 +144,7 @@ struct DenseModel {
         ref.mmap_data = this->mmap_data;
         ref.mmap_size = this->mmap_size;
         ref.mmap_buffer = this->mmap_buffer;
+        ref.execution_context = this->execution_context;
         return ref;
     }
 };

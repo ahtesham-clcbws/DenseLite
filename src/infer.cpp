@@ -145,17 +145,17 @@ inline void matvec_q8(const Tensor& w, const float* x, float* out, int in_featur
     matvec(w, x, out, in_features, out_features);
 }
 
-void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits) {
+bool forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits) {
     auto& config = model.config;
     
     // 1. Token Embedding Lookup (Q4_0 / Q8_0 dequantize)
     if (token_id < 0 || token_id >= (int)config.vocab_size) {
         std::cerr << "[Infer] Invalid token_id: " << token_id << " (vocab_size: " << config.vocab_size << ")" << std::endl;
-        return;
+        return false;
     }
     if (model.tensors.count("token_embd.weight") == 0) {
         std::cerr << "Missing token_embd.weight" << std::endl;
-        return;
+        return false;
     }
     
     const auto& embd_tensor = model.tensors["token_embd.weight"];
@@ -163,9 +163,13 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
     if (embd_tensor.type == TensorType::Q4_0) {
         const block_q4_0* embd_data = static_cast<const block_q4_0*>(embd_tensor.data);
         dequantize_q4_row(&embd_data[token_id * embd_blocks], state.x.data(), embd_blocks);
-    } else {
+    } else if (embd_tensor.type == TensorType::Q8_0) {
         const block_q8_0* embd_data = static_cast<const block_q8_0*>(embd_tensor.data);
         dequantize_q8_row(&embd_data[token_id * embd_blocks], state.x.data(), embd_blocks);
+    } else {
+        std::cerr << "[Infer] Error: Unsupported tensor type " << static_cast<int>(embd_tensor.type) 
+                  << " for 'token_embd.weight'. DenseLite CPU kernel natively supports only Q4_0 and Q8_0." << std::endl;
+        return false;
     }
     
     // Model-driven transformer layer dimensions (Level 1: Qwen2/Llama family)
@@ -195,7 +199,7 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
         std::memcpy(residual.data(), state.x.data(), config.embedding_length * sizeof(float));
         
         // Pre-attention RMSNorm
-        if (state.vulkan_compute && state.vulkan_compute->is_ready()) {
+        if (model.execution_context == DeviceContext::GPU && state.vulkan_compute && state.vulkan_compute->is_ready()) {
             state.vulkan_compute->rmsnorm(state.x.data(), (const float*)model.tensors[lp + "attn_norm.weight"].data,
                                           state.x.data(), config.embedding_length, config.rms_norm_eps);
         } else {
@@ -297,7 +301,7 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
         std::memcpy(residual.data(), state.x.data(), config.embedding_length * sizeof(float));
         
         // Pre-FFN RMSNorm
-        if (state.vulkan_compute && state.vulkan_compute->is_ready()) {
+        if (model.execution_context == DeviceContext::GPU && state.vulkan_compute && state.vulkan_compute->is_ready()) {
             state.vulkan_compute->rmsnorm(state.x.data(), (const float*)model.tensors[lp + "ffn_norm.weight"].data,
                                           state.x.data(), config.embedding_length, config.rms_norm_eps);
         } else {
@@ -331,7 +335,7 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
     }
     
     // 3. Final RMSNorm
-    if (state.vulkan_compute && state.vulkan_compute->is_ready()) {
+    if (model.execution_context == DeviceContext::GPU && state.vulkan_compute && state.vulkan_compute->is_ready()) {
         state.vulkan_compute->rmsnorm(state.x.data(), (const float*)model.tensors["output_norm.weight"].data,
                                       state.x.data(), config.embedding_length, config.rms_norm_eps);
     } else {
@@ -347,6 +351,7 @@ void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::v
         : model.tensors.at("token_embd.weight");
     matvec_q8(output_weight, state.x.data(), logits.data(),
               config.embedding_length, config.vocab_size);
+    return true;
 }
 
 void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCallback callback,
@@ -414,7 +419,11 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
     // 1. Delta Prefill: process only un-cached prompt tokens within allocated KV bounds
     for (size_t i = start_prefill_idx; i < effective_tokens.size() - 1; ++i) {
         if (state.current_pos >= ctx_len - 1) break;
-        forward_pass(model, state, effective_tokens[i], logits);
+        if (!forward_pass(model, state, effective_tokens[i], logits)) {
+            std::cerr << "[Infer] Prefill aborted due to forward pass failure." << std::endl;
+            callback("\n\n[DenseLite Runtime Error: Local model contains unsupported tensor types (e.g., Q4_K). Only Q4_0/Q8_0 are supported by the native zero-dependency AVX2 kernel.]");
+            return;
+        }
         state.current_pos++;
     }
 
@@ -429,7 +438,11 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
     
     for (int step = 0; step < max_tokens; ++step) {
         if (state.current_pos >= ctx_len - 1) break;
-        forward_pass(model, state, current_token, logits);
+        if (!forward_pass(model, state, current_token, logits)) {
+            std::cerr << "[Infer] Generation aborted due to forward pass failure." << std::endl;
+            callback("\n\n[DenseLite Runtime Error: Local model contains unsupported tensor types (e.g., Q4_K). Only Q4_0/Q8_0 are supported by the native zero-dependency AVX2 kernel.]");
+            return;
+        }
         
         // Repetition Penalty (multiplicative)
         if (repetition_penalty != 1.0f) {
@@ -529,7 +542,10 @@ std::vector<float> compute_embedding(DenseModel& model, const std::vector<int>& 
     std::vector<float> pooled(model.config.embedding_length, 0.0f);
 
     for (int t : tokens) {
-        forward_pass(model, state, t, logits);
+        if (!forward_pass(model, state, t, logits)) {
+            std::cerr << "[Infer] Embedding aborted due to forward pass failure." << std::endl;
+            return {};
+        }
         for (size_t i = 0; i < model.config.embedding_length; ++i) {
             pooled[i] += state.x[i];
         }

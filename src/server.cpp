@@ -78,12 +78,17 @@ int main(int argc, char** argv) {
         if (svr_ptr) svr_ptr->stop();
     });
     
+    std::cout << "[DEBUG] Loading env router..." << std::endl;
     SQLiteRouter router(DatabasePaths::settings_db(base_dir));
     router.load_env(base_dir + "/.env");
 
+    std::cout << "[DEBUG] Creating DenseLiteEngine..." << std::endl;
     DenseLiteEngine engine(resident_models, router, base_dir);
-
+    
+    std::cout << "[DEBUG] Getting server config..." << std::endl;
     auto srv_cfg = SettingsManager::instance().get_server_config();
+
+    std::cout << "[DEBUG] Server Config Host: " << srv_cfg.host << ", Port: " << srv_cfg.port << std::endl;
 
     // P0-Security: Auto-generate API secret if auth is enabled but secret is empty
     if (srv_cfg.enable_api_auth && srv_cfg.api_secret_key.empty()) {
@@ -95,13 +100,13 @@ int main(int argc, char** argv) {
         for (char& c : generated) c = charset[dist(rng)];
         srv_cfg.api_secret_key = generated;
         SettingsManager::instance().set_server_config(srv_cfg);
-        std::cout << "[Security] Auto-generated API secret (48 chars). Retrieve via settings API." << std::endl;
+        std::cout << "[Security] API secret auto-generated. Retrieve via settings API." << std::endl;
     }
 
     // P0-Security: Enforce HTTP payload max length
     svr.set_payload_max_length(static_cast<size_t>(srv_cfg.max_payload_mb) * 1024 * 1024);
 
-    std::string cors_origin = srv_cfg.cors_allowed_origins.empty() ? "" : srv_cfg.cors_allowed_origins;
+    std::string cors_origin = srv_cfg.cors_allowed_origins.empty() ? "http://localhost" : srv_cfg.cors_allowed_origins;
     svr.set_default_headers({
         {"Access-Control-Allow-Origin", cors_origin.c_str()},
         {"Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
@@ -148,7 +153,13 @@ int main(int argc, char** argv) {
         for (const auto& id : model_ids) {
             if (!first) json_str += ",";
             first = false;
-            json_str += "{\"id\":\"" + id + "\",\"object\":\"model\",\"created\":1700000000,\"owned_by\":\"denselite\"}";
+            std::string state = "registered";
+            if (id == "denselite") {
+                state = "ready";
+            } else if (resident_models.find(id) != resident_models.end()) {
+                state = "loaded";
+            }
+            json_str += "{\"id\":\"" + id + "\",\"object\":\"model\",\"created\":1700000000,\"owned_by\":\"denselite\",\"state\":\"" + state + "\"}";
         }
         json_str += "]}";
         res.set_content(json_str, "application/json");

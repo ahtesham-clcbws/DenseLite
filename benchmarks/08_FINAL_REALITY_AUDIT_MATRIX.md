@@ -11,7 +11,7 @@
 
 | Architectural Area | Phase 0 Baseline State | Final v3.4.0 Production State | Verification Evidence | Status |
 |---|---|---|---|:---:|
-| **Build System** | Clean CMake build (~45s) | Clean incremental build (~1.2s), full CTest integration | 11/11 CTest suites pass in 31.57s | 🟢 VERIFIED |
+| **Build System** | Clean CMake build (~45s) | Clean incremental build (~1.2s), full CTest integration | 17/17 CTest suites pass in ~24.7s | 🟢 VERIFIED |
 | **Daemon Startup** | ~850 ms (lazy sequential mmap) | Cold boot in ~820 ms, non-blocking HTTP/SSE on port 9501 | HTTP 200 `{"status":"ok"}` | 🟢 VERIFIED |
 | **SmolLM2 Inference** | ❌ SIGSEGV (REG-001 dimension mismatch) | 🟢 Dynamic GGUF parsing (`intermediate_dim = 4864`) | 18.42 tok/s AVX2, zero crash/OOM | 🟢 RESOLVED |
 | **Coder Inference (DeepSeek-R1-Distill-Qwen-1.5B)** | ~4.35 tokens/sec, static architecture | Dynamic `ModelConfig`, pure AVX2 forward pass | 4.35 tokens/sec, rel_err $< 1.1 \times 10^{-6}$ | 🟢 VERIFIED |
@@ -32,9 +32,10 @@
 | **Session KV & Tool Deduplication** | ❌ None | 🟢 Session Tool Registry + DLKV Persistent Disk KV | 434K handshakes/s, 2,243 MB/s flush | 🟢 DELIVERED |
 | **64K Context Infrastructure** | ❌ None | 🟢 Dynamic RAM-aware sizing allocates 65,536 tokens | Budgeting & KV persistence verified | 🟢 VERIFIED |
 | **64K Context Generation** | ❌ None | 🟠 Not yet benchmarked with real inference workload | 8K effective context empirically tested | 🟡 INFRASTRUCTURE ONLY |
-| **Dynamic Model Roles & Registry** | ❌ None | 🟢 SQLite WAL Model Roles + Binary GGUF Inspector | 14/14 CTests passing 100% | 🟢 DELIVERED |
+| **Dynamic Model Roles & Registry** | ❌ None | 🟢 SQLite WAL Model Roles + Binary GGUF Inspector | 17/17 CTests passing 100% | 🟢 DELIVERED |
 | **Zero-Python Tray Supervisor** | ❌ None | 🟢 Native C++ Ayatana Tray + Glassmorphic WebUI | 6 MB RAM, 0% CPU idle | 🟢 DELIVERED |
 | **ModernBERT Zero-Shot Router** | ❌ None | 🟢 MoritzLaurer/ModernBERT-large-zeroshot-v2.0 ONNX | CPU-only, sub-50ms classification | 🟢 DELIVERED |
+| **Phase 1-4 Core Semantic Hardening** | ❌ None | 🟢 TurboQuant routing, strict NLI downgrading, JSON checks | 17/17 CTests passing 100% | 🟢 DELIVERED |
 
 ---
 
@@ -54,7 +55,7 @@
 ## 3. Final Sign-off
 
 DenseLite v3.4.0 is fully verified, operational, and hardened for deployment on edge hardware.
-All 14 CTest test suites pass cleanly with 100% deterministic success (3.39s).
+All 17 CTest test suites pass cleanly with 100% deterministic success (~24.7s).
 
 **Important distinctions:**
 - All generation benchmarks (3.15–18.42 tok/s) are measured under pure **AVX2+FMA CPU** forward pass with **2 OpenMP threads** intentionally throttled.

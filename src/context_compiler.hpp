@@ -26,7 +26,7 @@ public:
     // Compiles messages, calculates exact token breakdown using tokenizer, and verifies budget
     static CompiledContext compile(const std::vector<OpenAIMessage>& messages,
                                    const Tokenizer* tokenizer,
-                                   size_t max_input_tokens = 6144,
-                                   bool append_assistant_header = true,
-                                   const std::string& model_architecture = "chatml");
+                                   size_t max_input_tokens,
+                                   bool append_assistant_header,
+                                   const ModelConfig& config);
 };

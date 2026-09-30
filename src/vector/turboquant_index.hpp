@@ -20,6 +20,15 @@ struct QuantizedVector {
     bool active = true;
 };
 
+// TurboQuantIndex - SIMD-accelerated exhaustive scan vector database.
+// 
+// [ARCHITECTURE ROADMAP - v4.0+]
+// 1. Matrix Scaling: Currently uses a full dim x dim rotation matrix. 
+//    Future: Transition to structured block rotation (e.g., HD) or sparse orthogonal transforms for >1024 dims.
+// 2. Recall Benchmarks: Must benchmark against exact FP32/FP16 cosine search.
+// 3. Scale Tests & Partitioning: Current SIMD exhaustive scan is optimal up to ~1M vectors.
+//    Future: Implement coarse quantization (IVF) or HNSW for >1M vector retrieval.
+
 class TurboQuantIndex {
 public:
     explicit TurboQuantIndex(size_t dim = 128, uint32_t seed = 42);

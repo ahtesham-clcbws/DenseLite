@@ -54,6 +54,7 @@ public:
 
     // Headroom safety checks
     bool can_admit_host_ram(size_t required_bytes) const;
+    bool can_admit_gpu_vram(size_t model_bytes, size_t static_overhead_bytes) const;
 
     // Proactive 6-stage eviction cascade
     EvictionStage assess_eviction_stage() const;
@@ -61,7 +62,7 @@ public:
     bool should_reject_optional_load() const;
 
     // Dynamic RAM-Aware Context Sizing
-    static size_t calculate_dynamic_context_tokens();
+    static size_t calculate_dynamic_context_tokens(const struct ModelConfig* active_model_config = nullptr);
 
 private:
     VulkanDevice* gpu_device_ = nullptr;

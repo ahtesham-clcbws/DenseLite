@@ -37,13 +37,15 @@ struct OpenAIRequest {
     bool stream = true;      // Parse client streaming preference (default SSE stream)
 };
 
+#include "model.hpp"
+
 class RequestAnalyzer {
 public:
     // Parse an incoming raw JSON body from a POST /v1/chat/completions request
     static OpenAIRequest parse_request(const std::string& raw_json_body);
 
     // Compile the messages and tools into a single context string optimized for the target model
-    static std::string compile_prompt(const OpenAIRequest& req, const std::string& model_architecture = "llama");
+    static std::string compile_prompt(const OpenAIRequest& req, const ModelConfig& config);
 
     // ----------------------------------------------------------------------
     // THE INTELLIGENT BRIDGE (Semantic Intent Router)

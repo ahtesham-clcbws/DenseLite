@@ -209,6 +209,8 @@ bool load_gguf_model(const std::string& file_path, DenseModel& out_model) {
         } else if (key.find(".attention.layer_norm_rms_epsilon") != std::string::npos && type == 6 /* FLOAT32 */) {
             std::memcpy(&out_model.config.rms_norm_eps, ptr, sizeof(float));
             ptr += sizeof(float);
+        } else if (key == "tokenizer.chat_template" && type == 8 /* STRING */) {
+            out_model.config.chat_template = read_string();
         } else {
             // Skip unhandled metadata values
             skip_value(type);

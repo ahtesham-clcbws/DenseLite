@@ -55,24 +55,24 @@ DecisionOutput DecisionEngine::fast_heuristic_decide(const std::string& query, c
         out.intent = is_code ? "coding" : "reasoning";
         out.requires_code_context = true;
         out.suggested_action = "inspect_repository";
-        out.confidence = 0.90f;
+        out.confidence = 0.80f; // Lowered to allow ModernBERT routing
     } else if (is_code) {
         out.domain = "coding";
         out.intent = "coding";
         out.requires_code_context = true;
         out.suggested_action = "inspect_repository";
-        out.confidence = 0.92f;
+        out.confidence = 0.80f; // Lowered to allow ModernBERT routing
     } else if (q.find("doc") != std::string::npos || q.find("readme") != std::string::npos) {
         out.domain = "documentation";
         out.intent = "text";
         out.requires_code_context = true;
         out.suggested_action = "inspect_repository";
-        out.confidence = 0.85f;
+        out.confidence = 0.80f; // Lowered to allow ModernBERT routing
     } else {
         out.domain = "general";
         out.intent = "text";
         out.suggested_action = "direct_generate";
-        out.confidence = 0.75f;
+        out.confidence = 0.60f;
     }
 
     for (const auto& ind : memory_indicators) {
@@ -130,14 +130,18 @@ DecisionOutput DecisionEngine::modernbert_decide(const std::string& query) {
 }
 
 DecisionOutput DecisionEngine::decide(const std::string& query, const OpenAIRequest* req) {
-    DecisionOutput fast = fast_heuristic_decide(query, req);
-    if (fast.confidence >= 0.88f) {
-        return fast;
-    }
+    DecisionOutput out = fast_heuristic_decide(query, req);
     if (ModernBERTRouter::instance().is_available()) {
-        return modernbert_decide(query);
+        DecisionOutput mb_out = modernbert_decide(query);
+        // ModernBERT is always preferred for domain/intent mapping (NO bypass).
+        out.domain = mb_out.domain;
+        out.intent = mb_out.intent;
+        out.suggested_action = mb_out.suggested_action;
+        out.requires_code_context = out.requires_code_context || mb_out.requires_code_context;
+        // Keep fast's complexity score if it's higher (e.g. from history depth)
+        out.complexity_score = std::max(out.complexity_score, mb_out.complexity_score);
     }
-    return fast;
+    return out;
 }
 
 float DecisionEngine::evaluate_entailment(const std::string& premise, const std::string& hypothesis) {

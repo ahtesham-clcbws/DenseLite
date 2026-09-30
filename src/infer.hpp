@@ -30,7 +30,7 @@ std::string detokenize(const Vocab& vocab, int token_id);
 
 // The core forward pass (Transformer Decoder)
 // Takes the input token ID and returns the logits for the next token prediction
-void forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits);
+bool forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits);
 
 struct SessionKVState;
 

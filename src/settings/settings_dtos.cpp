@@ -1,5 +1,6 @@
 #include "settings_manager.hpp"
 #include "path_service.hpp"
+#include <cstdlib>
 
 ServerConfig SettingsManager::get_server_config() const {
     ServerConfig cfg; cfg.version = DENSELITE_VERSION;
@@ -102,8 +103,13 @@ void SettingsManager::set_memory_config(const MemoryConfig& c) {
 CloudConfig SettingsManager::get_cloud_config() const {
     CloudConfig cfg;
     cfg.openrouter_api_key = get_string("cloud", "openrouter_api_key", cfg.openrouter_api_key);
+    if (cfg.openrouter_api_key.empty()) { const char* env = std::getenv("OPENROUTER_API_KEY"); if (env) cfg.openrouter_api_key = env; }
+    
     cfg.gemini_api_key = get_string("cloud", "gemini_api_key", cfg.gemini_api_key);
+    if (cfg.gemini_api_key.empty()) { const char* env = std::getenv("GEMINI_API_KEY"); if (env) cfg.gemini_api_key = env; }
+    
     cfg.openai_api_key = get_string("cloud", "openai_api_key", cfg.openai_api_key);
+    if (cfg.openai_api_key.empty()) { const char* env = std::getenv("OPENAI_API_KEY"); if (env) cfg.openai_api_key = env; }
     cfg.cloud_fallback_enabled = get_bool("cloud", "cloud_fallback_enabled", cfg.cloud_fallback_enabled);
     cfg.cloud_priority = get_string("cloud", "cloud_priority", cfg.cloud_priority);
     return cfg;

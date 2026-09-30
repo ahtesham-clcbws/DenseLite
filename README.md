@@ -16,7 +16,7 @@ DenseLite operates as a pure **Agentic Inference Engine**. It does not execute b
 With V3.4.0, DenseLite introduces **Native C++ Tray Supervisor & WebUI Dashboard (`DenseLiteTray`)**, **ModernBERT Zero-Shot Intent Routing**, **Session Tool Registry** (eliminating 600 KB MCP payload bloat and client timeouts), **Dynamic RAM-Aware Context Sizing** (scaling from 16K up to 64K tokens safely), **Persistent Session KV Cache Prefix Caching** (instant multi-turn response without re-evaluating history), and **High-Speed Disk-Backed KV Serialization** (2.24 GB/s binary format).
 
 > [!NOTE]
-> **Test Suite Verification:** All 14 automated CTest test suites pass cleanly with 100% deterministic success (2.54s), verified against real GGUF weights and hardware SIMD kernels.
+> **Test Suite Verification:** All 17 automated CTest test suites pass cleanly with 100% deterministic success (~24.7s), verified against real GGUF weights and hardware SIMD kernels.
 
 ---
 
@@ -30,17 +30,22 @@ With V3.4.0, DenseLite introduces **Native C++ Tray Supervisor & WebUI Dashboard
 - **High-Speed Disk-Backed KV Persistence**: High-speed binary serialization (`DLKV` magic header) saving active tokens to disk at 2,243 MB/s, validating multi-model architectures upon restoration to prevent cross-model memory corruption.
 - **Dynamic RAM-Aware Context Sizing**: Automatically checks balance RAM headroom after baseline allocation; unlocks 32K or 64K tokens (65,536 tokens on 32GB RAM systems) with zero OOM risk.
 - **GPU-Preferred Unified Placement**: Workloads attempt Vulkan GPU compute allocation first, with automatic, deterministic fallback to Host CPU/RAM.
-- **85% VRAM Safety Ceiling**: Strict safety gate ($2048\text{ MiB} \times 0.85 = 1740\text{ MiB}$) reserving 15% (~308 MiB) for host display servers (X11/Wayland) and desktop compositors.
-- **Bounded KV Cache Allocation**: Strictly bounded by $\text{KV Bytes} \le \text{Effective Context Tokens} \times \text{KV Bytes Per Token}$ with zero crash/OOM risk.
+- **85% VRAM Safety Ceiling**: Strict safety gate ($2048\text{ MiB} \times 0.85 = 1740\text{ MiB}$) reserving 15% (~308 MiB) for host display servers (X11/Wayland) and desktop compositors. DL should never use the GPU above a maximum of 85%.
+- **Strict Inference Binding**: If a model is assigned to the GPU (Free VRAM ≥ Model + Overhead), all inference runs purely on GPU. If VRAM is insufficient, the model silently falls back to System RAM, and inference runs strictly on CPU via AVX2. No hybrid layer splitting is allowed.
+- **Host-Bound KV Cache via PCIe Streaming**: The KV Cache MUST always reside in System RAM to prevent OOM errors at large context windows, regardless of execution context. When inferring on the GPU, DL computes attention by pulling KV over the PCIe bus.
 - **RAII ModelLease & Eviction Guards**: Reference-counted model leases (`active_users`) prevent unmapping or memory eviction during active inference (5.39M ops/sec).
 - **Model-Driven Native Runtime**: 100% zero-dependency CPU transformer forward pass (`infer.cpp`) with AVX2 + FMA intrinsics, Q4_0 / Q8_0 dequantization, dynamic RoPE (`RopeConfig`), RMSNorm, and SwiGLU.
 - **Native Trie BPE Tokenizer & Context Engine**: Trie-based tokenization (1.42M tok/s), zero-alloc fast counting (1.52M tok/s), strict $\ge 25\%$ generation reserve invariant, and ChatML context compilation.
 - **Two-Tier Persistent Memory Store**: Durable SQLite canonical storage + in-RAM tiered cache for sub-millisecond lexical & semantic recall (121K reads/s).
 - **Tree-sitter Code Intelligence**: AST syntax-aware code parsing, structural symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and 64-bit FNV-1a incremental delta change tracking (4.42 GB/s).
-- **Unified Multi-Signal Search**: Combined Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter retrieval with deterministic `ResultFusion` scoring (203K fusions/s).
+- **Unified Multi-Signal Search**: Combined Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter retrieval with deterministic `ResultFusion` scoring (203K fusions/s). *Note: The local "semantic fallback" uses a handcrafted lexical feature projection when true embeddings are unavailable.*
 - **Evidence-Based Autonomous Agent Loop**: 5-state response parsing with stop-reason discrimination, 7-action self-healing fault recovery (13.0M decisions/s), and anti-hallucination completion verification (105.6M evals/s).
 - **2-Core Resource Governance**: Dynamic OpenMP thread throttling capped at 50% CPU ($\le 2$ threads) and a 6-stage progressive eviction cascade for low-power edge laptops.
-- **On-Demand Leased Multimodal Engine**: Offline speech-to-text with Whisper.cpp (29.4K chunks/sec, 29,444x real-time) and Stable Diffusion image generation with 0-byte permanent RAM footprint.
+- **On-Demand Leased Multimodal Engine**: Offline speech-to-text with Whisper.cpp (29.4K chunks/sec) and Stable Diffusion image generation (0-byte permanent RAM footprint). *Capabilities represent prototype benchmarks and are not yet optimized for production workloads.*
+
+> [!WARNING]
+> **Vulkan Boundary Note:** While Vulkan is used for vector search and RMSNorm acceleration, the core Transformer inference pass currently remains fully CPU AVX2/FMA bound.
+> **64K Context Note:** The 64K structural infrastructure is fully tested for memory safety and allocation limits, but real-world 64K-token inference passes remain unbenchmarked for generation quality and perplexity drop-off.
 
 ---
 
@@ -480,6 +485,7 @@ DenseLite is designed to be an ultra-lightweight citizen on any operating system
 |---|---|---|
 | **CPU** | 50% of total capacity | On a 2-core/4-thread machine → 2 threads max |
 | **RAM** | 45% of total capacity | On 32GB → 14.4GB ceiling |
+| **GPU** | 85% of total VRAM | GPU-preferred models (≤3B) must not exceed 85% of physical VRAM. Fallback silently to RAM/CPU if limit exceeded. KV cache always streaming via PCIe. |
 
 **Deterministic Memory Eviction Order** (when RAM budget is breached):
 

@@ -306,6 +306,7 @@ add_executable(test_memory tests/memory_engine_tests.cpp
     src/nli_evaluator.cpp
     src/memory_engine.cpp
     src/vector_search.cpp
+    src/vector/turboquant_index.cpp
 )
 target_link_libraries(test_memory PRIVATE Threads::Threads sqlite3)
 target_include_directories(test_memory PRIVATE src)
@@ -470,6 +471,11 @@ add_executable(test_turboquant tests/turboquant_tests.cpp
 target_link_libraries(test_turboquant PRIVATE Threads::Threads)
 target_include_directories(test_turboquant PRIVATE src)
 add_test(NAME TurboQuant COMMAND test_turboquant)
+
+add_executable(test_server_integration tests/server_integration_tests.cpp)
+target_link_libraries(test_server_integration PRIVATE Threads::Threads)
+target_include_directories(test_server_integration PRIVATE src)
+add_test(NAME ServerIntegration COMMAND test_server_integration)
 
 # ==============================================================================
 # Installation Targets (Portability & Packaging - IDs 170, 200, 214)

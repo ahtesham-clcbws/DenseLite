@@ -19,7 +19,7 @@ class SQLiteRouter {
 private:
     sqlite3* db;
     std::vector<APIKeyStatus> in_memory_keys;
-    mutable std::mutex keys_mutex;
+    mutable std::recursive_mutex keys_mutex;
 
     void init_db();
     void sync_db();

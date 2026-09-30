@@ -79,7 +79,15 @@ InferenceSession DenseLiteEngine::get_or_create_session(const std::string& sessi
 }
 
 void DenseLiteEngine::process(const std::string& request_body, httplib::Response& res) {
-    OpenAIRequest parsed_req = RequestAnalyzer::parse_request(request_body);
+    OpenAIRequest parsed_req;
+    try {
+        parsed_req = RequestAnalyzer::parse_request(request_body);
+    } catch (const std::invalid_argument& e) {
+        res.status = 400;
+        std::string err = "{\"error\":{\"message\":\"" + std::string(e.what()) + "\",\"type\":\"invalid_request_error\"}}";
+        res.set_content(err, "application/json");
+        return;
+    }
     if (parsed_req.messages.empty()) {
         res.status = 400;
         res.set_content("{\"error\":{\"message\":\"Invalid request: 'messages' is a required non-empty array\",\"type\":\"invalid_request_error\"}}", "application/json");
@@ -213,7 +221,15 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
         ctx_cap = std::min<size_t>(2048, ctx_cap);
     }
     
-    auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, ctx_cap);
+    ModelConfig cfg;
+    auto it = models.find(target_model);
+    if (it != models.end()) {
+        cfg = it->second.config;
+    } else {
+        cfg.architecture = target_model;
+    }
+
+    auto opt_result = context_engine_.optimize_and_compile(parsed_req, search_hits, target_model, cfg, ctx_cap);
     std::string prompt = opt_result.compiled_prompt;
     resource_governor_.track_inference_memory(prompt.size());
 
@@ -260,7 +276,7 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
             };
 
             if (action == RecoveryAction::REDUCE_CONTEXT) {
-                opt_result = context_engine_.optimize_and_compile(parsed_req, {}, target_model, 4096);
+                opt_result = context_engine_.optimize_and_compile(parsed_req, {}, target_model, cfg, 4096);
                 prompt = opt_result.compiled_prompt;
             } else if (action == RecoveryAction::SWITCH_MODEL || action == RecoveryAction::SWITCH_PROVIDER || action == RecoveryAction::SWITCH_KEY) {
                 target_model = router.get_cheapest_model_for_provider("OPENROUTER", "text");
@@ -308,12 +324,16 @@ void DenseLiteEngine::execute_pipeline(InferenceSession& session, OpenAIRequest&
 
         if (CompletionPolicy::is_acceptable(session.task_type, output, session.iteration_results, evidence)) {
             // NLI Entailment Continuation Check (Phase 5/6 bridge)
+            // TODO (Phase 1): Downgraded. Lexical overlap heuristic causes false negatives for code and complex answers.
+            // Must route to genuine semantic verifier (e.g., ModernBERT) before forcing continuation.
+            /*
             float entailment = DecisionEngine::instance().evaluate_entailment(output, user_query);
             if (entailment < 0.4f && session.task_type != "general" && !user_query.empty()) {
                 session.status = SessionStatus::CONTINUING;
                 prompt += "\n" + output + "\nThe response did not fully satisfy the original request. Please continue resolving it.";
                 continue;
             }
+            */
             session.status = SessionStatus::COMPLETED;
             break;
         }

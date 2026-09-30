@@ -1,5 +1,6 @@
 #pragma once
 #include "persistent_memory.hpp"
+#include "vector/turboquant_index.hpp"
 #include "session_memory.hpp"
 #include <string>
 #include <vector>
@@ -20,7 +21,7 @@ public:
     bool put_memory(const MemoryEntry& entry, const std::vector<float>& embedding = {});
     bool get_memory(const std::string& key, MemoryEntry& out);
     bool delete_memory(const std::string& key);
-    std::vector<MemoryEntry> query_memories_keyword(const std::string& query, size_t limit = 10);
+    std::vector<MemoryEntry> query_memories_keyword(const std::string& query, size_t limit = 10, const MemoryScopeFilter& filter = {});
     std::vector<std::pair<MemoryEntry, float>> query_memories_vector(
         const std::vector<float>& query_vec, size_t limit = 10, float threshold = 0.2f,
         const MemoryScopeFilter& filter = {});
@@ -49,6 +50,7 @@ private:
     sqlite3* db_ = nullptr;
     std::string sqlite_path_;
     std::string zvec_path_;
+    std::unique_ptr<TurboQuantIndex> turboquant_;
 
     bool create_tables();
 };

@@ -91,6 +91,8 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
     });
 
     auto res_cfg = SettingsManager::instance().get_resource_config();
+    VulkanDevice gpu_device;
+    ResourceGovernor gov(&gpu_device);
     size_t total_ram = ResourceGovernor::get_host_total_ram_bytes();
     size_t ram_budget = static_cast<size_t>(total_ram * res_cfg.ram_budget_percent);
     size_t current_rss = ResourceGovernor::get_process_rss_bytes();
@@ -134,6 +136,19 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
                 std::cerr << "[Loader Error] " << error_msg << std::endl;
                 continue;
             }
+            m.config.model_id = rec.model_id;
+            
+            // Hardware Governance & Strict Memory Rules (DenseLite v4.0+)
+            size_t overhead = (file_bytes < 3ULL * 1024 * 1024 * 1024) ? (200ULL * 1024 * 1024) : (300ULL * 1024 * 1024);
+            if (gov.can_admit_gpu_vram(file_bytes, overhead)) {
+                m.execution_context = DeviceContext::GPU;
+                std::cout << "[ResourceGovernor] Free VRAM >= " << (file_bytes + overhead) / (1024 * 1024) 
+                          << "MB. Assigned to GPU." << std::endl;
+            } else {
+                m.execution_context = DeviceContext::CPU;
+                std::cout << "[ResourceGovernor] Insufficient VRAM. Silently falling back to System RAM (CPU)." << std::endl;
+            }
+
             resident_models[binding.role] = std::move(m);
             path_to_loaded_role[path] = binding.role;
             if (available_ram > file_bytes) available_ram -= file_bytes; else available_ram = 0;

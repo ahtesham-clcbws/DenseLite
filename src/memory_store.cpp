@@ -20,6 +20,8 @@ bool MemoryStore::init(const std::string& sqlite_path, const std::string& zvec_p
     if (!zvec_path_.empty()) {
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(zvec_path_).parent_path(), ec);
+        turboquant_ = std::make_unique<TurboQuantIndex>();
+        turboquant_->load(zvec_path_);
     }
 
     if (sqlite3_open_v2(sqlite_path_.c_str(), &db_,
@@ -154,13 +156,19 @@ bool MemoryStore::put_memory(const MemoryEntry& entry, const std::vector<float>&
         emb = VectorSearch::embed_text(entry.value);
     }
 
-    const char* sql = "INSERT OR REPLACE INTO memories ("
+    const char* sql = "INSERT INTO memories ("
                       "  key, id, category, value, confidence, updated_at, embedding, "
                       "  workspace_id, session_id, actor_scope, visibility, "
                       "  source_path, source_type, commit_hash, importance, "
                       "  access_count, last_accessed_at, expires_at, "
                       "  supersedes_id, contradicts_id, status"
-                      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                      "ON CONFLICT(key) DO UPDATE SET "
+                      "  value=excluded.value, confidence=excluded.confidence, "
+                      "  updated_at=excluded.updated_at, embedding=excluded.embedding, "
+                      "  importance=excluded.importance, status=excluded.status, "
+                      "  supersedes_id=excluded.supersedes_id, contradicts_id=excluded.contradicts_id, "
+                      "  access_count = memories.access_count + 1;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 
@@ -192,6 +200,10 @@ bool MemoryStore::put_memory(const MemoryEntry& entry, const std::vector<float>&
 
     bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
+    if (ok && turboquant_ && !emb.empty()) {
+        turboquant_->add(entry.key, emb);
+        turboquant_->save(zvec_path_);
+    }
     return ok;
 }
 
@@ -228,6 +240,10 @@ bool MemoryStore::delete_memory(const std::string& key) {
     sqlite3_bind_text(stmt, 1, key.c_str(), -1, SQLITE_STATIC);
     bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
+    if (ok && turboquant_) {
+        turboquant_->remove(key);
+        turboquant_->save(zvec_path_);
+    }
     return ok;
 }
 
@@ -261,27 +277,47 @@ bool MemoryStore::touch_memory(const std::string& key) {
     return ok;
 }
 
-std::vector<MemoryEntry> MemoryStore::query_memories_keyword(const std::string& query, size_t limit) {
+std::vector<MemoryEntry> MemoryStore::query_memories_keyword(const std::string& query, size_t limit, const MemoryScopeFilter& filter) {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<MemoryEntry> results;
     if (!db_) return results;
 
-    const char* sql = "SELECT key, id, category, value, confidence, updated_at, "
+    std::string sql = "SELECT key, id, category, value, confidence, updated_at, "
                       "workspace_id, session_id, actor_scope, visibility, "
                       "source_path, source_type, commit_hash, importance, "
                       "access_count, last_accessed_at, expires_at, "
                       "supersedes_id, contradicts_id, status FROM memories "
-                      "WHERE (key LIKE ? OR value LIKE ?) AND status = 'active' LIMIT ?;";
+                      "WHERE (key LIKE ? OR value LIKE ?) AND status = 'active'";
+
+    if (!filter.workspace_id.empty()) {
+        sql += " AND (workspace_id = ? OR visibility = 'global')";
+    }
+    if (!filter.session_id.empty()) {
+        sql += " AND session_id = ?";
+    }
+    sql += ";";
+
     sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return results;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) return results;
 
     std::string pattern = "%" + query + "%";
-    sqlite3_bind_text(stmt, 1, pattern.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, pattern.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(limit));
+    int param_idx = 1;
+    sqlite3_bind_text(stmt, param_idx++, pattern.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, param_idx++, pattern.c_str(), -1, SQLITE_STATIC);
+    
+    if (!filter.workspace_id.empty()) {
+        sqlite3_bind_text(stmt, param_idx++, filter.workspace_id.c_str(), -1, SQLITE_STATIC);
+    }
+    if (!filter.session_id.empty()) {
+        sqlite3_bind_text(stmt, param_idx++, filter.session_id.c_str(), -1, SQLITE_STATIC);
+    }
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        results.push_back(extract_memory_entry(stmt));
+        MemoryEntry entry = extract_memory_entry(stmt);
+        if (filter.matches(entry)) {
+            results.push_back(std::move(entry));
+            if (results.size() >= limit) break;
+        }
     }
     sqlite3_finalize(stmt);
     return results;
@@ -291,7 +327,52 @@ std::vector<std::pair<MemoryEntry, float>> MemoryStore::query_memories_vector(
     const std::vector<float>& query_vec, size_t limit, float threshold,
     const MemoryScopeFilter& filter) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!db_ || query_vec.empty()) return {};
+    std::vector<std::pair<MemoryEntry, float>> scored;
+    if (!db_ || query_vec.empty()) return scored;
+
+    if (turboquant_) {
+        auto tq_hits = turboquant_->search(query_vec, limit * 10);
+        if (tq_hits.empty()) return scored;
+
+        std::string placeholders;
+        for (size_t i = 0; i < tq_hits.size(); ++i) {
+            placeholders += "?";
+            if (i + 1 < tq_hits.size()) placeholders += ",";
+        }
+
+        std::string sql_str = "SELECT key, id, category, value, confidence, updated_at, "
+                          "workspace_id, session_id, actor_scope, visibility, "
+                          "source_path, source_type, commit_hash, importance, "
+                          "access_count, last_accessed_at, expires_at, "
+                          "supersedes_id, contradicts_id, status FROM memories WHERE key IN (" + placeholders + ");";
+
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(db_, sql_str.c_str(), -1, &stmt, nullptr) != SQLITE_OK) return scored;
+
+        for (size_t i = 0; i < tq_hits.size(); ++i) {
+            sqlite3_bind_text(stmt, i + 1, tq_hits[i].id.c_str(), -1, SQLITE_STATIC);
+        }
+
+        std::unordered_map<std::string, MemoryEntry> entry_map;
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            MemoryEntry entry = extract_memory_entry(stmt);
+            if (filter.matches(entry)) {
+                entry_map[entry.key] = std::move(entry);
+            }
+        }
+        sqlite3_finalize(stmt);
+
+        for (const auto& hit : tq_hits) {
+            if (hit.score >= threshold) {
+                auto it = entry_map.find(hit.id);
+                if (it != entry_map.end()) {
+                    scored.emplace_back(std::move(it->second), hit.score);
+                    if (scored.size() >= limit) break;
+                }
+            }
+        }
+        return scored;
+    }
 
     const char* sql = "SELECT key, id, category, value, confidence, updated_at, "
                       "workspace_id, session_id, actor_scope, visibility, "
@@ -300,9 +381,8 @@ std::vector<std::pair<MemoryEntry, float>> MemoryStore::query_memories_vector(
                       "supersedes_id, contradicts_id, status, embedding "
                       "FROM memories WHERE embedding IS NOT NULL;";
     sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return {};
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return scored;
 
-    std::vector<std::pair<MemoryEntry, float>> scored;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         MemoryEntry entry = extract_memory_entry(stmt);
         if (!filter.matches(entry)) {
@@ -363,7 +443,8 @@ bool MemoryStore::save_session(const SessionMemory& session) {
     int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
 
-    const char* sql_sess = "INSERT OR REPLACE INTO sessions (session_id, turn_count, updated_at) VALUES (?, ?, ?);";
+    const char* sql_sess = "INSERT INTO sessions (session_id, turn_count, updated_at) VALUES (?, ?, ?) "
+                           "ON CONFLICT(session_id) DO UPDATE SET turn_count = excluded.turn_count, updated_at = excluded.updated_at;";
     sqlite3_stmt* stmt_s = nullptr;
     if (sqlite3_prepare_v2(db_, sql_sess, -1, &stmt_s, nullptr) != SQLITE_OK) return false;
     sqlite3_bind_text(stmt_s, 1, sid.c_str(), -1, SQLITE_STATIC);
@@ -447,8 +528,9 @@ bool MemoryStore::save_archive(const std::string& archive_id,
     int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
 
-    const char* sql = "INSERT OR REPLACE INTO consolidated_archives (archive_id, session_id, summary, extracted_facts, created_at) "
-                      "VALUES (?, ?, ?, ?, ?);";
+    const char* sql = "INSERT INTO consolidated_archives (archive_id, session_id, summary, extracted_facts, created_at) "
+                      "VALUES (?, ?, ?, ?, ?) "
+                      "ON CONFLICT(archive_id) DO UPDATE SET summary = excluded.summary, extracted_facts = excluded.extracted_facts, created_at = excluded.created_at;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 

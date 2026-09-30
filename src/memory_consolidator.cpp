@@ -30,11 +30,22 @@ bool MemoryConsolidator::is_durable_candidate(const std::string& text) {
 
 std::vector<MemoryEntry> MemoryConsolidator::extract_facts(const std::string& text) {
     std::vector<MemoryEntry> entries;
+    
+    // [ARCHITECTURE PREPARATION - DenseLite v4.0]
+    // The current implementation is strictly heuristic (keyword triggers).
+    // Future integration point for DecisionEngine / NLI:
+    // 1. Pass `text` to `DecisionEngine::instance().semantic_extract_facts(text)`
+    // 2. Classify unstructured but semantically durable project knowledge.
+    // 3. Fallback to heuristic parser below if confidence is low.
+    
     std::istringstream iss(text);
     std::string line;
 
     while (std::getline(iss, line)) {
-        if (!is_durable_candidate(line)) continue;
+        if (!is_durable_candidate(line)) {
+            // Check NLI entailment against a known durable concept base in the future
+            continue;
+        }
 
         // Check for explicit key-value patterns, e.g., "framework: Laravel 12"
         size_t colon_pos = line.find(':');
@@ -115,8 +126,10 @@ ConsolidationResult MemoryConsolidator::consolidate(const SessionMemory& session
             auto hits = store_->query_memories_vector(emb, 3, 0.4f);
             for (const auto& hit : hits) {
                 if (hit.first.key != mem.key && 
-                    NLIEvaluator::instance().is_contradiction(hit.first.value, mem.value)) {
-                    store_->supersede_memory(hit.first.key, mem.key);
+                    NLIEvaluator::instance().is_heuristic_contradiction(hit.first.value, mem.value)) {
+                    // TODO (Phase 1): Downgraded. Do not supersede memory based on heuristic lexical overlap.
+                    // Must route to DecisionEngine/ModernBERT for true semantic NLI verification before replacing.
+                    // store_->supersede_memory(hit.first.key, mem.key);
                 }
             }
 

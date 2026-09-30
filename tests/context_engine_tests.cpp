@@ -98,7 +98,9 @@ void test_context_compiler() {
     std::string expected = "<|im_start|>system\nYou are an AI.\n<|im_end|>\n<|im_start|>user\nPing\n<|im_end|>\n<|im_start|>assistant\n";
     assert(prompt == expected);
 
-    auto compiled = ContextCompiler::compile(msgs, nullptr, 1000);
+    ModelConfig cfg_chatml;
+    cfg_chatml.architecture = "chatml";
+    auto compiled = ContextCompiler::compile(msgs, nullptr, 1000, true, cfg_chatml);
     assert(compiled.fits_budget == true);
     assert(compiled.system_tokens > 0);
     assert(compiled.task_tokens > 0);
@@ -109,7 +111,9 @@ void test_context_compiler() {
     std::string llama_expected = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are an AI.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nPing<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n";
     assert(llama_prompt == llama_expected);
 
-    auto compiled_llama = ContextCompiler::compile(msgs, nullptr, 1000, true, "llama-3_2-1b");
+    ModelConfig cfg_llama;
+    cfg_llama.architecture = "llama-3_2-1b";
+    auto compiled_llama = ContextCompiler::compile(msgs, nullptr, 1000, true, cfg_llama);
     assert(compiled_llama.prompt == llama_expected);
 
     std::cout << "  [PASS] ContextCompiler ChatML & Llama 3 prompt generation\n";
@@ -135,7 +139,9 @@ void test_context_engine_facade() {
         {"user", "Final question"}
     };
 
-    auto result = engine.optimize_and_compile(req, "general", 8192);
+    ModelConfig cfg_general;
+    cfg_general.architecture = "general";
+    auto result = engine.optimize_and_compile(req, "general", cfg_general, 8192);
     assert(!result.compiled_prompt.empty());
     assert(result.budget_plan.generation_reserve >= 2048);
     assert(result.compiled_context.fits_budget);

@@ -135,7 +135,9 @@ void test_context_engine_search_evidence() {
     evidence.file_path = "src/auth.cpp";
     evidence.content = "void login() { check_token(); }";
 
-    auto result = ctx.optimize_and_compile(req, {evidence}, "general", 4096);
+    ModelConfig cfg;
+    cfg.architecture = "general";
+    auto result = ctx.optimize_and_compile(req, {evidence}, "general", cfg, 4096);
     assert(result.compiled_prompt.find("Retrieved Context Evidence") != std::string::npos);
     assert(result.compiled_prompt.find("AuthController::login") != std::string::npos);
     std::cout << "[PASS] test_context_engine_search_evidence\n";

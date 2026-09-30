@@ -46,7 +46,7 @@ void SQLiteRouter::init_db() {
 
 void SQLiteRouter::sync_db() {
     if (!db) return;
-    std::lock_guard<std::mutex> lock(keys_mutex);
+    std::lock_guard<std::recursive_mutex> lock(keys_mutex);
     const char* sql = "SELECT provider, key_index, cooldown_until FROM api_keys;";
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
@@ -68,7 +68,7 @@ void SQLiteRouter::sync_db() {
 void SQLiteRouter::load_env(const std::string& env_path) {
     std::ifstream file(env_path);
     if (!file.is_open()) return;
-    std::lock_guard<std::mutex> lock(keys_mutex);
+    std::lock_guard<std::recursive_mutex> lock(keys_mutex);
     std::string line;
     while (std::getline(file, line)) {
         if (line.empty() || line[0] == '#') continue;
@@ -115,7 +115,7 @@ APIKeyStatus SQLiteRouter::get_next_available_key(const std::string& provider) {
         std::chrono::system_clock::now().time_since_epoch()).count();
 
     {
-        std::lock_guard<std::mutex> lock(keys_mutex);
+        std::lock_guard<std::recursive_mutex> lock(keys_mutex);
         for (const auto& k : in_memory_keys) {
             if (k.provider == provider && k.cooldown_until < now) {
                 return k;
@@ -146,7 +146,7 @@ void SQLiteRouter::mark_key_cooldown(const std::string& provider, int key_index,
     long long cooldown_until = now + cooldown_seconds;
 
     {
-        std::lock_guard<std::mutex> lock(keys_mutex);
+        std::lock_guard<std::recursive_mutex> lock(keys_mutex);
         for (auto& k : in_memory_keys) {
             if (k.provider == provider && k.key_index == key_index) {
                 k.cooldown_until = cooldown_until;

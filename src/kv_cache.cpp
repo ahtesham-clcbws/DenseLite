@@ -63,14 +63,8 @@ bool KVCache::allocate(const ModelConfig& config, size_t max_context_budget, Vul
     capacity_tokens_ = effective_tokens;
     current_tokens_ = 0;
 
-    // GPU-Preferred Admission Gate
-    if (gpu_device && gpu_device->is_available() && gpu_device->can_admit(allocated_bytes_)) {
-        if (gpu_device->allocate(allocated_bytes_)) {
-            placement_ = DevicePlacement::VULKAN_GPU;
-            gpu_device_ = gpu_device;
-            return true;
-        }
-    }
+    // Hardware Governance Rule: KV Cache MUST ALWAYS reside in Host RAM
+    // even if the model execution context is GPU (Streaming over PCIe).
 
     // Fallback: 100% Host Memory (bounded)
     placement_ = DevicePlacement::CPU_RAM;

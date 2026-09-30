@@ -143,8 +143,39 @@ int ModelEngine::infer_cloud(const std::string& model_name, const std::string& p
 }
 
 #include "Formatter.hpp"
+#include <atomic>
+
+static std::map<std::string, std::shared_ptr<std::atomic<int>>> g_concurrent_sessions;
+static std::mutex g_concurrent_mutex;
+
+class ConcurrencyTracker {
+public:
+    ConcurrencyTracker(const std::string& model) : model_(model) {
+        std::lock_guard<std::mutex> lock(g_concurrent_mutex);
+        if (g_concurrent_sessions.find(model_) == g_concurrent_sessions.end()) {
+            g_concurrent_sessions[model_] = std::make_shared<std::atomic<int>>(0);
+        }
+        count_ = g_concurrent_sessions[model_]->fetch_add(1);
+    }
+    ~ConcurrencyTracker() {
+        std::lock_guard<std::mutex> lock(g_concurrent_mutex);
+        if (g_concurrent_sessions.find(model_) != g_concurrent_sessions.end()) {
+            g_concurrent_sessions[model_]->fetch_sub(1);
+        }
+    }
+    int get_previous_count() const { return count_; }
+private:
+    std::string model_;
+    int count_;
+};
 
 int ModelEngine::infer_local(const std::string& model_name, const std::string& prompt, std::string& output, const OpenAIRequest& req) {
+    ConcurrencyTracker tracker(model_name);
+    if (tracker.get_previous_count() >= 1) {
+        output = "{\"error\": \"Too Many Requests: Model '" + model_name + "' is currently busy. Please try again.\"}";
+        return 429;
+    }
+
     std::cout << "[ModelEngine] Routing inference to Local AVX2 engine for model: " << model_name << "\n";
     
     DenseModel* target_model_ptr = nullptr;
@@ -201,7 +232,7 @@ int ModelEngine::infer_local(const std::string& model_name, const std::string& p
     auto inf_cfg = SettingsManager::instance().get_inference_config();
     float eff_temp = (req.temperature > 0.0f) ? req.temperature : inf_cfg.default_temperature;
     int eff_max = (req.max_tokens > 0) ? req.max_tokens : inf_cfg.max_output_tokens;
-    size_t dynamic_budget = ResourceGovernor::calculate_dynamic_context_tokens();
+    size_t dynamic_budget = ResourceGovernor::calculate_dynamic_context_tokens(&active_model.config);
     if (inf_cfg.context_window > 0 && dynamic_budget > static_cast<size_t>(inf_cfg.context_window)) {
         dynamic_budget = static_cast<size_t>(inf_cfg.context_window);
     }

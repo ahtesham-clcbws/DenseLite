@@ -1,5 +1,6 @@
 #include "resource_governor.hpp"
 #include "settings_manager.hpp"
+#include "model.hpp"
 #include <thread>
 #include <algorithm>
 #include <fstream>
@@ -118,6 +119,15 @@ bool ResourceGovernor::can_admit_host_ram(size_t required_bytes) const {
     return (avail > required_bytes + min_headroom);
 }
 
+bool ResourceGovernor::can_admit_gpu_vram(size_t model_bytes, size_t static_overhead_bytes) const {
+    if (!gpu_device_ || !gpu_device_->is_available()) return false;
+    auto vram = gpu_device_->memory_info();
+    size_t required = model_bytes + static_overhead_bytes;
+    size_t free_vram = vram.safe_ceiling_bytes > vram.allocated_bytes ? 
+                       vram.safe_ceiling_bytes - vram.allocated_bytes : 0;
+    return free_vram >= required;
+}
+
 EvictionStage ResourceGovernor::assess_eviction_stage() const {
     size_t avail = get_host_available_ram_bytes();
     size_t total = get_host_total_ram_bytes();
@@ -152,7 +162,7 @@ bool ResourceGovernor::should_reject_optional_load() const {
     return assess_eviction_stage() >= EvictionStage::REJECT_OPTIONAL;
 }
 
-size_t ResourceGovernor::calculate_dynamic_context_tokens() {
+size_t ResourceGovernor::calculate_dynamic_context_tokens(const ModelConfig* active_model_config) {
     size_t total_ram = get_host_total_ram_bytes();
     size_t avail_ram = get_host_available_ram_bytes();
     float pct = SettingsManager::instance().get_resource_config().ram_budget_percent;
@@ -163,19 +173,25 @@ size_t ResourceGovernor::calculate_dynamic_context_tokens() {
     size_t balance_ram = (avail_ram > base_model_ceiling) ? (avail_ram - base_model_ceiling) : (avail_ram / 2);
     size_t dynamic_kv_budget = static_cast<size_t>(balance_ram * 0.90);
 
-    // Qwen 2.5 1.5B (GQA 2 KV heads, 128 head_dim, 28 layers, FP32) = 57,344 bytes/token
-    constexpr size_t BYTES_PER_TOKEN = 57344;
-    constexpr size_t REQ_64K = 65536ULL * BYTES_PER_TOKEN; // ~3.50 GB
-    constexpr size_t REQ_32K = 32768ULL * BYTES_PER_TOKEN; // ~1.75 GB
+    size_t bytes_per_token = 57344; // Default Qwen fallback
+    if (active_model_config && active_model_config->num_layers > 0 && active_model_config->num_kv_heads > 0) {
+        bytes_per_token = static_cast<size_t>(active_model_config->num_layers) *
+                          static_cast<size_t>(active_model_config->num_kv_heads) *
+                          static_cast<size_t>(active_model_config->head_dim) * 8ULL;
+    }
+    if (bytes_per_token == 0) bytes_per_token = 57344;
 
-    if (dynamic_kv_budget >= REQ_64K) {
+    size_t req_64k = 65536ULL * bytes_per_token;
+    size_t req_32k = 32768ULL * bytes_per_token;
+
+    if (dynamic_kv_budget >= req_64k) {
         return 65536;
-    } else if (dynamic_kv_budget >= REQ_32K) {
+    } else if (dynamic_kv_budget >= req_32k) {
         return 32768;
-    } else if (dynamic_kv_budget >= 16384ULL * BYTES_PER_TOKEN) {
+    } else if (dynamic_kv_budget >= 16384ULL * bytes_per_token) {
         return 16384;
     } else {
-        size_t tokens = dynamic_kv_budget / BYTES_PER_TOKEN;
+        size_t tokens = dynamic_kv_budget / bytes_per_token;
         tokens = (tokens / 1024) * 1024;
         return std::clamp<size_t>(tokens, 2048, 8192);
     }

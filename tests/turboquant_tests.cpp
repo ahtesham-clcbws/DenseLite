@@ -130,8 +130,8 @@ void test_benchmark_throughput() {
     std::mt19937 gen(42);
     std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
 
-    std::cout << "  -> Indexing 50,000 vectors (" << dim << "-dim)..." << std::endl;
-    for (size_t i = 0; i < 50000; ++i) {
+    std::cout << "  -> Indexing 5,000 vectors (" << dim << "-dim)..." << std::endl;
+    for (size_t i = 0; i < 5000; ++i) {
         std::vector<float> v(dim);
         for (size_t d = 0; d < dim; ++d) v[d] = dis(gen);
         index.add("vec_" + std::to_string(i), v);

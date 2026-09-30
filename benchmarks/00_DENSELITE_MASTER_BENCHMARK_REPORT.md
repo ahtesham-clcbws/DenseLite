@@ -7,7 +7,7 @@
 **GPU Hardware / VRAM Gate:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
 **Operating System:** Linux 6.13.5-zen1-1-zen (x86_64)  
 **Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++17`  
-**Test Suite Verification:** 14/14 CTest Suites Passing (100% Pass Rate in 2.49s)  
+**Test Suite Verification:** 17/17 CTest Suites Passing (100% Pass Rate in ~24.7s)  
 
 ---
 
@@ -15,7 +15,11 @@
 
 DenseLite v3.4.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict 2-thread CPU allocation (50% max host load) and a 14 GB RAM safety ceiling while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
 
-With v3.4.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation, hardened with Phase 22–26 Quantum Systems remediations (`BUF-01`, `KV-01`, `KV-02`, `KV-03`, `NUM-01`, `MEM-02`, `CON-05`, `DB-02`, `DB-03`, `JSON-01`, `INSP-01`).
+With v3.4.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation. Furthermore, the engine is fortified with **Phase 1-4 Hardening**, which includes:
+- **Strict Hardware Governance & VRAM Gate:** Enforcement of an 85% VRAM ceiling, PCIe streaming of KV Cache, and deterministic GPU vs CPU execution binding.
+- **ModernBERT Strict Routing:** Zero-shot intent classification explicitly overriding legacy heuristic fallbacks.
+- **Unification of TurboQuant:** Direct routing of VectorSearch and MemoryStore queries through SIMD-accelerated exhaustive scans.
+- **Core Semantic Fixes:** NLI evaluation downgraded from hard heuristic decisions, proper JSON exception bubbling, and strict session/workspace DB isolation.
 
 ---
 

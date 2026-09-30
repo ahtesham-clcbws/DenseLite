@@ -231,7 +231,7 @@ bool TurboQuantIndex::save(const std::string& filepath) const {
     if (!out.is_open()) return false;
 
     uint32_t magic = 0x444C5651; // "DLVQ"
-    uint32_t version = 1;
+    uint32_t version = 2; // Bump version for EOF marker
     uint32_t d = static_cast<uint32_t>(dim_);
     uint32_t n = static_cast<uint32_t>(vectors_.size());
 
@@ -245,13 +245,18 @@ bool TurboQuantIndex::save(const std::string& filepath) const {
         const auto& id = id_by_index_[i];
         uint32_t id_len = static_cast<uint32_t>(id.size());
         out.write(reinterpret_cast<const char*>(&id_len), sizeof(id_len));
-        out.write(id.data(), id_len);
+        if (id_len > 0) {
+            out.write(id.data(), id_len);
+        }
         out.write(reinterpret_cast<const char*>(&v.scale), sizeof(v.scale));
         out.write(reinterpret_cast<const char*>(&v.offset), sizeof(v.offset));
         uint8_t active_b = v.active ? 1 : 0;
         out.write(reinterpret_cast<const char*>(&active_b), sizeof(active_b));
         out.write(reinterpret_cast<const char*>(v.packed.data()), v.packed.size());
     }
+
+    uint32_t eof_marker = 0x454F4621; // "EOF!"
+    out.write(reinterpret_cast<const char*>(&eof_marker), sizeof(eof_marker));
 
     out.close();
     std::filesystem::rename(tmp_path, filepath);
@@ -260,8 +265,12 @@ bool TurboQuantIndex::save(const std::string& filepath) const {
 
 bool TurboQuantIndex::load(const std::string& filepath) {
     std::lock_guard<std::mutex> lock(mtx_);
-    std::ifstream in(filepath, std::ios::binary);
+    std::ifstream in(filepath, std::ios::binary | std::ios::ate);
     if (!in.is_open()) return false;
+    std::streamsize file_size = in.tellg();
+    in.seekg(0, std::ios::beg);
+
+    if (file_size < 16) return false;
 
     uint32_t magic = 0, version = 0, d = 0, n = 0;
     in.read(reinterpret_cast<char*>(&magic), sizeof(magic));
@@ -269,16 +278,36 @@ bool TurboQuantIndex::load(const std::string& filepath) {
     in.read(reinterpret_cast<char*>(&d), sizeof(d));
     in.read(reinterpret_cast<char*>(&n), sizeof(n));
 
-    if (magic != 0x444C5651 || version != 1 || d != dim_) return false;
+    if (magic != 0x444C5651 || (version != 1 && version != 2) || d != dim_) return false;
+    
+    // Hard limit on maximum vectors to prevent OOM
+    if (n > 10000000) return false;
+
+    size_t packed_len = (dim_ + 1) / 2;
+    std::streamsize min_expected_size = 16 + static_cast<std::streamsize>(n) * (13 + packed_len);
+    if (file_size < min_expected_size) return false;
+    
+    if (version == 2 && file_size < min_expected_size + 4) return false; // Account for EOF marker
 
     vectors_.clear();
     id_by_index_.clear();
     index_by_id_.clear();
 
-    size_t packed_len = (dim_ + 1) / 2;
+    try {
+        vectors_.reserve(n);
+        id_by_index_.reserve(n);
+        index_by_id_.reserve(n);
+    } catch (const std::bad_alloc&) {
+        return false;
+    }
+
     for (uint32_t i = 0; i < n; ++i) {
+        if (in.eof() || in.fail()) goto load_error;
+
         uint32_t id_len = 0;
         in.read(reinterpret_cast<char*>(&id_len), sizeof(id_len));
+        if (id_len == 0 || id_len > 4096 || in.eof() || in.fail()) goto load_error;
+
         std::string id(id_len, '\0');
         in.read(&id[0], id_len);
 
@@ -292,9 +321,26 @@ bool TurboQuantIndex::load(const std::string& filepath) {
         v.packed.resize(packed_len);
         in.read(reinterpret_cast<char*>(v.packed.data()), packed_len);
 
+        if (in.fail()) goto load_error;
+
         index_by_id_[id] = static_cast<uint32_t>(vectors_.size());
         id_by_index_.push_back(id);
         vectors_.push_back(std::move(v));
     }
+    
+    if (version == 2) {
+        uint32_t eof_marker = 0;
+        in.read(reinterpret_cast<char*>(&eof_marker), sizeof(eof_marker));
+        if (eof_marker != 0x454F4621 || in.fail()) {
+            goto load_error;
+        }
+    }
+    
     return true;
+
+load_error:
+    vectors_.clear(); 
+    id_by_index_.clear(); 
+    index_by_id_.clear();
+    return false;
 }

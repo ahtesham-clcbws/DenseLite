@@ -14,7 +14,7 @@ NLIEvaluator& NLIEvaluator::instance() {
     return inst;
 }
 
-float NLIEvaluator::entailment_score(const std::string& premise, const std::string& hypothesis) {
+float NLIEvaluator::heuristic_entailment_score(const std::string& premise, const std::string& hypothesis) {
     if (premise.empty() || hypothesis.empty()) return 0.0f;
     std::string p = to_lower_copy(premise);
     std::string h = to_lower_copy(hypothesis);
@@ -35,7 +35,7 @@ float NLIEvaluator::entailment_score(const std::string& premise, const std::stri
     return std::min(1.0f, static_cast<float>(matches) / static_cast<float>(total_h_words));
 }
 
-bool NLIEvaluator::is_contradiction(const std::string& premise, const std::string& hypothesis) {
+bool NLIEvaluator::is_heuristic_contradiction(const std::string& premise, const std::string& hypothesis) {
     if (premise.empty() || hypothesis.empty()) return false;
     std::string p = to_lower_copy(premise);
     std::string h = to_lower_copy(hypothesis);
@@ -54,11 +54,11 @@ bool NLIEvaluator::is_contradiction(const std::string& premise, const std::strin
     return false;
 }
 
-NLILabel NLIEvaluator::evaluate(const std::string& premise, const std::string& hypothesis) {
-    if (is_contradiction(premise, hypothesis)) {
+NLILabel NLIEvaluator::heuristic_evaluate(const std::string& premise, const std::string& hypothesis) {
+    if (is_heuristic_contradiction(premise, hypothesis)) {
         return NLILabel::CONTRADICTION;
     }
-    float score = entailment_score(premise, hypothesis);
+    float score = heuristic_entailment_score(premise, hypothesis);
     if (score >= 0.5f) {
         return NLILabel::ENTAILMENT;
     }
