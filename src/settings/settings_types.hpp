@@ -17,7 +17,7 @@ struct ServerConfig {
     std::string version{DENSELITE_VERSION};
     std::string host{"127.0.0.1"};
     int port{9501};
-    int threads{4};
+    int threads{0}; // Auto: ResourcePolicy chooses the safe compute thread budget
     int max_payload_mb{32};
     bool enable_api_auth{true};
     std::string api_secret_key{""};

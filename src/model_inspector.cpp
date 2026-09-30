@@ -1,4 +1,5 @@
 #include "model_inspector.hpp"
+#include "model.hpp"
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -22,19 +23,7 @@ std::string ModelInspector::format_param_count(uint64_t count) {
 }
 
 std::string ModelInspector::quant_type_to_string(uint32_t type) {
-    switch (type) {
-        case 0: return "F32";
-        case 1: return "F16";
-        case 2: return "Q4_0";
-        case 3: return "Q4_1";
-        case 7: return "Q8_0";
-        case 8: return "Q8_1";
-        case 12: return "Q4_K";
-        case 13: return "Q5_K";
-        case 14: return "Q6_K";
-        case 15: return "Q8_K";
-        default: return "UNKNOWN_" + std::to_string(type);
-    }
+    return tensor_type_name(static_cast<TensorType>(type));
 }
 
 bool ModelInspector::is_role_compatible(const std::string& arch, const std::string& role) {
@@ -116,7 +105,7 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
     uint64_t total_params = 0;
 
     for (uint64_t i = 0; i < tensor_count && file.good(); ++i) {
-        read_str(); // tensor name
+        std::string tensor_name = read_str();
         uint32_t n_dims = 0;
         file.read(reinterpret_cast<char*>(&n_dims), 4);
         uint64_t elements = 1;
@@ -129,6 +118,8 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
         uint32_t t_type = 0;
         file.read(reinterpret_cast<char*>(&t_type), 4);
         quant_counts[t_type]++;
+        if (!native_tensor_supported(tensor_name, static_cast<TensorType>(t_type)))
+            res.unsupported_native_tensors.push_back(tensor_name + ": " + quant_type_to_string(t_type));
         uint64_t offset = 0;
         file.read(reinterpret_cast<char*>(&offset), 8);
     }
@@ -136,7 +127,7 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
     res.param_count = total_params;
     res.param_size_str = format_param_count(total_params);
 
-    uint32_t dominant_type = 7; // default Q8_0
+    uint32_t dominant_type = 8; // default Q8_0
     uint64_t max_count = 0;
     for (const auto& pair : quant_counts) {
         if (pair.second > max_count) {
@@ -172,6 +163,7 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
         }
     }
 
-    res.is_valid = true;
+    res.native_tensor_compatible = file.good() && tensor_count > 0 && res.unsupported_native_tensors.empty();
+    res.is_valid = file.good();
     return res;
 }

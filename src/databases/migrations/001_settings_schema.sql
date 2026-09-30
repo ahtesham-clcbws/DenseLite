@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS model_roles (
 INSERT OR IGNORE INTO system_settings (module, key, value, val_type, updated_at) VALUES
     ('server', 'host', '127.0.0.1', 'string', 1700000000000),
     ('server', 'port', '9501', 'int', 1700000000000),
-    ('server', 'threads', '4', 'int', 1700000000000),
+    ('server', 'threads', '0', 'int', 1700000000000),
     ('server', 'max_payload_mb', '32', 'int', 1700000000000),
     ('server', 'enable_api_auth', 'true', 'bool', 1700000000000),
     ('server', 'api_secret_key', '', 'string', 1700000000000),

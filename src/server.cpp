@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     // P0-Security: Enforce HTTP payload max length
     svr.set_payload_max_length(static_cast<size_t>(srv_cfg.max_payload_mb) * 1024 * 1024);
 
-    // Hardware Rule: Clamp HTTP worker threads to the strict 50% CPU limit
+    // Hardware Rule: Clamp HTTP worker threads to the compute thread budget (not a total CPU utilization limit)
     int clamped_threads = ResourcePolicy::compute_safe_thread_limit(SettingsManager::instance().get_server_config().threads);
     if (clamped_threads <= 0) clamped_threads = 1;
     svr.new_task_queue = [clamped_threads] { return new httplib::ThreadPool(clamped_threads); };

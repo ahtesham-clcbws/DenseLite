@@ -25,8 +25,8 @@ struct QuantizedVector {
 // [ARCHITECTURE ROADMAP - v4.0+]
 // 1. Matrix Scaling: Currently uses a full dim x dim rotation matrix. 
 //    Future: Transition to structured block rotation (e.g., HD) or sparse orthogonal transforms for >1024 dims.
-// 2. Recall Benchmarks: Must benchmark against exact FP32/FP16 cosine search.
-// 3. Scale Tests & Partitioning: Current SIMD exhaustive scan is optimal up to ~1M vectors.
+// 2. Recall Benchmarks: Synthetic FP32 recall@10/ranking-loss coverage lives in tests/turboquant_tests.cpp; production corpus validation remains open.
+// 3. Scale Tests & Partitioning: Current SIMD retrieval scans O(N) candidates; no validated optimal corpus-size cutoff.
 //    Future: Implement coarse quantization (IVF) or HNSW for >1M vector retrieval.
 
 class TurboQuantIndex {

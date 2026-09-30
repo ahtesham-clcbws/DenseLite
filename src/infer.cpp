@@ -145,8 +145,25 @@ inline void matvec_q8(const Tensor& w, const float* x, float* out, int in_featur
     matvec(w, x, out, in_features, out_features);
 }
 
+static std::string native_tensor_error(const DenseModel& model) {
+    for (const auto& entry : model.tensors) {
+        if (!native_tensor_supported(entry.first, entry.second.type)) {
+            return "Unsupported tensor '" + entry.first + "' of type " +
+                tensor_type_name(entry.second.type) +
+                ". Native matrices require Q4_0/Q8_0; normalization and bias tensors require FP32.";
+        }
+    }
+    return "Forward pass failed; inspect server diagnostics for token or missing tensor errors.";
+}
+
 bool forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits) {
     auto& config = model.config;
+    for (const auto& entry : model.tensors) {
+        if (!native_tensor_supported(entry.first, entry.second.type)) {
+            std::cerr << "[Infer] " << native_tensor_error(model) << std::endl;
+            return false;
+        }
+    }
     
     // 1. Token Embedding Lookup (Q4_0 / Q8_0 dequantize)
     if (token_id < 0 || token_id >= (int)config.vocab_size) {
@@ -421,7 +438,7 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         if (state.current_pos >= ctx_len - 1) break;
         if (!forward_pass(model, state, effective_tokens[i], logits)) {
             std::cerr << "[Infer] Prefill aborted due to forward pass failure." << std::endl;
-            callback("\n\n[DenseLite Runtime Error: Local model contains unsupported tensor types (e.g., Q4_K). Only Q4_0/Q8_0 are supported by the native zero-dependency AVX2 kernel.]");
+            callback("\n\n[DenseLite Runtime Error: " + native_tensor_error(model) + "]");
             return;
         }
         state.current_pos++;
@@ -440,7 +457,7 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         if (state.current_pos >= ctx_len - 1) break;
         if (!forward_pass(model, state, current_token, logits)) {
             std::cerr << "[Infer] Generation aborted due to forward pass failure." << std::endl;
-            callback("\n\n[DenseLite Runtime Error: Local model contains unsupported tensor types (e.g., Q4_K). Only Q4_0/Q8_0 are supported by the native zero-dependency AVX2 kernel.]");
+            callback("\n\n[DenseLite Runtime Error: " + native_tensor_error(model) + "]");
             return;
         }
         

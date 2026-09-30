@@ -860,7 +860,7 @@ line from single thread to multiple threads. The first time you create a
 thread, a manager thread is created in addition, so you get 3, not 2, threads.
 Later when the thread you create joins the main thread, the thread count
 decrements by 1, but the manager thread will never be killed, so you still have
-2 threads, which means you cannot safely run a death test.
+ResourcePolicy thread limit, which means you cannot safely run a death test.
 
 The new NPTL thread library doesn't suffer from this problem, as it doesn't
 create a manager thread. However, if you don't control which machine your test

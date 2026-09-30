@@ -1,8 +1,10 @@
 # 06: Hybrid Search & Agentic Loop Benchmark
 
 **Date:** 2026-09-26  
-**Status:** 🟢 FROZEN & EMPIRICALLY VERIFIED  
+**Status:** HISTORICAL MEASUREMENT — superseded implementation; revalidation required
 **Hardware Platform:** Intel Core i7-6500U @ 2.50GHz, 32 GB RAM  
+
+> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
 
 ---
 
@@ -15,7 +17,7 @@ $$\text{Score} = w_{\text{exact}} S_{\text{exact}} + w_{\text{lexical}} S_{\text
 |---|---|:---:|:---:|:---:|
 | **ExactSearch** | Exact symbol / token map | **44,286 queries/sec** | **22.58 µs** | 🟢 PASS |
 | **LexicalSearch** | BM25 Term Frequency | **21,808 queries/sec** | **45.86 µs** | 🟢 PASS |
-| **VectorSearch** | 512-dim Cosine Similarity | **1,105,573 ops/sec** | **904.51 ns** | 🟢 PASS |
+| **VectorSearch** | VectorSearch wrapper, synthetic 512-dim inputs | **1,105,573 ops/sec** | **904.51 ns** | 🟢 PASS |
 | **ResultFusion** | 40 candidates $\to$ Top 5 | **139,633 fusions/sec** | **7.16 µs** | 🟢 PASS |
 | **End-to-End SearchEngine** | 4 Channels + Fusion | **13,457 queries/sec** | **74.31 µs** | 🟢 PASS |
 
@@ -40,7 +42,7 @@ MODEL RESPONSE ──► ResponseAnalyzer (5 States)
 |---|---|:---:|:---:|:---:|
 | **ResponseAnalyzer** | 5-State Multi-Schema Detection | **363,238 parses/sec** | **2.75 µs** | 🟢 PASS |
 | **RecoveryPolicy** | 7-Action Fault Recovery | **9,204,000 decisions/sec** | **0.11 µs** | 🟢 PASS |
-| **CompletionPolicy** | Anti-Hallucination Evidence Gate | **61,407,333 evals/sec** | **0.02 µs** | 🟢 PASS |
+| **CompletionPolicy** | Evidence policy evaluation; effectiveness unmeasured | **61,407,333 evals/sec** | **0.02 µs** | 🟢 PASS |
 | **Curator** | Evidence Consolidation & Citations | **123,630 consolidations/s**| **8.09 µs** | 🟢 PASS |
 
 ---

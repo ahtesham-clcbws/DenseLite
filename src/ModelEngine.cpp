@@ -236,6 +236,10 @@ int ModelEngine::infer_local(const std::string& model_name, const std::string& p
     if (inf_cfg.context_window > 0 && dynamic_budget > static_cast<size_t>(inf_cfg.context_window)) {
         dynamic_budget = static_cast<size_t>(inf_cfg.context_window);
     }
+    if (dynamic_budget < 2) {
+        output = "{\"error\":\"Insufficient RAM policy headroom for local KV cache\"}";
+        return 503;
+    }
     float rep_pen = (inf_cfg.repeat_penalty > 0.0f) ? inf_cfg.repeat_penalty : 1.15f;
     generate(active_model, tokens, stream_cb, eff_max, eff_temp, rep_pen, session_kv.get(), static_cast<int>(dynamic_budget));
 

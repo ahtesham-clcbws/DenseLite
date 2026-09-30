@@ -1,13 +1,30 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <iostream>
 #include <cassert>
 #include <omp.h>
 #include "resource_governor.hpp"
+#include "ResourcePolicy.hpp"
+#include "model.hpp"
 
 void test_system_queries() {
+    assert(ResourcePolicy::thread_limit_for_hardware(4) == 2);
+    assert(ResourcePolicy::thread_limit_for_hardware(4, 4) == 2);
+    assert(ResourcePolicy::thread_limit_for_hardware(2) == 1);
+    assert(ResourcePolicy::thread_limit_for_hardware(1) == 1);
+    assert(ResourcePolicy::compute_safe_ram_ceiling(1.0f) == ResourcePolicy::compute_safe_ram_ceiling());
+    assert(ResourceGovernor::get_process_rss_bytes() > 0);
+    assert(native_tensor_supported("blk.0.attn_norm.weight", TensorType::FP32));
+    assert(!native_tensor_supported("blk.0.attn_norm.weight", TensorType::FP16));
+    assert(native_tensor_supported("token_embd.weight", TensorType::Q8_0));
+    assert(!native_tensor_supported("token_embd.weight", TensorType::Q4_K));
+    assert(tensor_type_name(TensorType::Q5_1) == "Q5_1");
     assert(ResourceGovernor::get_host_total_ram_bytes() > 0);
     assert(ResourceGovernor::get_host_available_ram_bytes() > 0);
     assert(ResourceGovernor::get_host_available_ram_bytes() <= ResourceGovernor::get_host_total_ram_bytes());
-    assert(ResourceGovernor::get_max_allowed_threads() >= 1 && ResourceGovernor::get_max_allowed_threads() <= 4);
+    int expected_max = std::max(1u, std::thread::hardware_concurrency() / 2);
+    assert(ResourceGovernor::get_max_allowed_threads() >= 1 && ResourceGovernor::get_max_allowed_threads() <= expected_max);
     std::cout << "[PASS] test_system_queries\n";
 }
 
@@ -55,6 +72,11 @@ void test_eviction_stages_and_headroom() {
 
     // Requesting impossible amount of RAM should fail admission
     assert(!gov.can_admit_host_ram(100ULL * 1024 * 1024 * 1024));
+    assert(!gov.can_admit_host_ram(static_cast<size_t>(-1)));
+
+    gov.track_model_weights(ResourcePolicy::compute_safe_ram_ceiling());
+    assert(!gov.can_admit_host_ram(1));
+    gov.track_model_weights(0);
 
     // Requesting small amount should succeed if system has memory
     if (ResourceGovernor::get_host_available_ram_bytes() > 2ULL * 1024 * 1024 * 1024) {
@@ -66,7 +88,7 @@ void test_eviction_stages_and_headroom() {
 
 void test_dynamic_context_sizing() {
     size_t ctx = ResourceGovernor::calculate_dynamic_context_tokens();
-    assert(ctx == 65536 || ctx == 32768 || ctx == 16384 || ctx == 8192);
+    assert(ctx == 65536 || ctx == 32768 || ctx == 16384 || (ctx <= 8192 && ctx % 1024 == 0));
     std::cout << "[PASS] test_dynamic_context_sizing (allocated_tokens=" << ctx << ")\n";
 }
 

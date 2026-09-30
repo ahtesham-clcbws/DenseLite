@@ -28,38 +28,40 @@ With v4.0.0, DenseLite introduces **Native C++ Tray Supervisor & WebUI Dashboard
 - **Session Tool Registry**: Caches MCP tool definitions per session; deduplicates repeated schemas and eliminates 600 KB payload bloat. Prunes schemas to 0 for general chat or selectively injects relevant tools (434K handshakes/sec, 0.45 us retrieval).
 - **Persistent Session KV Cache**: Maintains per-session KV state across turns. Employs prefix delta matching ($0 \to L$ skipped, delta prefill strictly $L \to N$ at 1.67M matches/sec) for instantaneous multi-turn generation.
 - **High-Speed Disk-Backed KV Persistence**: High-speed binary serialization (`DLKV` magic header) saving active tokens to disk at 2,243 MB/s, validating multi-model architectures upon restoration to prevent cross-model memory corruption.
-- **Dynamic RAM-Aware Context Sizing**: Automatically checks balance RAM headroom after baseline allocation; unlocks 32K or 64K tokens (65,536 tokens on 32GB RAM systems) with zero OOM risk.
+- **Dynamic RAM-Aware Context Sizing**: Automatically checks balance RAM headroom after baseline allocation; unlocks 32K or 64K tokens (subject to model KV dimensions and available policy headroom).
 - **GPU-Preferred Unified Placement**: Workloads attempt Vulkan GPU compute allocation first, with automatic, deterministic fallback to Host CPU/RAM.
-- **85% VRAM Safety Ceiling**: Strict safety gate ($2048\text{ MiB} \times 0.85 = 1740\text{ MiB}$) reserving 15% (~308 MiB) for host display servers (X11/Wayland) and desktop compositors. DL should never use the GPU above a maximum of 85%.
+- **ResourcePolicy VRAM Ceiling**: Strict safety gate reserving a percentage (as defined in `ResourcePolicy`) for host display servers (X11/Wayland) and desktop compositors. DL should never use the GPU above this maximum ceiling.
 - **Strict Inference Binding**: If a model is assigned to the GPU (Free VRAM ≥ Model + Overhead), its memory is allocated in Vulkan. If VRAM is insufficient, the model silently falls back to System RAM. Transformer inference always runs strictly on CPU via AVX2. No hybrid layer splitting is allowed.
 - **Host-Bound KV Cache via RAM Mapping**: The KV Cache MUST always reside in System RAM to prevent OOM errors at large context windows, regardless of execution context. When inferring, DL computes attention directly in Host RAM.
 - **RAII ModelLease & Eviction Guards**: Reference-counted model leases (`active_users`) prevent unmapping or memory eviction during active inference (5.39M ops/sec).
 - **Native C++ Runtime**: Native CPU transformer forward pass (statically linked, no Python/Node) (`infer.cpp`) with AVX2 + FMA intrinsics, Q4_0 / Q8_0 dequantization, dynamic RoPE (`RopeConfig`), RMSNorm, and SwiGLU. (C/C++ static dependencies only).
 - **Hardened Hardware Governance**: DenseLite strictly manages resource allocation via `ResourceGovernor`.
-  - **GPU Safety Ceiling**: GPU VRAM admission is enforced strictly, though active LLM inference currently runs via CPU AVX2. DenseLite will **never** use the GPU above a strict **85% VRAM ceiling**.
-  - **CPU Core Constraint**: Enforces a strict 50% CPU thread cap (e.g., maximum 2 threads on a 4-thread device).
-  - **RAM Safety Ceiling**: Strict memory allocation boundaries (50% max host RAM, typically ~16 GB). KV cache is always stored exclusively in host RAM.
+  - **GPU Safety Ceiling**: GPU VRAM admission is enforced strictly, though active LLM inference currently runs via CPU AVX2. DenseLite will **never** use the GPU above a strict **ResourcePolicy VRAM ceiling**.
+  - **CPU Core Constraint**: Enforces a compute thread budget derived from hardware concurrency (e.g., maximum of half the hardware threads on a 4-thread device).
+  - **RAM Safety Ceiling**: Strict memory allocation boundaries (50% max host RAM, derived from detected physical RAM; see `src/ResourcePolicy.hpp`). KV cache is always stored exclusively in host RAM.
 - **Native Trie BPE Tokenizer & Context Engine**: Trie-based tokenization (1.42M tok/s), zero-alloc fast counting (1.52M tok/s), strict $\ge 25\%$ generation reserve invariant, and ChatML context compilation.
 - **Two-Tier Persistent Memory Store**: Durable SQLite canonical storage + in-RAM tiered cache for sub-millisecond lexical & semantic recall (121K reads/s).
 - **Tree-sitter Code Intelligence**: AST syntax-aware code parsing, structural symbol extraction (`FUNCTION`, `CLASS`, `METHOD`), and 64-bit FNV-1a incremental delta change tracking (4.42 GB/s).
 - **Unified Multi-Signal Search**: Combined Exact, Lexical BM25, Dense Vector, and Structural Tree-sitter retrieval with deterministic `ResultFusion` scoring (203K fusions/s). *Note: Semantic search uses the 4-bit AVX2 TurboQuant exhaustive SIMD scan (not ANN).*
 - **Evidence-Based Autonomous Agent Loop**: 5-state response parsing with stop-reason discrimination, 7-action self-healing fault recovery (13.0M decisions/s), and anti-hallucination completion verification (105.6M evals/s).
-- **2-Core Resource Governance**: Dynamic OpenMP thread throttling capped at 50% CPU ($\le 2$ threads) and a 6-stage progressive eviction cascade for low-power edge laptops. (Note: `/proc` hardware governance is explicitly optimized for Linux/WSL2).
+- **2-Core Resource Governance**: Dynamic OpenMP compute thread budgeting through `ResourcePolicy` and a 6-stage progressive eviction cascade for low-power edge laptops. Linux/WSL2 use `/proc`; macOS uses Mach/sysctl accounting (macOS validation pending).
 - **On-Demand Leased Multimodal Engine**: Offline speech-to-text with Whisper.cpp (29.4K chunks/sec) and Stable Diffusion image generation (0-byte permanent RAM footprint). *Capabilities represent synthetic prototype benchmarks and are not yet optimized for production workloads.*
 
 > [!WARNING]
 > **Vulkan Boundary Note:** While Vulkan is used for vector search and RMSNorm acceleration, the core Transformer inference pass currently remains fully CPU AVX2/FMA bound.
-> **64K Context Note:** The 64K structural infrastructure is fully tested for memory safety and allocation limits, but real-world 64K-token inference passes remain unbenchmarked for generation quality and perplexity drop-off.
+> **64K Context Note:** The 64K structural infrastructure is tested using a synthetic 1-layer, 128-dimension model, but real-world 64K-token inference passes remain unbenchmarked for generation quality and perplexity drop-off.
 
 ---
 
-## Comprehensive System Benchmarks (🟢 EMPIRICALLY VERIFIED 2026-09-29)
+## System Benchmarks (historical measurements from 2026-09-29)
+
+[Current validation, fresh logs, and remaining limitations](benchmarks/10_CURRENT_VALIDATION.md).
 
 Official hardware-level empirical benchmarks recorded on host Intel Core i7-6500U:
 - [00_DENSELITE_MASTER_BENCHMARK_REPORT.md](benchmarks/00_DENSELITE_MASTER_BENCHMARK_REPORT.md): Authoritative system benchmark scorecard, execution summary, and master performance metrics.
 - [01_HARDWARE_AND_ENVIRONMENT_AUDIT.md](benchmarks/01_HARDWARE_AND_ENVIRONMENT_AUDIT.md): Low-level hardware platform, SIMD instructions, Vulkan 1.3 GPU limits, and OS environment.
 - [02_INFERENCE_AND_RUNTIME_BENCHMARK.md](benchmarks/02_INFERENCE_AND_RUNTIME_BENCHMARK.md): Native AVX2+FMA mathematical correctness, dynamic GGUF parsing, multi-model speed, and TTFT.
-- [03_LIFECYCLE_AND_MEMORY_SAFETY.md](benchmarks/03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII ModelLease throughput (5.39M ops/s), 85% VRAM ceiling, and bounded KV cache memory.
+- [03_LIFECYCLE_AND_MEMORY_SAFETY.md](benchmarks/03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII ModelLease throughput (5.39M ops/s), ResourcePolicy VRAM ceiling, and bounded KV cache memory.
 - [04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md](benchmarks/04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md): Trie BPE encoding (1.42M tok/s), zero-allocation token counting, and ChatML context compilation.
 - [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](benchmarks/05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant SIMD recall, Tree-sitter AST parsing, and 64-bit FNV-1a hash delta tracking (4.42 GB/s).
 - [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](benchmarks/06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval ResultFusion, 5-state response parsing, and 7-action self-healing fault recovery.
@@ -175,7 +177,7 @@ flowchart LR
 ```mermaid
 flowchart TD
     A["DenseLite starts"] --> B["Read .env config"]
-    B --> C["ResourceGovernor<br/>50% CPU Cap & 85% VRAM Gate"]
+    B --> C["ResourceGovernor<br/>Compute Thread Budget & VRAM Gate"]
     C --> D["ModelManager<br/>GPU-preferred admission"]
 
     D --> E["ModernBERT Router<br/>(MoritzLaurer Zero-Shot ONNX)"]
@@ -209,9 +211,9 @@ To ensure stable performance with local LLM fallback and semantic routing, we re
 
 | Resource | Minimum Required |
 |----------|-----------------|
-| **Memory (RAM)** | 8 GB (16 GB Recommended for 1.5B models) |
+| **Memory (RAM)** | Model- and context-dependent; host must allow enough managed RAM according to `ResourcePolicy`'s headroom rules. Resident-model fit depends on policy allocation. |
 | **Storage** | 10 GB Free Space (NVMe strongly recommended; SATA SSDs may be less responsive and take 10x longer to load models) |
-| **CPU** | 4 Cores (AVX2 support required for GGUF) |
+| **CPU** | 2 physical cores / 4 hardware threads (reference host; AVX2 + FMA required for native GGUF) |
 | **OS** | Linux / macOS / WSL2 on Windows |
 
 ---
@@ -320,13 +322,13 @@ struct InferenceSession {
 - **Stripped `server.cpp`:** Removed monolithic logic from the HTTP server, relegating it to a pure routing gateway.
 - **Added ModernBERT Zero-Shot Intent Routing:** Replaced legacy heuristic matching with `ModernBERTRouter` (`MoritzLaurer/ModernBERT-large-zeroshot-v2.0`), classifying intents into coding, reasoning, image, audio, and compression with sub-10ms ONNX execution.
 - **Implemented Deterministic Provider-State Healing:** Built `ProviderErrorAnalyzer` and `SQLiteRouter` logic to intercept errors. Rather than letting an LLM guess replacements, it hits provider `/v1/models` endpoints to deterministically map available fallback infrastructure.
-- **Built Custom TurboQuant Engine:** Implemented a custom 8-wide AVX2-FMA exhaustive cosine similarity engine (`TurboQuant`) for exact-match semantic memory slicing without the inaccuracies of ANN indexes.
+- **Built Custom TurboQuant Engine:** Implemented a custom 8-wide AVX2-FMA exhaustive cosine similarity engine (`TurboQuant`) for quantized semantic retrieval over every candidate; ranking can differ from FP32 cosine.
 - **Abstracted `ModelEngine` & Added `Curator`:** Extracted inference into a dedicated engine and added a Curator layer to consolidate multi-turn results before serializing.
 - **Revealed the Custom AVX2 Engine:** Committed to the custom, hand-rolled C++ Transformer engine (`infer.cpp`) running Llama 3.2 1B Instruct and DeepSeek-R1 Distill Qwen 1.5B natively.
 
 ### Current Architecture (v4.0.0)
 
-A single, ultra-lightweight C++ binary (`DenseLite`) requiring no Ollama, llama.cpp, or MNN external runtimes. It manages the entire state machine of an `InferenceSession`, slices context infinitely via `TurboQuant`, falls back to its internal `AVX2` engine when offline, and flawlessly orchestrates the Zed IDE.
+A single, ultra-lightweight C++ binary (`DenseLite`) requiring no Ollama, llama.cpp, or MNN external runtimes. It manages the entire state machine of an `InferenceSession`, retrieves selected historical context via `TurboQuant` within bounded context and storage budgets, falls back to its internal `AVX2` engine when offline, and integrates with the Zed IDE.
 
 ---
 
@@ -339,7 +341,7 @@ TurboQuant acts as the **semantic retrieval index**. Context is composed of thre
 2. **EmbeddingEngine:** (Nomic Embed) converts chunks to high-dimensional floats.
 3. **VectorIndex:** TurboQuant SIMD engine performs exhaustive cosine calculations.
 
-Unlike SQLite's exact string matching (`LIKE '%code%'`), Nomic embeddings understand semantic meaning, allowing TurboQuant to find the most relevant context across a 10,000-message conversation in sub-milliseconds.
+Unlike SQLite's exact string matching (`LIKE '%code%'`), the current hash-projection embedding prototype approximates semantic similarity, allowing TurboQuant to find the most relevant context across a 10,000-message conversation with workload-dependent latency and O(N) candidate scanning.
 
 #### Why SQLite for State Management
 
@@ -390,7 +392,7 @@ DenseLite/
 │   ├── resource_governor.*     # Resource Governor: Enforces <= 2 OpenMP threads and 6-stage progressive eviction cascade.
 │   ├── multimodal_engine.*     # Multimodal Engine: On-demand leased Whisper STT and Stable Diffusion generation (0B RAM leak).
 │   │
-│   ├── model_manager.*         # Model Lifecycle Manager: GPU-preferred admission with 85% VRAM ceiling.
+│   ├── model_manager.*         # Model Lifecycle Manager: GPU-preferred admission with ResourcePolicy VRAM ceiling.
 │   ├── model_lease.*           # RAII ModelLease: Reference-counted active_users guards preventing unmapping during inference.
 │   ├── model_pool.*            # Model Pool: Thread-safe storage for HOT/WARM loaded models.
 │   ├── model_registry.*        # Model Registry: Metadata catalog mapping roles to GGUF architectures.
@@ -488,9 +490,9 @@ DenseLite is designed to be an ultra-lightweight citizen on any operating system
 
 | Resource | Budget | Enforcement |
 |---|---|---|
-| **CPU** | 50% of total capacity | On a 2-core/4-thread machine → 2 threads max |
-| **RAM** | 50% of total capacity | On 32GB → 16GB ceiling |
-| **GPU** | 85% of total VRAM | GPU-preferred models (≤3B) must not exceed 85% of physical VRAM. Fallback silently to RAM/CPU if limit exceeded. KV cache is strictly RAM-bound (CPU inference). |
+| **CPU** | ResourcePolicy compute thread budget; no total utilization guarantee | Thread count is clamped dynamically to `hardware_concurrency / 2` |
+| **RAM** | Proportion of total capacity defined by `ResourcePolicy` | Scaled ceiling based on system RAM |
+| **GPU** | Proportion of total VRAM defined by `ResourcePolicy` | GPU-preferred models must not exceed the policy VRAM limit. Fallback silently to RAM/CPU if limit exceeded. KV cache is strictly RAM-bound (CPU inference). |
 
 **Deterministic Memory Eviction Order** (when RAM budget is breached):
 
@@ -506,7 +508,7 @@ DenseLite auto-detects `std::thread::hardware_concurrency()` and physical memory
 
 ### Execution Scenarios
 
-#### Scenario 1: The Infinite Context Request
+#### Scenario 1: The Extended Context Request
 > **User:** "Review all the changes we made to the networking stack yesterday and suggest improvements."
 > **Problem:** The conversation history is 50,000 tokens long.
 > **Resolution:** `ContextManager` uses **TurboQuant** to extract only the 1,500 most semantically relevant tokens discussing "networking" and "changes", saving API cost and token limits.
@@ -544,3 +546,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, code standard
 
 MIT License. **Anyone can use this in commercial or personal projects.**
 *Condition:* My name (Ahtesham) and this GitHub repository link must be mentioned/attributed in your project or codebase. See [LICENSE](LICENSE) for details.
+
+Resource policy defaults are defined in `src/ResourcePolicy.hpp`; numeric examples in reports apply only to their recorded host. `server.threads=0` selects the automatic safe compute budget. Inspection reports native tensor compatibility separately from valid GGUF metadata; this is not a guarantee of architecture or generation support.

@@ -8,6 +8,9 @@
 #include <iostream>
 #include <unistd.h>
 #include <omp.h>
+#ifdef __APPLE__
+#include <mach/mach.h>
+#endif
 
 ResourceGovernor::ResourceGovernor(VulkanDevice* gpu_device)
     : gpu_device_(gpu_device) {
@@ -15,21 +18,20 @@ ResourceGovernor::ResourceGovernor(VulkanDevice* gpu_device)
 }
 
 size_t ResourceGovernor::get_host_total_ram_bytes() {
-    std::ifstream meminfo("/proc/meminfo");
-    if (!meminfo.is_open()) return 16ULL * 1024 * 1024 * 1024;
-    std::string line;
-    while (std::getline(meminfo, line)) {
-        if (line.rfind("MemTotal:", 0) == 0) {
-            size_t kb = 0;
-            if (sscanf(line.c_str(), "MemTotal: %zu kB", &kb) == 1) {
-                return kb * 1024;
-            }
-        }
-    }
-    return 16ULL * 1024 * 1024 * 1024;
+    return ResourcePolicy::host_total_ram_bytes();
 }
 
 size_t ResourceGovernor::get_host_available_ram_bytes() {
+#ifdef __APPLE__
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    vm_statistics64_data_t vm{};
+    vm_size_t page_size = 0;
+    const auto host = mach_host_self();
+    bool ok = host_page_size(host, &page_size) == KERN_SUCCESS &&
+        host_statistics64(host, HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&vm), &count) == KERN_SUCCESS;
+    mach_port_deallocate(mach_task_self(), host);
+    if (ok) return std::min(get_host_total_ram_bytes(), static_cast<size_t>(vm.free_count + vm.inactive_count) * page_size);
+#endif
     std::ifstream meminfo("/proc/meminfo");
     if (!meminfo.is_open()) return 4ULL * 1024 * 1024 * 1024;
     std::string line;
@@ -45,6 +47,11 @@ size_t ResourceGovernor::get_host_available_ram_bytes() {
 }
 
 size_t ResourceGovernor::get_process_rss_bytes() {
+#ifdef __APPLE__
+    mach_task_basic_info_data_t info{};
+    mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS) return info.resident_size;
+#endif
     std::ifstream statm("/proc/self/statm");
     if (!statm.is_open()) return 0;
     size_t size = 0, resident = 0;
@@ -103,14 +110,16 @@ bool ResourceGovernor::is_under_memory_pressure() const {
     size_t avail = get_host_available_ram_bytes();
     size_t total = get_host_total_ram_bytes();
     if (avail < (total * 0.10) || avail < (1536ULL * 1024 * 1024)) return true;
-    if (get_process_rss_bytes() > (14ULL * 1024 * 1024 * 1024)) return true;
+    if (get_process_rss_bytes() > max_allowed_ram_bytes_) return true;
     return false;
 }
 
 bool ResourceGovernor::can_admit_host_ram(size_t required_bytes) const {
     size_t avail = get_host_available_ram_bytes();
     size_t min_headroom = 1024ULL * 1024 * 1024; // 1 GB reserve
-    return (avail > required_bytes + min_headroom);
+    size_t used = std::max(get_process_rss_bytes(), get_total_tracked_bytes());
+    return used <= max_allowed_ram_bytes_ && required_bytes <= max_allowed_ram_bytes_ - used &&
+           avail > min_headroom && required_bytes < avail - min_headroom;
 }
 
 bool ResourceGovernor::can_admit_gpu_vram(size_t model_bytes, size_t static_overhead_bytes) const {
@@ -127,7 +136,7 @@ EvictionStage ResourceGovernor::assess_eviction_stage() const {
     size_t total = get_host_total_ram_bytes();
     size_t rss = get_process_rss_bytes();
 
-    if (avail < (total * 0.05) || avail < (512ULL * 1024 * 1024) || rss > (14ULL * 1024 * 1024 * 1024)) {
+    if (avail < (total * 0.05) || avail < (512ULL * 1024 * 1024) || rss > max_allowed_ram_bytes_) {
         return EvictionStage::ROUTE_CLOUD;
     }
     if (avail < (total * 0.08) || avail < (1024ULL * 1024 * 1024)) {
@@ -157,15 +166,13 @@ bool ResourceGovernor::should_reject_optional_load() const {
 }
 
 size_t ResourceGovernor::calculate_dynamic_context_tokens(const ModelConfig* active_model_config) {
-    size_t total_ram = get_host_total_ram_bytes();
     size_t avail_ram = get_host_available_ram_bytes();
-    float pct = SettingsManager::instance().get_resource_config().ram_budget_percent;
-    if (pct <= 0.0f || pct > 1.0f) pct = 0.45f;
-    size_t base_model_ceiling = static_cast<size_t>(total_ram * pct);
-
-    // Balance RAM headroom available for dynamic KV cache (up to 90% of balance)
-    size_t balance_ram = (avail_ram > base_model_ceiling) ? (avail_ram - base_model_ceiling) : (avail_ram / 2);
-    size_t dynamic_kv_budget = static_cast<size_t>(balance_ram * 0.90);
+    size_t ceiling = ResourcePolicy::compute_safe_ram_ceiling(SettingsManager::instance().get_resource_config().ram_budget_percent);
+    size_t rss = get_process_rss_bytes();
+    size_t policy_headroom = ceiling > rss ? ceiling - rss : 0;
+    size_t reserve = 1024ULL * 1024 * 1024;
+    size_t available_headroom = avail_ram > reserve ? avail_ram - reserve : 0;
+    size_t dynamic_kv_budget = static_cast<size_t>(std::min(policy_headroom, available_headroom) * 0.90);
 
     size_t bytes_per_token = 57344; // Default Qwen fallback
     if (active_model_config && active_model_config->num_layers > 0 && active_model_config->num_kv_heads > 0) {
@@ -187,6 +194,6 @@ size_t ResourceGovernor::calculate_dynamic_context_tokens(const ModelConfig* act
     } else {
         size_t tokens = dynamic_kv_budget / bytes_per_token;
         tokens = (tokens / 1024) * 1024;
-        return std::clamp<size_t>(tokens, 2048, 8192);
+        return std::min<size_t>(tokens, 8192);
     }
 }

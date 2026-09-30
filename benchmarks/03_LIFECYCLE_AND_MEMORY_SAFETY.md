@@ -1,8 +1,10 @@
 # 03: Model Lifecycle & Memory Safety Benchmark
 
 **Date:** 2026-09-26  
-**Status:** 🟢 FROZEN & EMPIRICALLY VERIFIED  
+**Status:** HISTORICAL MEASUREMENT — superseded implementation; revalidation required
 **Hardware Platform:** Intel Core i7-6500U, AMD Radeon R7 M350 Vulkan 1.3  
+
+> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
 
 ---
 
@@ -20,7 +22,7 @@ DenseLite implements a GPU-preferred unified placement hierarchy with an explici
 | Operation | Target Baseline | Measured Result | Evaluation |
 |---|:---:|:---:|:---:|
 | **Physical Device Discovery** | $< 2,000$ ms | **1,405 ms** (Cold driver init) | 🟢 PASS |
-| **85% VRAM Gate Enforcement** | Strict Gate | **1,740 MiB limit enforced** | 🟢 PASS |
+| **ResourcePolicy VRAM limit Gate Enforcement** | Strict Gate | **1,740 MiB limit enforced** | 🟢 PASS |
 | **Out-of-VRAM Fallback** | Deterministic | Graceful CPU/RAM allocation | 🟢 PASS |
 
 ---

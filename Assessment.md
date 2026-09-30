@@ -2,6 +2,8 @@
 
 **Assessment Date:** 2026-09-29T18:11:00+05:30  
 **Build & Test Gate:** 17/17 CTest Suites Passing (100% Pass Rate in 2.64s)  
+**Evidence scope:** Historical assessment; current validation and open limitations are tracked in [benchmarks/10_CURRENT_VALIDATION.md](benchmarks/10_CURRENT_VALIDATION.md).
+
 **Hardware Environment:** AMD Radeon R7 M350 (2048 MiB Dedicated VRAM) + Dual-Core x86_64 CPU (AVX2 + FMA enabled)
 
 ---
@@ -10,7 +12,7 @@
 
 | Area | Actual Status | Verification & Benchmark Evidence |
 | :--- | :--- | :--- |
-| **Native C++ inference engine** | 🟢 **DONE / TESTED & VERIFIED** | Pure native C++20 engine compiled with `-mavx2 -mfma`. 17/17 CTest suites pass cleanly without external runtime dependencies. |
+| **Native C++ inference engine** | 🟢 **DONE / TESTED & VERIFIED** | Pure native C++20 engine compiled with `-mavx2 -mfma`. 17/17 CTest suites pass cleanly without external ML runtime dependencies. |
 | **GGUF model loading** | 🟢 **DONE / TESTED & VERIFIED** | Dual placement verified: **0.01 ms** CPU Host RAM placement; **0.01 ms** Vulkan Dedicated VRAM placement with 85% safety gate ceiling enforcement. |
 | **Dynamic model architecture parsing** | 🟢 **DONE / TESTED & VERIFIED** | Dynamic parser resolves LLaMA, Qwen2, SmolLM2, and ModernBERT topologies, head dimensions, and RoPE parameters. Verified in `test_config` (0.56s). |
 | **AVX2/FMA transformer math** | 🟢 **DONE / TESTED & VERIFIED** | SIMD kernels: RMSNorm at **3,004,132 passes/sec** (0.333 µs latency); Vector Dot Product at **>10M passes/sec** (<0.01 µs). Test `MathCorrectness` passes (0.00s). |
@@ -30,7 +32,7 @@
 | **Provider failover** | 🟢 **DONE / TESTED & VERIFIED** | Deterministic 7-action recovery policy with automatic cloud fallback upon memory pressure or token exhaustion. Verified in `test_agent_loop`. |
 | **Session tool registry** | 🟢 **DONE / TESTED & VERIFIED** | Deduplication handshake at **482,023 handshakes/sec** (2.07 µs); selective schema extraction for tool pruning at **2,209,645 queries/sec** (0.45 µs). |
 | **Persistent session KV** | 🟢 **DONE / TESTED & VERIFIED** | Binary disk persistence at **2,503.7 MB/s** (6.39 ms flush for 16 MiB active KV); KV prefix delta matching at **2,034,108 matches/sec** (0.49 µs). |
-| **64K context infrastructure** | 🟢 **DONE / TESTED & VERIFIED** | Dynamic RAM-aware context allocator evaluates headroom at **44,081 evals/sec** (22.68 µs), safely scaling context up to 32K/64K tokens without OOM. |
+| **64K context infrastructure** | 🟢 **DONE / TESTED & VERIFIED** | Dynamic RAM-aware context allocator evaluates headroom at **44,081 evals/sec** (22.68 µs), selecting context from current headroom; production model 64K fit is unverified. |
 | **Real 64K inference** | ⚠️ **PROTOTYPE / UNBENCHMARKED** | Dynamic NTK-aware RoPE frequency scaling dynamically scales base $\theta$. Structural math verified on synthetic tests, but **real-world 64K perplexity/quality remains unbenchmarked.** |
 | **Needle 3 router** | 🔵 **REPLACED (by ModernBERTRouter)** | **FORMALLY REPLACED.** Needle 3 was deprecated in favor of `ModernBERTRouter` (80M ONNX classifier). All routing requests map to ModernBERT or heuristic fast-path. |
 | **ModernBERT router** | 🟢 **DONE / TESTED & VERIFIED** | OnnxRuntime-backed 80M parameter semantic intent classifier with CPU execution provider; verified in `bootstrap.sh` and `test_model_registry`. |
@@ -62,9 +64,9 @@
 ---
 
 ## 3. Multimodal Vision & Speech Empirical Metrics
-* **16kHz 1-Second Audio Transcription:** **495 chunks/sec** (**495x real-time** processing factor), **2.02 ms** latency.
+* **Synthetic 16kHz audio feature extraction (no transcription):** **495 chunks/sec** (synthetic chunk throughput), **2.02 ms** latency.
 * **16-bit PCM Byte Stream Decoding:** **494 passes/sec** (**15.0 MB/s** throughput), **2.03 ms** latency.
-* **On-Demand Latent Diffusion Image Generation (512x512 RGBA):** **314 passes/sec**, **3.19 ms** latency.
+* **Synthetic image prototype (512x512 RGBA; no diffusion model inference):** **314 passes/sec**, **3.19 ms** latency.
 * **Multimodal Memory Headroom & Admission Check:** **22,420 checks/sec**, **44.60 µs** latency.
 
 ---

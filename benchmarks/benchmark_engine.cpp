@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdexcept>
 #include <chrono>
 #include <vector>
 #include <string>
@@ -13,6 +14,7 @@
 #include "model_lease.hpp"
 #include "kv_cache.hpp"
 #include "resource_governor.hpp"
+#include "ResourcePolicy.hpp"
 #include "tokenizer.hpp"
 #include "tokenizer_registry.hpp"
 #include "context_budgeter.hpp"
@@ -540,12 +542,12 @@ void benchmark_phase5_search_fusion() {
     std::vector<float> v1(512, 0.05f), v2(512, 0.04f);
     start = Clock::now();
     for (int i = 0; i < VEC_ITERS; ++i) {
-        float sim = VectorSearch::cosine_similarity(v1, v2);
+        volatile float sim = VectorSearch::cosine_similarity(v1, v2);
         (void)sim;
     }
     end = Clock::now();
     double vec_sec = std::chrono::duration<double>(end - start).count();
-    std::cout << "[3] VectorSearch 512-dim Cosine Similarity:\n";
+    std::cout << "[3] FP32 pairwise cosine helper (512 dimensions; not TurboQuant index search):\n";
     std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << (VEC_ITERS / vec_sec) << " ops/sec\n";
     std::cout << "    - Latency per dot product: " << std::setprecision(3) << (vec_sec * 1e9 / VEC_ITERS) << " ns\n";
 
@@ -696,6 +698,7 @@ void benchmark_phase7_resource_governance() {
     std::cout << "======================================================\n";
 
     ResourceGovernor gov;
+    std::cout << "Host physical RAM: " << ResourceGovernor::get_host_total_ram_bytes() / (1024 * 1024) << " MiB; default policy ceiling: " << ResourcePolicy::compute_safe_ram_ceiling() / (1024 * 1024) << " MiB; compute threads: " << ResourceGovernor::get_max_allowed_threads() << "\n";
 
     // 1. Snapshot Latency & Overhead
     const int SNAP_ITERS = 10000;
@@ -708,7 +711,7 @@ void benchmark_phase7_resource_governance() {
     double snap_sec = std::chrono::duration<double>(end - start).count();
     double snap_ops = SNAP_ITERS / snap_sec;
 
-    std::cout << "[1] ResourceGovernor Snapshot Query (/proc/meminfo + statm):\n";
+    std::cout << "[1] ResourceGovernor platform accounting snapshot:\n";
     std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << snap_ops << " queries/sec\n";
     std::cout << "    - Latency per snapshot: " << std::setprecision(2) << (snap_sec * 1e6 / SNAP_ITERS) << " us\n";
 
@@ -794,10 +797,9 @@ void benchmark_phase8_multimodal() {
     auto end = Clock::now();
     double audio_sec = std::chrono::duration<double>(end - start).count();
     double audio_ops = AUDIO_ITERS / audio_sec;
-    double simulated_audio_seconds_processed = AUDIO_ITERS * 1.0f / audio_sec;
 
-    std::cout << "[1] Audio Transcription Throughput (1-sec 16kHz PCM chunks):\n";
-    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << audio_ops << " chunks/sec (" << simulated_audio_seconds_processed << "x real-time)\n";
+    std::cout << "[1] Synthetic audio prototype throughput (1-sec 16kHz constant PCM; no Whisper forward pass):\n";
+    std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << audio_ops << " synthetic chunks/sec\n";
     std::cout << "    - Latency per 1s audio chunk: " << std::setprecision(2) << (audio_sec * 1e6 / AUDIO_ITERS) << " us\n";
 
     // 2. 16-bit PCM Audio Byte Stream Decoding Throughput
@@ -955,7 +957,7 @@ void benchmark_phase9_session_kv_and_tool_registry() {
     const int SAVE_ITERS = 1000;
     start = Clock::now();
     for (int i = 0; i < SAVE_ITERS; ++i) {
-        kv_mgr.save_to_disk(kv_sess);
+        if (!kv_mgr.save_to_disk(kv_sess)) throw std::runtime_error("Benchmark KV save failed");
     }
     end = Clock::now();
     double save_sec = std::chrono::duration<double>(end - start).count();
@@ -970,13 +972,14 @@ void benchmark_phase9_session_kv_and_tool_registry() {
     const int LOAD_ITERS = 1000;
     start = Clock::now();
     for (int i = 0; i < LOAD_ITERS; ++i) {
-        kv_mgr.load_from_disk(kv_sess, cfg);
+        kv_mgr.evict(kv_sess, false);
+        if (!kv_mgr.load_from_disk(kv_sess, cfg)) throw std::runtime_error("Benchmark KV restore failed");
     }
     end = Clock::now();
     double load_sec = std::chrono::duration<double>(end - start).count();
     double load_mb_s = (LOAD_ITERS * file_bytes) / (load_sec * 1024.0 * 1024.0);
-    std::cout << "    - Deserialization Read Throughput: " << std::fixed << std::setprecision(1) << load_mb_s << " MB/s (" << (LOAD_ITERS / load_sec) << " loads/sec)\n";
-    std::cout << "    - Latency per Disk Restore: " << std::setprecision(2) << (load_sec * 1000.0 / LOAD_ITERS) << " ms\n";
+    std::cout << "    - KV eviction + allocation + warm-file restore throughput: " << std::fixed << std::setprecision(1) << load_mb_s << " MB/s (" << (LOAD_ITERS / load_sec) << " loads/sec)\n";
+    std::cout << "    - Latency per warm-file restore cycle: " << std::setprecision(2) << (load_sec * 1000.0 / LOAD_ITERS) << " ms\n";
 
     // Cleanup
     kv_mgr.clear_all();

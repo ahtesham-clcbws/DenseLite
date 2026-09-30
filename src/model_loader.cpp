@@ -1,3 +1,4 @@
+#include "ResourcePolicy.hpp"
 #include "ModelLoader.hpp"
 #include "path_service.hpp"
 #include "model_registry_db.hpp"
@@ -93,8 +94,7 @@ bool ModelLoader::load_resident_models(const std::string& base_dir,
     auto res_cfg = SettingsManager::instance().get_resource_config();
     VulkanDevice gpu_device;
     ResourceGovernor gov(&gpu_device);
-    size_t total_ram = ResourceGovernor::get_host_total_ram_bytes();
-    size_t ram_budget = static_cast<size_t>(total_ram * res_cfg.ram_budget_percent);
+    size_t ram_budget = ResourcePolicy::compute_safe_ram_ceiling(res_cfg.ram_budget_percent);
     size_t current_rss = ResourceGovernor::get_process_rss_bytes();
     size_t available_ram = (ram_budget > current_rss) ? (ram_budget - current_rss) : 0;
     float headroom_mult = res_cfg.headroom_safety_multiplier;

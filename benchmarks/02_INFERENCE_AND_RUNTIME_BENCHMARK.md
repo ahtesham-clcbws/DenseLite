@@ -1,8 +1,10 @@
 # 02: Inference & Runtime Benchmark
 
 **Date:** 2026-09-26  
-**Status:** 🟢 FROZEN & EMPIRICALLY VERIFIED  
+**Status:** HISTORICAL MEASUREMENT — superseded implementation; revalidation required
 **Hardware:** Intel(R) Core(TM) i7-6500U (2 Cores, 4 Threads @ 2.50GHz), 32 GB RAM  
+
+> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
 
 ---
 
@@ -53,4 +55,4 @@ $$\text{KV Bytes} = 2 \times n_{\text{layers}} \times n_{\text{kv\_heads}} \time
 
 1. **Resolution of REG-001 (SmolLM2 Mismatch):** In Phase 0, SmolLM2 crashed due to hardcoded intermediate dimension (`8960`). In v3.2.1, dimensions are read dynamically from GGUF metadata (`intermediate_size = 4864`, `rope_base = 100000.0`), running at **18.42 tokens/sec** with zero errors.
 2. **Determinism:** At `temperature = 0.0`, greedy sampling produces identical token sequences across repeated runs.
-3. **Thermal Stability:** With OpenMP limited to 2 threads, CPU temperature remains below 68°C during sustained generation.
+3. **Thermal Stability:** With OpenMP limited to ResourcePolicy thread limit, CPU temperature remains below 68°C during sustained generation.

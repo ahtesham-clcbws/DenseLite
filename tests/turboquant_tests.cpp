@@ -1,3 +1,6 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "vector/turboquant_index.hpp"
 #include <iostream>
 #include <cassert>
@@ -5,6 +8,7 @@
 #include <filesystem>
 #include <chrono>
 #include <random>
+#include <algorithm>
 
 void test_compression_ratio() {
     std::cout << "[Test 1] TurboQuant 4-Bit 8x Vector Compression Ratio..." << std::endl;
@@ -148,7 +152,7 @@ void test_benchmark_throughput() {
     auto end = std::chrono::high_resolution_clock::now();
     
     double ms = std::chrono::duration<double, std::milli>(end - start).count() / iterations;
-    std::cout << "  -> PASSED: AVX2 Throughput: " << ms << " ms per query (50K vectors)" << std::endl;
+    std::cout << "  -> PASSED: AVX2 Throughput: " << ms << " ms per query (5K vectors)" << std::endl;
 }
 
 void test_memory_footprint() {
@@ -163,11 +167,62 @@ void test_memory_footprint() {
     std::cout << "  -> PASSED: Memory Reduction: " << reduction << "x (Expected ~8x)" << std::endl;
 }
 
+
+void benchmark_fp32_recall() {
+    // Reproducible synthetic ground truth: independent and near-neighbor queries.
+    for (size_t dim : {size_t(128), size_t(512), size_t(1536)}) {
+        const size_t n = 1000, queries = 40, k = 10;
+        std::mt19937 rng(20260930);
+        std::normal_distribution<float> normal(0.0f, 1.0f);
+        std::vector<std::vector<float>> vectors(n, std::vector<float>(dim));
+        TurboQuantIndex index(dim);
+        for (size_t i = 0; i < n; ++i) {
+            for (float& x : vectors[i]) x = normal(rng);
+            index.add(std::to_string(i), vectors[i]);
+        }
+        double recall = 0, loss = 0;
+        for (size_t q = 0; q < queries; ++q) {
+            std::vector<float> query(dim);
+            for (size_t d = 0; d < dim; ++d)
+                query[d] = q % 2 ? vectors[q][d] + 0.1f * normal(rng) : normal(rng);
+            auto cosine = [&](const std::vector<float>& v) {
+                double dot = 0, aa = 0, bb = 0;
+                for (size_t d = 0; d < dim; ++d) {
+                    dot += double(query[d]) * v[d];
+                    aa += double(query[d]) * query[d]; bb += double(v[d]) * v[d];
+                }
+                return dot / std::sqrt(aa * bb);
+            };
+            std::vector<std::pair<double, size_t>> truth;
+            for (size_t i = 0; i < n; ++i) truth.emplace_back(cosine(vectors[i]), i);
+            std::sort(truth.begin(), truth.end(), std::greater<std::pair<double, size_t>>());
+            auto hits = index.search(query, k);
+            assert(hits.size() == k);
+            size_t common = 0;
+            double optimal = 0, returned = 0;
+            for (size_t rank = 0; rank < k; ++rank) {
+                optimal += truth[rank].first;
+                size_t id = std::stoul(hits[rank].id);
+                returned += cosine(vectors[id]);
+                for (size_t j = 0; j < k; ++j) if (truth[j].second == id) ++common;
+            }
+            recall += double(common) / k;
+            loss += (optimal - returned) / k;
+        }
+        std::cout << "FP32 ground truth: seed=20260930 N=" << n << " dim=" << dim
+                  << " queries=" << queries << " recall@10=" << recall / queries
+                  << " mean cosine ranking loss=" << loss / queries << std::endl;
+        assert(recall / queries >= 0.60);
+        assert(loss / queries < 0.02);
+    }
+}
+
 int main() {
     std::cout << "=================================================" << std::endl;
     std::cout << " DenseLite Phase 3 & 4 TurboQuant SIMD Index Tests" << std::endl;
     std::cout << "=================================================" << std::endl;
 
+    benchmark_fp32_recall();
     test_compression_ratio();
     test_search_accuracy();
     test_allowlist_bitmask();

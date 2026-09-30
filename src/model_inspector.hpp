@@ -6,6 +6,8 @@
 
 struct ModelInspectionResult {
     bool is_valid{false};
+    bool native_tensor_compatible{false};
+    std::vector<std::string> unsupported_native_tensors;
     std::string architecture;
     uint64_t param_count{0};
     std::string param_size_str;

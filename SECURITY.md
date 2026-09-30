@@ -56,7 +56,7 @@ DenseLite is a **local inference gateway** that:
 | Memory corruption via malformed GGUF | 32-byte alignment validation on all tensor offsets; magic byte check | ✅ Mitigated |
 | Prompt injection via cloud relay | DenseLite does not execute tools — it only suggests actions to the IDE | ✅ By design |
 | Denial of service via large payloads | Configurable `max_payload_mb` enforced on HTTP server (default: 32 MB) | ✅ Mitigated |
-| KV cache memory exhaustion | `ResourceGovernor` enforces 85% VRAM and 14GB RAM ceiling with 6-stage progressive eviction cascade | ✅ Mitigated |
+| KV cache memory exhaustion | `ResourceGovernor` enforces ResourcePolicy VRAM limit and ResourcePolicy RAM ceiling with 6-stage progressive eviction cascade | ✅ Mitigated |
 
 ### API Key Handling Best Practices
 

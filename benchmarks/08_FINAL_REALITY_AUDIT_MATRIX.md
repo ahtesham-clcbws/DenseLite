@@ -5,6 +5,8 @@
 **Hardware:** Intel(R) Core(TM) i7-6500U @ 2.50GHz (2 Cores, 4 Threads, AVX2+FMA), 32 GB RAM  
 **Git Head:** DenseLite v4.0.0 Release Candidate  
 
+> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
+
 ---
 
 ## 1. Complete Final Reality Matrix (P0 Baseline vs. v4.0.0 Final)
@@ -17,7 +19,7 @@
 | **Coder Inference (DeepSeek-R1-Distill-Qwen-1.5B)** | ~4.35 tokens/sec, static architecture | Dynamic `ModelConfig`, pure AVX2 forward pass | 4.35 tokens/sec, rel_err $< 1.1 \times 10^{-6}$ | 🟢 VERIFIED |
 | **General Inference (Llama-3.2-1B-Instruct)** | ~2.60–3.20 tokens/sec | Dynamic `RopeConfig`, pure AVX2 forward pass | 3.15 tokens/sec, deterministic temp=0 | 🟢 VERIFIED |
 | **AVX2 Math Kernels** | FP32 `matvec_q8` verified | Full SIMD math: `dot_product`, `rmsnorm`, `swiglu`, `rope` | Bitwise tested against scalar | 🟢 VERIFIED |
-| **GPU / Vulkan VRAM Governance** | Untested / Stub | 85% VRAM ceiling (1,740 MiB cap) + unified weights & scratch budgeting | Vulkan 1.3 physical limits & admission gate verified | 🟢 VERIFIED |
+| **GPU / Vulkan VRAM Governance** | Untested / Stub | ResourcePolicy VRAM ceiling (ResourcePolicy VRAM cap) + unified weights & scratch budgeting | Vulkan 1.3 physical limits & admission gate verified | 🟢 VERIFIED |
 | **GPU / Vulkan Compute Kernels** | Untested / Stub | Evaluated; transformer forward pass deferred to AVX2+FMA SIMD | Active inference on AVX2 CPU; Vulkan GEMV on roadmap | 🟡 BY-DESIGN (CPU-BOUND) |
 | **Model Lifecycle** | 4 resident models (~3.96 GB RAM) | RAII `ModelLease` on-demand loading & eviction | 4.54M lease ops/s, 0B unmap leak | 🟢 VERIFIED |
 | **Token Accuracy** | ⚠️ `chars / 4` approximation | 🟢 Trie-based BPE encoder, decoder, zero-alloc count | 1.26M tok/s encode, 1.47M tok/s count | 🟢 RESOLVED |
@@ -28,9 +30,9 @@
 | **Agent Reasoning Loop** | ⚠️ Skeletal (return true stub) | 🟢 5-state parser (`MODEL_CONTINUE`), 7-action healing | 363K parses/s, 9.20M healing decisions/s| 🟢 DELIVERED |
 | **Evidence Verification** | ⚠️ `return true;` stub | 🟢 Evidence-based gate ("Done is not evidence") | 61.4M evals/s | 🟢 DELIVERED |
 | **CPU / RAM Throttling** | ⚠️ Startup-only check | 🟢 Continuous `/proc` monitor, strict $\le 2$ thread cap | 125K enforcements/s, 6-stage eviction | 🟢 DELIVERED |
-| **Multimodal STT / Img** | ❌ None | 🟢 On-demand leased Whisper & Stable Diffusion | 29.4K audio chunks/s (29,444x real-time) | 🟢 DELIVERED |
+| **Multimodal STT / Img** | ❌ None | 🟢 On-demand leased Whisper & Stable Diffusion | 29.4K audio chunks/s (synthetic chunk processing) | 🟢 DELIVERED |
 | **Session KV & Tool Deduplication** | ❌ None | 🟢 Session Tool Registry + DLKV Persistent Disk KV | 434K handshakes/s, 2,243 MB/s flush | 🟢 DELIVERED |
-| **64K Context Infrastructure** | ❌ None | 🟢 Dynamic RAM-aware sizing allocates 65,536 tokens | Budgeting & KV persistence verified | 🟢 VERIFIED |
+| **64K Context Infrastructure** | ❌ None | 🟢 Dynamic RAM-aware sizing allocates 65,536 tokens | Budgeting & KV persistence verified using synthetic 1-layer, 128-dim model. Realistic production memory/performance unverified. | 🟢 VERIFIED |
 | **64K Context Generation** | ❌ None | ⚠️ NTK-aware RoPE scaling math verified synthetically (85,550.4 base at 64K). Real-world 64K model perplexity remains unbenchmarked. | ⚠️ UNBENCHMARKED |
 | **Dynamic Model Roles & Registry** | ❌ None | 🟢 SQLite WAL Model Roles + Binary GGUF Inspector | 17/17 CTests passing 100% | 🟢 DELIVERED |
 | **Zero-Python Tray Supervisor** | ❌ None | 🟢 Native C++ Ayatana Tray + Glassmorphic WebUI | 6 MB RAM, 0% CPU idle | 🟢 DELIVERED |
@@ -59,5 +61,5 @@ All 17 CTest test suites pass cleanly with 100% deterministic success (~24.7s).
 
 **Important distinctions:**
 - All generation benchmarks (3.15–18.42 tok/s) are measured under pure **AVX2+FMA CPU** forward pass with **2 OpenMP threads** intentionally throttled.
-- **Vulkan VRAM governance** (admission gate, 85% ceiling, scratch budgeting) is **verified**. Vulkan compute shader GEMV is on roadmap (inference remains CPU-bound).
-- **64K context capacity** (RAM allocation, KV persistence, prefix matching, and NTK-aware RoPE frequency scaling) is **fully verified structurally**. However, real-world 64K-token inference generation quality and perplexity drop-off remain unbenchmarked.
+- **Vulkan VRAM governance** (admission gate, ResourcePolicy VRAM ceiling, scratch budgeting) is **verified**. Vulkan compute shader GEMV is on roadmap (inference remains CPU-bound).
+- **64K context capacity** (RAM allocation, KV persistence, prefix matching, and NTK-aware RoPE frequency scaling) is **fully verified structurally** using a synthetic 1-layer, 128-dim model. However, realistic 64K memory consumption, performance, and real-world inference generation quality remain unbenchmarked.

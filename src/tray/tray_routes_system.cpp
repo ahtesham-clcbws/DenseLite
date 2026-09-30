@@ -9,29 +9,49 @@
 #include <filesystem>
 #include <unistd.h>
 #include <sqlite3.h>
+#ifdef __APPLE__
+#include <libproc.h>
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+#endif
 
 using json = nlohmann::json;
 
 static double get_proc_rss_mb() {
-    long pages = 0;
     pid_t child_pid = TrayProcess::instance().get_pid();
-    std::string path = (child_pid > 0) ? ("/proc/" + std::to_string(child_pid) + "/statm") : "/proc/self/statm";
-    std::ifstream statm(path);
-    if (!statm.is_open() && child_pid > 0) {
-        statm.open("/proc/self/statm");
+    pid_t target_pid = (child_pid > 0) ? child_pid : getpid();
+#ifdef __APPLE__
+    struct proc_taskinfo info;
+    if (proc_pidinfo(target_pid, PROC_PIDTASKINFO, 0, &info, sizeof(info)) == sizeof(info)) {
+        return info.pti_resident_size / (1024.0 * 1024.0);
     }
+    return 0.0;
+#else
+    std::string path = "/proc/" + std::to_string(target_pid) + "/statm";
+    std::ifstream statm(path);
+    long pages = 0;
     if (statm >> pages >> pages) {
         long page_size = sysconf(_SC_PAGESIZE);
         return (pages * page_size) / (1024.0 * 1024.0);
     }
     return 0.0;
+#endif
 }
 
 static double get_system_load() {
+#ifdef __APPLE__
+    struct loadavg info;
+    size_t size = sizeof(info);
+    if (sysctlbyname("vm.loadavg", &info, &size, NULL, 0) == 0) {
+        return (double)info.ldavg[0] / info.fscale;
+    }
+    return 0.0;
+#else
     double load = 0.0;
     std::ifstream loadavg("/proc/loadavg");
     if (loadavg >> load) return load;
     return 0.0;
+#endif
 }
 
 static int get_active_kv_count() {

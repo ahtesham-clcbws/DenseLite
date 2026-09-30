@@ -56,6 +56,34 @@ enum class TensorType {
     Q8_K = 15
 };
 
+inline std::string tensor_type_name(TensorType type) {
+    switch (type) {
+        case TensorType::FP32: return "F32";
+        case TensorType::FP16: return "F16";
+        case TensorType::Q4_0: return "Q4_0";
+        case TensorType::Q4_1: return "Q4_1";
+        case TensorType::Q5_0: return "Q5_0";
+        case TensorType::Q5_1: return "Q5_1";
+        case TensorType::Q8_0: return "Q8_0";
+        case TensorType::Q8_1: return "Q8_1";
+        case TensorType::Q2_K: return "Q2_K";
+        case TensorType::Q3_K: return "Q3_K";
+        case TensorType::Q4_K: return "Q4_K";
+        case TensorType::Q5_K: return "Q5_K";
+        case TensorType::Q6_K: return "Q6_K";
+        case TensorType::Q8_K: return "Q8_K";
+        default: return "UNKNOWN_" + std::to_string(static_cast<int>(type));
+    }
+}
+
+// Native kernels consume FP32 normalization/bias tensors and Q4_0/Q8_0 matrices.
+inline bool native_tensor_supported(const std::string& name, TensorType type) {
+    bool scalar_weights = name.find("norm.weight") != std::string::npos ||
+                          (name.size() >= 5 && name.substr(name.size() - 5) == ".bias");
+    return scalar_weights ? type == TensorType::FP32 :
+           (type == TensorType::Q4_0 || type == TensorType::Q8_0);
+}
+
 struct Tensor {
     std::string name;
     TensorType type;

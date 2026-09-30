@@ -45,6 +45,8 @@ void register_model_routes(httplib::Server& svr, const std::string& base_dir) {
             json j{
                 {"valid", insp.is_valid}, {"error", insp.error_message},
                 {"architecture", insp.architecture}, {"param_size_str", insp.param_size_str},
+                {"native_tensor_compatible", insp.native_tensor_compatible},
+                {"unsupported_native_tensors", insp.unsupported_native_tensors},
                 {"quant_type", insp.quant_type}, {"context_length", insp.context_length},
                 {"pass_edge_budget", insp.is_supported_edge_size()},
                 {"compatible_roles", insp.compatible_roles}

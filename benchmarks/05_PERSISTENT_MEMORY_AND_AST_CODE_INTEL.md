@@ -1,8 +1,10 @@
 # 05: Persistent Memory & AST Code Intelligence Benchmark
 
 **Date:** 2026-09-26  
-**Status:** 🟢 FROZEN & EMPIRICALLY VERIFIED  
+**Status:** HISTORICAL MEASUREMENT — superseded implementation; revalidation required
 **Hardware Platform:** Intel Core i7-6500U @ 2.50GHz, 32 GB RAM  
+
+> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
 
 ---
 
