@@ -86,7 +86,7 @@ code:**
    DenseLite never executes tools, reads the filesystem, or manages workspace
    permissions. It only directs the IDE on what to do.
 
-2. **Zero external runtime dependencies.**
+2. **No external ML runtime dependencies (e.g., Ollama, llama.cpp).**
    No Ollama, no llama.cpp, no MNN. The inference engine is 100% hand-rolled
    AVX2+FMA C++ targeting Llama 3.2 1B and DeepSeek-R1 Distill Qwen 1.5B with Vulkan 1.3 GPU resource management.
 

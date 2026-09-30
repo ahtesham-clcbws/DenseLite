@@ -8,7 +8,7 @@
 
 ## 1. AVX2 + FMA SIMD Numerical Correctness
 
-DenseLite features a pure C++ AVX2 forward pass executing quantized Q8_0 weights with FP32 activations and zero external runtime dependencies. Every kernel is validated for mathematical equivalence against scalar reference implementations:
+DenseLite features a pure C++ AVX2 forward pass executing quantized Q8_0 weights with FP32 activations and requiring no Ollama/llama.cpp external runtimes. Every kernel is validated for mathematical equivalence against scalar reference implementations:
 
 | Mathematical Kernel | Vector Instruction Set | Target Tolerance | Measured Relative Error | Status |
 |---|:---:|:---:|:---:|:---:|

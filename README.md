@@ -326,7 +326,7 @@ struct InferenceSession {
 
 ### What We Have Now
 
-A single, ultra-lightweight C++ binary (`DenseLite`) with zero external runtime dependencies. It manages the entire state machine of an `InferenceSession`, slices context infinitely via `TurboQuant`, falls back to its internal `AVX2` engine when offline, and flawlessly orchestrates the Zed IDE.
+A single, ultra-lightweight C++ binary (`DenseLite`) requiring no Ollama, llama.cpp, or MNN external runtimes. It manages the entire state machine of an `InferenceSession`, slices context infinitely via `TurboQuant`, falls back to its internal `AVX2` engine when offline, and flawlessly orchestrates the Zed IDE.
 
 ---
 
@@ -413,7 +413,7 @@ DenseLite/
 
 ### Dependencies & Third-Party Libraries
 
-DenseLite is designed with zero runtime dependencies. However, it leverages a few specialized build-time libraries to ensure high performance:
+DenseLite is designed with no external ML runtime dependencies (e.g., Ollama, llama.cpp). However, it leverages a few specialized build-time libraries to ensure high performance:
 
 1. **TurboQuant SIMD Engine** (`src/vector/`):
    - **What it is:** A completely custom, zero-dependency exhaustive cosine-similarity engine optimized with AVX2 and FMA intrinsics.
