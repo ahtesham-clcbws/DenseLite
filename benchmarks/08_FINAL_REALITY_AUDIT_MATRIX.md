@@ -31,7 +31,7 @@
 | **Multimodal STT / Img** | ❌ None | 🟢 On-demand leased Whisper & Stable Diffusion | 29.4K audio chunks/s (29,444x real-time) | 🟢 DELIVERED |
 | **Session KV & Tool Deduplication** | ❌ None | 🟢 Session Tool Registry + DLKV Persistent Disk KV | 434K handshakes/s, 2,243 MB/s flush | 🟢 DELIVERED |
 | **64K Context Infrastructure** | ❌ None | 🟢 Dynamic RAM-aware sizing allocates 65,536 tokens | Budgeting & KV persistence verified | 🟢 VERIFIED |
-| **64K Context Generation** | ❌ None | 🟢 NTK-aware RoPE scaling verified & benchmarked (85,550.4 base at 64K) | 64K effective context empirically tested | 🟢 VERIFIED |
+| **64K Context Generation** | ❌ None | ⚠️ NTK-aware RoPE scaling math verified synthetically (85,550.4 base at 64K). Real-world 64K model perplexity remains unbenchmarked. | ⚠️ UNBENCHMARKED |
 | **Dynamic Model Roles & Registry** | ❌ None | 🟢 SQLite WAL Model Roles + Binary GGUF Inspector | 17/17 CTests passing 100% | 🟢 DELIVERED |
 | **Zero-Python Tray Supervisor** | ❌ None | 🟢 Native C++ Ayatana Tray + Glassmorphic WebUI | 6 MB RAM, 0% CPU idle | 🟢 DELIVERED |
 | **ModernBERT Zero-Shot Router** | ❌ None | 🟢 MoritzLaurer/ModernBERT-large-zeroshot-v2.0 ONNX | CPU-only, sub-50ms classification | 🟢 DELIVERED |
@@ -60,4 +60,4 @@ All 17 CTest test suites pass cleanly with 100% deterministic success (~24.7s).
 **Important distinctions:**
 - All generation benchmarks (3.15–18.42 tok/s) are measured under pure **AVX2+FMA CPU** forward pass with **2 OpenMP threads** intentionally throttled.
 - **Vulkan VRAM governance** (admission gate, 85% ceiling, scratch budgeting) is **verified**. Vulkan compute shader GEMV is on roadmap (inference remains CPU-bound).
-- **64K context capacity** (RAM allocation, KV persistence, prefix matching, and NTK-aware RoPE frequency scaling) is **fully verified**. 64K-token inference generation has been verified.
+- **64K context capacity** (RAM allocation, KV persistence, prefix matching, and NTK-aware RoPE frequency scaling) is **fully verified structurally**. However, real-world 64K-token inference generation quality and perplexity drop-off remain unbenchmarked.
