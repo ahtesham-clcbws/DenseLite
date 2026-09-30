@@ -106,6 +106,11 @@ int main(int argc, char** argv) {
     // P0-Security: Enforce HTTP payload max length
     svr.set_payload_max_length(static_cast<size_t>(srv_cfg.max_payload_mb) * 1024 * 1024);
 
+    // Hardware Rule: Clamp HTTP worker threads to the strict 50% CPU limit
+    int clamped_threads = std::min((int)srv_cfg.threads, HardwareManager::instance().get_max_threads());
+    if (clamped_threads <= 0) clamped_threads = 1;
+    svr.new_task_queue = [clamped_threads] { return new httplib::ThreadPool(clamped_threads); };
+
     std::string cors_origin = srv_cfg.cors_allowed_origins.empty() ? "http://localhost" : srv_cfg.cors_allowed_origins;
     svr.set_default_headers({
         {"Access-Control-Allow-Origin", cors_origin.c_str()},

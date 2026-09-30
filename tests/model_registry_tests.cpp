@@ -73,7 +73,7 @@ void test_model_registry_crud_and_multi_role() {
     m1.architecture = "qwen2";
     m1.param_count = 1540000000ULL;
     m1.param_size_str = "1.54B";
-    m1.quant_type = "Q4_K_M";
+    m1.quant_type = "Q4_0";
     m1.context_length = 32768;
     m1.is_verified = true;
 

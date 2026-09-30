@@ -24,7 +24,7 @@ public:
 
     static size_t get_max_allowed_ram_bytes() {
         float ram_budget_pct = SettingsManager::instance().get_resource_config().ram_budget_percent;
-        if (ram_budget_pct <= 0.0f || ram_budget_pct > 1.0f) ram_budget_pct = 0.45f;
+        if (ram_budget_pct <= 0.0f || ram_budget_pct > 1.0f) ram_budget_pct = 0.50f;
 
         // Linux specific parsing of /proc/meminfo
         size_t total_ram_kb = 0;

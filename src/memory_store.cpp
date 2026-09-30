@@ -331,7 +331,8 @@ std::vector<std::pair<MemoryEntry, float>> MemoryStore::query_memories_vector(
     if (!db_ || query_vec.empty()) return scored;
 
     if (turboquant_) {
-        auto tq_hits = turboquant_->search(query_vec, limit * 10);
+        size_t fetch_limit = std::max<size_t>(2000, limit * 100);
+        auto tq_hits = turboquant_->search(query_vec, fetch_limit);
         if (tq_hits.empty()) return scored;
 
         std::string placeholders;

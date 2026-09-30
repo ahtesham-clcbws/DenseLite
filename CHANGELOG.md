@@ -15,10 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Truth-in-Reporting Multimodal Engine Contracts**: Added dynamic `engine_mode` field to `TranscribeResult` and `ImageGenerationResult` to transparently distinguish leased native neural weights from acoustic Fourier and latent VAE synthesis fallbacks.
 - **Canonical Version Lock**: Synchronized version `4.0.0` across `CMakeLists.txt`, `settings_types.hpp`, `settings_tests.cpp`, and `SECURITY.md`.
 
-## [3.4.0] - 2026-09-29
+## [4.0.0] - 2026-09-29
 
 ### Added
-- **Native C++ System Tray Supervisor & Control Plane (`DenseLiteTray`)**: Zero-Python native C++17 tray daemon utilizing `libayatana-appindicator3` and `gtk+-3.0` (~6 MB RAM, 0% CPU idle). Hard-coupled lifecycle terminates engine process on exit.
+- **Native C++ System Tray Supervisor & Control Plane (`DenseLiteTray`)**: Zero-Python native C++20 tray daemon utilizing `libayatana-appindicator3` and `gtk+-3.0` (~6 MB RAM, 0% CPU idle). Hard-coupled lifecycle terminates engine process on exit.
 - **Glassmorphic Settings & Telemetry Dashboard (`web/`)**: Native ES module dashboard for live hardware gauges, real-time log streaming, model-role bindings, and inference controls.
 - **SQLite Control Plane Database Consolidation**: Consolidated control plane and settings into unified WAL-mode SQLite databases with self-healing automatic migration bootstrap.
 - **Model Registry & Dynamic Role Assignment (`model_roles`, `local_models`)**: Dynamic multi-role binding (`general`, `coder`, `router`, `embedding`, `compressor`, `audio_stt`, `image_gen`) with shared memory weight deduplication.
@@ -88,6 +88,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GCC 13+ Compatibility (RocksDB/Zvec)**: Manually patched upstream missing `#include <cstdint>` headers in `checkpoint.h` and `wal_file.h` to fix standard library `uint64_t`/`uint32_t` definition compilation errors on modern Linux kernels.
 
 ### Fixed
-- **Needle 3 Internalization**: Embedded Needle 3 resources internally (via Git LFS) directly into the repository, eliminating the need for users to fetch it from an external source.
+- **Needle 3 Replacement**: Needle 3 was deprecated in favor of `ModernBERTRouter` (80M ONNX classifier). All routing requests map to ModernBERT or heuristic fast-path.
 - **Core Engine Compilation Errors**: Fixed a missing JSON nested object closing brace within `RequestAnalyzer.cpp`'s `messages` parsing loop block.
 - **Header Declarations**: Added missing `#include "RequestAnalyzer.hpp"` header to `DenseLiteEngine.hpp` to resolve missing `OpenAIRequest` struct definitions during the final compilation phase.

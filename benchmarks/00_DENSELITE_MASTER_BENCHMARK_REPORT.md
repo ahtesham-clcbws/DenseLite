@@ -1,7 +1,7 @@
-# 00: DenseLite v3.4.0 — Master System Benchmark Report
+# 00: DenseLite v4.0.0 — Master System Benchmark Report
 
 **Project:** DenseLite (Pure C++ Native Intelligence Engine)  
-**Version:** v3.4.0  
+**Version:** v4.0.0  
 **Date:** 2026-09-29  
 **Hardware Platform:** Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz (2 Cores, 4 Threads), 32 GB RAM  
 **GPU Hardware / VRAM Gate:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
@@ -13,9 +13,9 @@
 
 ## Executive Summary
 
-DenseLite v3.4.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict 2-thread CPU allocation (50% max host load) and a 14 GB RAM safety ceiling while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
+DenseLite v4.0.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict 2-thread CPU allocation (50% max host load) and a 16 GB RAM safety ceiling while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
 
-With v3.4.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation. Furthermore, the engine is fortified with **Phase 1-4 Hardening**, which includes:
+With v4.0.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation. Furthermore, the engine is fortified with **Phase 1-4 Hardening**, which includes:
 - **Strict Hardware Governance & VRAM Gate:** Enforcement of an 85% VRAM ceiling, PCIe streaming of KV Cache, and deterministic GPU vs CPU execution binding.
 - **ModernBERT Strict Routing:** Zero-shot intent classification explicitly overriding legacy heuristic fallbacks.
 - **Unification of TurboQuant:** Direct routing of VectorSearch and MemoryStore queries through SIMD-accelerated exhaustive scans.

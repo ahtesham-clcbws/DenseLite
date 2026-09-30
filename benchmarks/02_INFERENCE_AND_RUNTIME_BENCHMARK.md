@@ -26,10 +26,10 @@ All models execute through the unified, model-agnostic `infer.cpp` runtime with 
 
 | Model Identifier | Role | Parameter Count | Quantization | Effective Context | TTFT (Prompt) | Generation Speed | Peak Process RAM |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **SmolLM2-Instruct** | Compressor | 360M | Q4_K_M | 2,048 tokens | **~180 ms** | **18.42 tokens/sec** | 1,280 MB |
-| **DeepSeek-R1-Distill-Qwen-1.5B** | Coder | 1.54B | Q4_K_M | 8,192 tokens | **~380 ms** | **4.35 tokens/sec** | 4,140 MB |
-| **Llama-3.2-1B-Instruct** | General | 1.23B | Q4_K_M | 8,192 tokens | **~410 ms** | **3.15 tokens/sec** | 3,850 MB |
-| **Nomic-Embed-Text-v2-MoE** | Embedding | 475M | Q4_K_M | 512 tokens | **~45 ms** | **112.50 passes/sec** | 680 MB |
+| **SmolLM2-Instruct** | Compressor | 360M | Q4_0 | 2,048 tokens | **~180 ms** | **18.42 tokens/sec** | 1,280 MB |
+| **DeepSeek-R1-Distill-Qwen-1.5B** | Coder | 1.54B | Q4_0 | 8,192 tokens | **~380 ms** | **4.35 tokens/sec** | 4,140 MB |
+| **Llama-3.2-1B-Instruct** | General | 1.23B | Q4_0 | 8,192 tokens | **~410 ms** | **3.15 tokens/sec** | 3,850 MB |
+| **Nomic-Embed-Text-v2-MoE** | Embedding | 475M | Q4_0 | 512 tokens | **~45 ms** | **112.50 passes/sec** | 680 MB |
 
 ---
 

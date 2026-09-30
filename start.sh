@@ -24,11 +24,11 @@ if [ ! -f ".env" ]; then
     # 1. Select Main Reasoner Model (Llama 3.2 1B Instruct)
     echo ""
     echo "Select Main Reasoner Model (General Reasoning & Orchestration):"
-    select MAIN_CHOICE in "Llama-3.2-1B-Instruct-Abliterated Q4_K_M (Recommended, ~800MB)" "Llama-3.2-1B-Instruct-Abliterated Q8_0 (High Precision, ~1.3GB)"; do
+    select MAIN_CHOICE in "Llama-3.2-1B-Instruct-Abliterated Q4_0 (Recommended, ~800MB)" "Llama-3.2-1B-Instruct-Abliterated Q8_0 (High Precision, ~1.3GB)"; do
         case $MAIN_CHOICE in
-            "Llama-3.2-1B-Instruct-Abliterated Q4_K_M (Recommended, ~800MB)" )
-                MAIN_FILE="Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf"
-                MAIN_URL="https://huggingface.co/mradermacher/Llama-3.2-1B-Instruct-abliterated-i1-GGUF/resolve/main/Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf"
+            "Llama-3.2-1B-Instruct-Abliterated Q4_0 (Recommended, ~800MB)" )
+                MAIN_FILE="Llama-3.2-1B-Instruct-abliterated.i1-Q4_0.gguf"
+                MAIN_URL="https://huggingface.co/mradermacher/Llama-3.2-1B-Instruct-abliterated-i1-GGUF/resolve/main/Llama-3.2-1B-Instruct-abliterated.i1-Q4_0.gguf"
                 break;;
             "Llama-3.2-1B-Instruct-Abliterated Q8_0 (High Precision, ~1.3GB)" )
                 MAIN_FILE="Llama-3.2-1B-Instruct-abliterated.Q8_0.gguf"
@@ -40,11 +40,11 @@ if [ ! -f ".env" ]; then
     # 2. Select Coder Model (DeepSeek-R1 Distill Qwen 1.5B)
     echo ""
     echo "Select Coding Model (Code Synthesis & AST Logic):"
-    select CODER_CHOICE in "DeepSeek-R1-Distill-Qwen-1.5B Q4_K_M (Recommended, ~1.1GB)" "DeepSeek-R1-Distill-Qwen-1.5B Q8_0 (High Precision, ~1.8GB)"; do
+    select CODER_CHOICE in "DeepSeek-R1-Distill-Qwen-1.5B Q4_0 (Recommended, ~1.1GB)" "DeepSeek-R1-Distill-Qwen-1.5B Q8_0 (High Precision, ~1.8GB)"; do
         case $CODER_CHOICE in
-            "DeepSeek-R1-Distill-Qwen-1.5B Q4_K_M (Recommended, ~1.1GB)" )
-                CODER_FILE="DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
-                CODER_URL="https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+            "DeepSeek-R1-Distill-Qwen-1.5B Q4_0 (Recommended, ~1.1GB)" )
+                CODER_FILE="DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf"
+                CODER_URL="https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf"
                 break;;
             "DeepSeek-R1-Distill-Qwen-1.5B Q8_0 (High Precision, ~1.8GB)" )
                 CODER_FILE="DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf"
@@ -56,15 +56,15 @@ if [ ! -f ".env" ]; then
     # 3. Select SmolLM2 Model (Context Slicing / Formatter)
     echo ""
     echo "Select Formatter Model (Context Slicing & Injection):"
-    select SMOLLM_CHOICE in "SmolLM2-360M Q4_K_M (Standard, ~250MB)" "SmolLM2-135M Q4_K_M (Ultra-light, ~100MB)"; do
+    select SMOLLM_CHOICE in "SmolLM2-360M Q4_0 (Standard, ~250MB)" "SmolLM2-135M Q4_0 (Ultra-light, ~100MB)"; do
         case $SMOLLM_CHOICE in
-            "SmolLM2-360M Q4_K_M (Standard, ~250MB)" )
-                SMOLLM_FILE="smollm2-360m-instruct-q4_k_m.gguf"
-                SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-360M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf"
+            "SmolLM2-360M Q4_0 (Standard, ~250MB)" )
+                SMOLLM_FILE="smollm2-360m-instruct-q4_0.gguf"
+                SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-360M-Instruct-Q4_0-GGUF/resolve/main/smollm2-360m-instruct-q4_0.gguf"
                 break;;
-            "SmolLM2-135M Q4_K_M (Ultra-light, ~100MB)" )
-                SMOLLM_FILE="smollm2-135m-instruct-q4_k_m.gguf"
-                SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf"
+            "SmolLM2-135M Q4_0 (Ultra-light, ~100MB)" )
+                SMOLLM_FILE="smollm2-135m-instruct-q4_0.gguf"
+                SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-135M-Instruct-Q4_0-GGUF/resolve/main/smollm2-135m-instruct-q4_0.gguf"
                 break;;
         esac
     done
@@ -72,11 +72,11 @@ if [ ! -f ".env" ]; then
     # 4. Select Nomic Embed Model
     echo ""
     echo "Select Vector Memory Embedder:"
-    select NOMIC_CHOICE in "nomic-embed-text-v2-moe Q4_K_M (Modern MoE, Recommended)" "nomic-embed-text-v1.5 Q8_0 (Legacy Dense)"; do
+    select NOMIC_CHOICE in "nomic-embed-text-v2-moe Q4_0 (Modern MoE, Recommended)" "nomic-embed-text-v1.5 Q8_0 (Legacy Dense)"; do
         case $NOMIC_CHOICE in
-            "nomic-embed-text-v2-moe Q4_K_M (Modern MoE, Recommended)" )
-                NOMIC_FILE="nomic-embed-text-v2-moe.Q4_K_M.gguf"
-                NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/resolve/main/nomic-embed-text-v2-moe.Q4_K_M.gguf"
+            "nomic-embed-text-v2-moe Q4_0 (Modern MoE, Recommended)" )
+                NOMIC_FILE="nomic-embed-text-v2-moe.Q4_0.gguf"
+                NOMIC_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/resolve/main/nomic-embed-text-v2-moe.Q4_0.gguf"
                 break;;
             "nomic-embed-text-v1.5 Q8_0 (Legacy Dense)" )
                 NOMIC_FILE="nomic-embed-text-v1.5.Q8_0.gguf"

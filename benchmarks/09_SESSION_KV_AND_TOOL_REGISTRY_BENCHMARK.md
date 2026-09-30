@@ -1,7 +1,7 @@
-# 09: DenseLite v3.4.0 — Session KV Cache & Tool Registry Benchmark
+# 09: DenseLite v4.0.0 — Session KV Cache & Tool Registry Benchmark
 
 **Project:** DenseLite (Pure C++ Native Intelligence Engine)  
-**Version:** v3.4.0  
+**Version:** v4.0.0  
 **Date:** 2026-09-29  
 **Hardware Platform:** Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz (2 Cores, 4 Threads), 32 GB RAM  
 **GPU Compute Platform:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
@@ -13,10 +13,10 @@
 
 ## Executive Summary
 
-DenseLite v3.4.0 addresses real-world agent harness bottlenecks, specifically client transport timeouts caused by massive MCP tool schemas (such as OpenCode attaching 600 KB `laravel-boost` tool definitions) and repetitive prompt re-evaluation overhead on multi-turn conversations.
+DenseLite v4.0.0 addresses real-world agent harness bottlenecks, specifically client transport timeouts caused by massive MCP tool schemas (such as OpenCode attaching 600 KB `laravel-boost` tool definitions) and repetitive prompt re-evaluation overhead on multi-turn conversations.
 
-v3.4.0 introduces five key architectural breakthroughs:
-1. **Dynamic RAM-Aware Context Sizing:** Automatically determines system headroom after 45% model allocation and unlocks up to 64K tokens (65,536 tokens on 32GB RAM systems) with zero OOM risk.
+v4.0.0 introduces five key architectural breakthroughs:
+1. **Dynamic RAM-Aware Context Sizing:** Automatically determines system headroom after 50% model allocation and unlocks up to 64K tokens (65,536 tokens on 32GB RAM systems) with zero OOM risk.
 2. **Session Tool Registry:** Caches external MCP schemas per chat session on the first handshake. Deduplicates redundant payloads, completely eliminating 600 KB payload bloat on subsequent turns.
 3. **Selective Tool Extraction & Chat Pruning:** Evaluates query intent: general chat queries (`"hi"`, `"how are you?"`) have tools stripped to 0, enabling instant sub-5ms AVX2 inference; coding tasks selectively receive only 1–2 relevant tools.
 4. **Persistent Session KV Cache & Delta Prefill:** Preserves inference KV states between turns. Delta prefix matching skips tokens $0 \to L$ and evaluates only newly added tokens $L \to N$ (1.67M matches/sec), delivering instant generation on turns 2+.
@@ -40,7 +40,7 @@ v3.4.0 introduces five key architectural breakthroughs:
 ## Detailed Analysis
 
 ### 1. Dynamic Context Sizing Headroom
-- **Policy:** Allocates 45% total RAM for resident models, then allocates up to 90% of balance RAM for KV context.
+- **Policy:** Allocates 50% total RAM for resident models, then allocates up to 90% of balance RAM for KV context.
 - **Hardware Sizing:** On this 32 GB RAM host with ~24 GB free, DenseLite safely allocates **65,536 context tokens (64K context)**.
 - **Evaluation Latency:** 24.61 µs with zero runtime overhead during request processing.
 

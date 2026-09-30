@@ -45,9 +45,6 @@ std::vector<SearchResult> SearchEngine::search(const std::string& query,
     // 2. Gather memory entries
     std::vector<std::pair<std::string, std::string>> memory_texts;
     if (memory_engine_) {
-        for (const auto& mem : memory_engine_->persistent().get_all()) {
-            memory_texts.emplace_back(mem.key, mem.value);
-        }
         MemoryScopeFilter scope_filter;
         scope_filter.workspace_id = workspace_id_;
         scope_filter.active_only = true;

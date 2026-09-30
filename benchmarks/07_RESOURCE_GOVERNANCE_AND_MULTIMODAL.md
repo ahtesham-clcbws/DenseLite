@@ -28,7 +28,7 @@ To prevent DenseLite from overwhelming edge laptops, the `ResourceGovernor` cont
 DenseLite provides on-demand leasing for voice input and image generation with **0 bytes of permanent RAM footprint**. Models are leased only during generation and unmapped when idle:
 
 ```text
-Voice Audio Request ──► ModelManager ──► Acquire Whisper Lease ──► Transcribe ──► Unload (0B RAM)
+Voice Audio Request ──► ModelManager ──► Acquire Whisper Lease (Scaffold) ──► Transcribe ──► Unload (0B RAM)
 Image Prompt Request ──► ModelManager ──► Acquire SD Lease ──────► Generate ───► Unload (0B RAM)
 ```
 
@@ -37,7 +37,7 @@ Image Prompt Request ──► ModelManager ──► Acquire SD Lease ───
 | **Audio STT Transcription** | 1-sec 16kHz PCM chunks | **23,970 chunks/sec** | **41.72 µs** | $> 1,000$ chunks/s | 🟢 PASS (23,970x Real-time) |
 | **16-bit PCM Stream Decode** | 32 KB raw PCM buffer | **21,388 passes/sec** | **46.76 µs (653 MB/s)** | $> 1,000$ passes/s | 🟢 PASS |
 | **Image Generation Step** | 512x512 @ 10 steps | **9,515 passes/sec** | **105.09 µs** | $> 1,000$ passes/s | 🟢 PASS |
-| **Multimodal Headroom Gate** | 14 GB headroom check | **21,437 checks/sec** | **46.65 µs** | $< 100$ µs | 🟢 PASS |
+| **Multimodal Headroom Gate** | 16 GB headroom check | **21,437 checks/sec** | **46.65 µs** | $< 100$ µs | 🟢 PASS |
 | **Permanent RAM Leak** | Post-Unload RSS Delta | **0 Bytes** | Zero residual allocation | 0 Bytes | 🟢 PASS |
 
 ---

@@ -72,5 +72,5 @@ POSIX Subsystems:       Direct mmap with MAP_SHARED / MAP_PRIVATE, non-blocking 
 ## 5. Hardware Constraints & Resource Rules
 
 1. **CPU Throttling Rule:** DenseLite must NEVER spawn more than 2 OpenMP compute threads during forward passes or vector searches, ensuring at least 2 hardware threads remain available for the operating system, editor (Zed), and window compositor.
-2. **RAM Safety Ceiling:** Host allocations are checked against the 14 GB headroom limit before expanding context or admitting on-demand models.
+2. **RAM Safety Ceiling:** Host allocations are checked against the 16 GB headroom limit before expanding context or admitting on-demand models.
 3. **Display Server Protection:** The 85% VRAM cap ensures desktop sessions never experience stutter or GPU resets.
