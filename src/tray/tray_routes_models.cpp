@@ -67,8 +67,8 @@ void register_model_routes(httplib::Server& svr, const std::string& base_dir) {
             }
             std::string model_id = body.value("id", "");
             auto insp = ModelInspector::inspect(path);
-            if (!insp.is_valid || !insp.is_supported_edge_size()) {
-                res.set_content(json({{"success", false}, {"error", "Invalid or oversized model"}}).dump(), "application/json");
+            if (!insp.is_valid || !insp.is_supported_edge_size() || !insp.native_tensor_compatible) {
+                res.set_content(json({{"success", false}, {"error", "Invalid, oversized, or contains unsupported tensor quantizations"}}).dump(), "application/json");
                 return;
             }
             std::string db_path = DatabasePaths::settings_db(base_dir);

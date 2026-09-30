@@ -1,0 +1,15 @@
+{
+  "date_utc": "2026-09-30T11:52:04.509869+00:00",
+  "base_commit": "2d4396d6da7d322756cbdbebe55d2de35bf97edf",
+  "working_tree_modified": true,
+  "source_sha256": "d856dddeb9f24bc653bebc3cdbc3ca34e012ecc82bc68000a29ef48f29871171",
+  "hash_scope": "Sorted src/**, tests/**, CMakeLists.txt, benchmarks/benchmark_engine.cpp; path + NUL + contents + NUL",
+  "platform": "Linux-7.2.8-1-cachyos-x86_64-with-glibc2.44",
+  "assertions": "Enabled explicitly in resource_governor_tests.cpp and turboquant_tests.cpp; other Release tests retain existing configuration",
+  "limitations": [
+    "Vulkan unavailable during this validation",
+    "No production GGUF model weights available",
+    "macOS accounting not tested on macOS",
+    "64K production model inference and quality unverified"
+  ]
+}

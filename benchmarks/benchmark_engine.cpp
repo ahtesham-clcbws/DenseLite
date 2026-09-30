@@ -725,7 +725,7 @@ void benchmark_phase7_resource_governance() {
     double thread_sec = std::chrono::duration<double>(end - start).count();
     double thread_ops = THREAD_ITERS / thread_sec;
 
-    std::cout << "[2] OpenMP Thread Limit Enforcement (Capped at 50% CPU / 2 Threads):\n";
+    std::cout << "[2] OpenMP Thread Limit Enforcement (Capped at 50% of hardware threads):\n";
     std::cout << "    - Throughput: " << std::fixed << std::setprecision(0) << thread_ops << " enforcements/sec\n";
     std::cout << "    - Latency per enforcement: " << std::setprecision(3) << (thread_sec * 1e6 / THREAD_ITERS) << " us\n";
 

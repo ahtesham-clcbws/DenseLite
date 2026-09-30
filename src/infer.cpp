@@ -145,22 +145,18 @@ inline void matvec_q8(const Tensor& w, const float* x, float* out, int in_featur
     matvec(w, x, out, in_features, out_features);
 }
 
-static std::string native_tensor_error(const DenseModel& model) {
-    for (const auto& entry : model.tensors) {
-        if (!native_tensor_supported(entry.first, entry.second.type)) {
-            return "Unsupported tensor '" + entry.first + "' of type " +
-                tensor_type_name(entry.second.type) +
-                ". Native matrices require Q4_0/Q8_0; normalization and bias tensors require FP32.";
-        }
-    }
-    return "Forward pass failed; inspect server diagnostics for token or missing tensor errors.";
+static std::string native_tensor_error(const std::string& tensor_name, TensorType type) {
+    return "Inference Error: Unsupported tensor representation.\n"
+           "  => Failing Tensor: '" + tensor_name + "'\n"
+           "  => Detected Type:  " + tensor_type_name(type) + "\n"
+           "  => Resolution:     Native execution requires Q4_0/Q8_0 for matrices, and FP32 for 1D biases/norm.";
 }
 
 bool forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits) {
     auto& config = model.config;
     for (const auto& entry : model.tensors) {
         if (!native_tensor_supported(entry.first, entry.second.type)) {
-            std::cerr << "[Infer] " << native_tensor_error(model) << std::endl;
+            std::cerr << "[Infer] " << native_tensor_error(entry.first, entry.second.type) << std::endl;
             return false;
         }
     }

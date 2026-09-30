@@ -322,7 +322,7 @@ struct InferenceSession {
 - **Stripped `server.cpp`:** Removed monolithic logic from the HTTP server, relegating it to a pure routing gateway.
 - **Added ModernBERT Zero-Shot Intent Routing:** Replaced legacy heuristic matching with `ModernBERTRouter` (`MoritzLaurer/ModernBERT-large-zeroshot-v2.0`), classifying intents into coding, reasoning, image, audio, and compression with sub-10ms ONNX execution.
 - **Implemented Deterministic Provider-State Healing:** Built `ProviderErrorAnalyzer` and `SQLiteRouter` logic to intercept errors. Rather than letting an LLM guess replacements, it hits provider `/v1/models` endpoints to deterministically map available fallback infrastructure.
-- **Built Custom TurboQuant Engine:** Implemented a custom 8-wide AVX2-FMA exhaustive cosine similarity engine (`TurboQuant`) for quantized semantic retrieval over every candidate; ranking can differ from FP32 cosine.
+- **Built Custom TurboQuant Engine:** Implemented a custom 8-wide AVX2-FMA exhaustive similarity engine (`TurboQuant`) for quantized semantic retrieval over every candidate; note that while the scan covers 100% of candidates (no ANN graph pruning), the 4-bit quantization means the resulting similarity scores and ranking are approximations and not mathematically identical to an exact FP32 cosine search.
 - **Abstracted `ModelEngine` & Added `Curator`:** Extracted inference into a dedicated engine and added a Curator layer to consolidate multi-turn results before serializing.
 - **Revealed the Custom AVX2 Engine:** Committed to the custom, hand-rolled C++ Transformer engine (`infer.cpp`) running Llama 3.2 1B Instruct and DeepSeek-R1 Distill Qwen 1.5B natively.
 

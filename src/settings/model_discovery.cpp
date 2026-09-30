@@ -132,7 +132,7 @@ int ModelDiscovery::auto_discover_and_register(const std::string& base_dir, cons
                     if (check_and_update_existing(path, id)) continue;
 
                     auto insp = ModelInspector::inspect(path);
-                    if (insp.is_valid && insp.is_supported_edge_size()) {
+                    if (insp.is_valid && insp.is_supported_edge_size() && insp.native_tensor_compatible) {
                         LocalModelRecord rec{id, path, insp.architecture, insp.param_count,
                                              insp.param_size_str, insp.quant_type, insp.context_length, true, 0};
                         if (ModelRegistryDB::register_model(db_path, rec)) {
