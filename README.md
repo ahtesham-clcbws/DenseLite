@@ -61,7 +61,7 @@ Official hardware-level empirical benchmarks recorded on host Intel Core i7-6500
 - [02_INFERENCE_AND_RUNTIME_BENCHMARK.md](benchmarks/02_INFERENCE_AND_RUNTIME_BENCHMARK.md): Native AVX2+FMA mathematical correctness, dynamic GGUF parsing, multi-model speed, and TTFT.
 - [03_LIFECYCLE_AND_MEMORY_SAFETY.md](benchmarks/03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII ModelLease throughput (5.39M ops/s), 85% VRAM ceiling, and bounded KV cache memory.
 - [04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md](benchmarks/04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md): Trie BPE encoding (1.42M tok/s), zero-allocation token counting, and ChatML context compilation.
-- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](benchmarks/05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, Zvec ANN recall, Tree-sitter AST parsing, and 64-bit FNV-1a hash delta tracking (4.42 GB/s).
+- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](benchmarks/05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant SIMD recall, Tree-sitter AST parsing, and 64-bit FNV-1a hash delta tracking (4.42 GB/s).
 - [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](benchmarks/06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval ResultFusion, 5-state response parsing, and 7-action self-healing fault recovery.
 - [07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md](benchmarks/07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md): OpenMP $\le 2$ thread throttling, 6-stage progressive eviction cascade, Whisper STT, and Stable Diffusion.
 - [08_FINAL_REALITY_AUDIT_MATRIX.md](benchmarks/08_FINAL_REALITY_AUDIT_MATRIX.md): Comprehensive reality audit matrix verifying 100% completion and resolution of all initial regressions.
@@ -320,26 +320,26 @@ struct InferenceSession {
 - **Stripped `server.cpp`:** Removed monolithic logic from the HTTP server, relegating it to a pure routing gateway.
 - **Added ModernBERT Zero-Shot Intent Routing:** Replaced legacy heuristic matching with `ModernBERTRouter` (`MoritzLaurer/ModernBERT-large-zeroshot-v2.0`), classifying intents into coding, reasoning, image, audio, and compression with sub-10ms ONNX execution.
 - **Implemented Deterministic Provider-State Healing:** Built `ProviderErrorAnalyzer` and `SQLiteRouter` logic to intercept errors. Rather than letting an LLM guess replacements, it hits provider `/v1/models` endpoints to deterministically map available fallback infrastructure.
-- **Embedded Alibaba Zvec:** Pulled the production-grade `alibaba/zvec` vector database directly into the C++ tree to enable true local semantic memory slicing for context.
+- **Built Custom TurboQuant Engine:** Implemented a custom 8-wide AVX2-FMA exhaustive cosine similarity engine (`TurboQuant`) for exact-match semantic memory slicing without the inaccuracies of ANN indexes.
 - **Abstracted `ModelEngine` & Added `Curator`:** Extracted inference into a dedicated engine and added a Curator layer to consolidate multi-turn results before serializing.
 - **Revealed the Custom AVX2 Engine:** Committed to the custom, hand-rolled C++ Transformer engine (`infer.cpp`) running Llama 3.2 1B Instruct and DeepSeek-R1 Distill Qwen 1.5B natively.
 
 ### What We Have Now
 
-A single, ultra-lightweight C++ binary (`DenseLite`) with zero external runtime dependencies. It manages the entire state machine of an `InferenceSession`, slices context infinitely via `Zvec`, falls back to its internal `AVX2` engine when offline, and flawlessly orchestrates the Zed IDE.
+A single, ultra-lightweight C++ binary (`DenseLite`) with zero external runtime dependencies. It manages the entire state machine of an `InferenceSession`, slices context infinitely via `TurboQuant`, falls back to its internal `AVX2` engine when offline, and flawlessly orchestrates the Zed IDE.
 
 ---
 
 ### Technology Choices
 
-#### Why Alibaba Zvec instead of SQLite for Context
+#### Why TurboQuant Vector Search instead of SQLite for Context
 
-Zvec acts as the **semantic retrieval index**. Context is composed of three conceptual layers:
+TurboQuant acts as the **semantic retrieval index**. Context is composed of three conceptual layers:
 1. **ContextStore:** Stores conversation chunks and metadata.
 2. **EmbeddingEngine:** (Nomic Embed) converts chunks to high-dimensional floats.
 3. **VectorIndex:** TurboQuant SIMD engine performs exhaustive cosine calculations.
 
-Unlike SQLite's exact string matching (`LIKE '%code%'`), Zvec understands semantic meaning, allowing DenseLite to find the most relevant context across a 10,000-message conversation in sub-milliseconds.
+Unlike SQLite's exact string matching (`LIKE '%code%'`), Nomic embeddings understand semantic meaning, allowing TurboQuant to find the most relevant context across a 10,000-message conversation in sub-milliseconds.
 
 #### Why SQLite for State Management
 
@@ -405,7 +405,7 @@ DenseLite/
 ├── dependencies/
 │   ├── json.hpp                # nlohmann/json (vendored).
 │   ├── tree-sitter/            # Tree-sitter AST parsing library (vendored).
-│   └── zvec/                   # Alibaba Zvec vector database (bundled dependency).
+│   └── vector/                 # Custom TurboQuant SIMD similarity engine.
 │
 ├── benchmarks/                 # Official empirical benchmark suite (00_ through 08_)
 └── models/                     # Local model weights (not committed).
@@ -415,9 +415,9 @@ DenseLite/
 
 DenseLite is designed with zero runtime dependencies. However, it leverages a few specialized build-time libraries to ensure high performance:
 
-1. **Alibaba Zvec** (`dependencies/zvec/`):
-   - **What it is:** A production-grade 4-bit compressed vector search engine.
-   - **Why we use it:** Instead of pushing a 50,000-token conversation history to an LLM, DenseLite embeds user queries and uses Zvec to instantly search past context for only the most semantically relevant chunks. This saves massive token costs and processing time.
+1. **TurboQuant SIMD Engine** (`src/vector/`):
+   - **What it is:** A completely custom, zero-dependency exhaustive cosine-similarity engine optimized with AVX2 and FMA intrinsics.
+   - **Why we use it:** Instead of pushing a 50,000-token conversation history to an LLM, DenseLite embeds user queries and uses TurboQuant to instantly search past context for only the most semantically relevant chunks. This saves massive token costs and processing time.
 2. **nlohmann/json** (`dependencies/json.hpp`):
    - **What it is:** The premier C++ JSON library.
    - **Why we use it:** Robust, crash-proof parsing of inbound HTTP request payloads and outbound SSE streams. String-manipulation logic for JSON is inherently unsafe and brittle; `nlohmann/json` ensures integrity.
@@ -495,7 +495,7 @@ DenseLite is designed to be an ultra-lightweight citizen on any operating system
 
 1. Evict temporary inference buffers
 2. Evict old context cache
-3. Reduce Zvec retrieval cache
+3. Reduce TurboQuant retrieval cache
 4. Unload inactive local model
 5. Refuse new local inference
 
@@ -508,7 +508,7 @@ DenseLite auto-detects `std::thread::hardware_concurrency()` and physical memory
 #### Scenario 1: The Infinite Context Request
 > **User:** "Review all the changes we made to the networking stack yesterday and suggest improvements."
 > **Problem:** The conversation history is 50,000 tokens long.
-> **Resolution:** `ContextManager` uses **Zvec** to extract only the 1,500 most semantically relevant tokens discussing "networking" and "changes", saving API cost and token limits.
+> **Resolution:** `ContextManager` uses **TurboQuant** to extract only the 1,500 most semantically relevant tokens discussing "networking" and "changes", saving API cost and token limits.
 
 #### Scenario 2: The Deterministic Cooldown Healing
 > **User:** Hits "Generate Script" in the Client.
