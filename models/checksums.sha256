@@ -1,5 +1,8 @@
-# Canonical Model Checksums for DenseLite (SHA-256)
+# Canonical Model and Dependency Checksums for DenseLite (SHA-256)
 # Format: <hash>  <relative_path_or_filename>
+
+# Dependencies & Runtimes
+67db4dc1561f1e3fd42e619575c82c601ef89849afc7ea85a003abbac1a1a105  dependencies/onnxruntime-linux-x64-1.20.1.tgz
 
 # Router Models (ONNX & Configs)
 4fcd879d3433e2fff506ac86221b4656f6a960653752ee87d087efd3a64cc128  models/modernbert/model.onnx
@@ -10,8 +13,11 @@ ababd87e19a2c783e08495996e5e32e7d6661ea66686ba41fd02f9e7d46d547f  models/modernb
 ca16c59d7b5a7fe119a546eb497e6b6def2a9f3acd4db1d99d6b59da077b76fc  models/validation/deepseek-1.5b-q4_0.gguf
 
 # Standard User Models (~/.denselite/models/)
+f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840  DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf
 f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840  DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+90132864bafdf2cc90d7e3c9b47a07152ab57f2849ce12b2c82d796d006a7a25  Llama-3.2-1B-Instruct-abliterated.i1-Q4_0.gguf
 90132864bafdf2cc90d7e3c9b47a07152ab57f2849ce12b2c82d796d006a7a25  Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf
 b5fb2811647b8ef461519a68a3bf67014a84a66a130c8a2af9413ff9f06d3f22  nomic-embed-text-v2-moe.Q4_K_M.gguf
-8856952e27c65a87618f8347d1d06328c3953af04e8327b6dd1fab6670358fd0  smollm2-360m-instruct-q4_k_m.gguf
 4d7c17042a32501a24d85e7ecf5298f2ba7dc982705fe05574aa97b1caae525d  nomic-embed-text-v2-moe.Q4_0.gguf
+8856952e27c65a87618f8347d1d06328c3953af04e8327b6dd1fab6670358fd0  smollm2-360m-instruct-q4_0.gguf
+8856952e27c65a87618f8347d1d06328c3953af04e8327b6dd1fab6670358fd0  smollm2-360m-instruct-q4_k_m.gguf

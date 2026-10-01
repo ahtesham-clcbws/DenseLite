@@ -28,8 +28,8 @@ static float dot_product(const std::vector<float>& a, const std::vector<float>& 
 
 int main() {
     std::cout << "==========================================================" << std::endl;
-    std::cout << " TurboQuant Quality & Retrieval Fidelity Benchmark (Point 6)" << std::endl;
-    std::cout << " Real Embedding Vector Distribution (Nomic 768-dim)" << std::endl;
+    std::cout << " TurboQuant Quality & Retrieval Fidelity Benchmark (Point 6 & 7)" << std::endl;
+    std::cout << " Synthetic 768-Dim Clustered Embedding Benchmark (Trained IVF)" << std::endl;
     std::cout << "==========================================================" << std::endl;
 
     const size_t DIM = 768;
@@ -62,7 +62,13 @@ int main() {
         }
         db_vectors[i] = normalize(db_vectors[i]);
         db_ids[i] = "doc_" + std::to_string(i);
+    }
 
+    // Train IVF coarse centroids from data distribution
+    ivf_index.train(db_vectors, 10);
+    assert(ivf_index.is_trained());
+
+    for (size_t i = 0; i < NUM_VECTORS; ++i) {
         flat_index.add(db_ids[i], db_vectors[i]);
         ivf_index.add(db_ids[i], db_vectors[i]);
     }

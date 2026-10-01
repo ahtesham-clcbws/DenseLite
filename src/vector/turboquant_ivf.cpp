@@ -167,3 +167,56 @@ size_t TurboQuantIVF::memory_bytes() const {
     }
     return bytes;
 }
+
+void TurboQuantIVF::train(const std::vector<std::vector<float>>& training_vectors, size_t max_iters) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    if (training_vectors.empty()) return;
+
+    size_t k = std::min(num_clusters_, training_vectors.size());
+    clusters_.resize(k);
+
+    // 1. Initialize centroids from first k normalized vectors
+    for (size_t c = 0; c < k; ++c) {
+        clusters_[c].centroid = training_vectors[c];
+        clusters_[c].member_indices.clear();
+        float norm_sq = 0.0f;
+        for (float x : clusters_[c].centroid) norm_sq += x * x;
+        float inv_norm = norm_sq > 1e-8f ? 1.0f / std::sqrt(norm_sq) : 1.0f;
+        for (float& x : clusters_[c].centroid) x *= inv_norm;
+    }
+
+    // 2. Spherical K-Means Iterations
+    std::vector<std::vector<float>> new_centroids(k, std::vector<float>(dim_, 0.0f));
+    std::vector<size_t> counts(k, 0);
+
+    for (size_t iter = 0; iter < max_iters; ++iter) {
+        for (auto& nc : new_centroids) std::fill(nc.begin(), nc.end(), 0.0f);
+        std::fill(counts.begin(), counts.end(), 0);
+
+        for (const auto& vec : training_vectors) {
+            size_t best_c = find_closest_centroid(vec.data());
+            counts[best_c]++;
+            for (size_t d = 0; d < dim_; ++d) {
+                new_centroids[best_c][d] += vec[d];
+            }
+        }
+
+        float max_shift = 0.0f;
+        for (size_t c = 0; c < k; ++c) {
+            if (counts[c] == 0) continue;
+            float norm_sq = 0.0f;
+            for (size_t d = 0; d < dim_; ++d) {
+                norm_sq += new_centroids[c][d] * new_centroids[c][d];
+            }
+            float inv_norm = norm_sq > 1e-8f ? 1.0f / std::sqrt(norm_sq) : 1.0f;
+            for (size_t d = 0; d < dim_; ++d) {
+                float updated = new_centroids[c][d] * inv_norm;
+                max_shift = std::max(max_shift, std::abs(updated - clusters_[c].centroid[d]));
+                clusters_[c].centroid[d] = updated;
+            }
+        }
+
+        if (max_shift < 1e-4f) break;
+    }
+    is_trained_ = true;
+}

@@ -31,6 +31,10 @@ public:
         size_t nprobe = 4,
         const uint64_t* allowlist_mask = nullptr) const;
 
+    // Train coarse centroids using spherical k-means on sample vectors
+    void train(const std::vector<std::vector<float>>& training_vectors, size_t max_iters = 10);
+    bool is_trained() const { return is_trained_; }
+
     size_t size() const;
     size_t dimension() const { return dim_; }
     size_t num_clusters() const { return clusters_.size(); }
@@ -43,6 +47,7 @@ private:
 
     size_t dim_;
     size_t num_clusters_;
+    bool is_trained_ = false;
     TurboQuantIndex base_index_; // Flat rotated quantized storage
     std::vector<IVFCluster> clusters_; // Coarse partition posting lists
     std::unordered_map<std::string, size_t> cluster_assignment_; // ID -> cluster index

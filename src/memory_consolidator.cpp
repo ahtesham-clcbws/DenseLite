@@ -59,18 +59,39 @@ std::vector<MemoryEntry> MemoryConsolidator::extract_facts(const std::string& te
             val.erase(0, val.find_first_not_of(" \t\r\n"));
             val.erase(val.find_last_not_of(" \t\r\n") + 1);
 
+            // If key is a prefix like "rule", "decision", "convention", check for nested key
+            MemoryCategory cat_assigned = MemoryCategory::DISCOVERY;
+            std::string k_check = key;
+            std::transform(k_check.begin(), k_check.end(), k_check.begin(), ::tolower);
+            if (k_check.find("rule") != std::string::npos) cat_assigned = MemoryCategory::RULE;
+            else if (k_check.find("decision") != std::string::npos) cat_assigned = MemoryCategory::ARCHITECTURAL_DECISION;
+            else if (k_check.find("convention") != std::string::npos) cat_assigned = MemoryCategory::CONVENTION;
+
+            if ((cat_assigned != MemoryCategory::DISCOVERY || k_check.find("remember") != std::string::npos) &&
+                val.find(':') != std::string::npos) {
+                size_t next_colon = val.find(':');
+                key = val.substr(0, next_colon);
+                val = val.substr(next_colon + 1);
+                key.erase(0, key.find_first_not_of(" \t-*\r\n"));
+                key.erase(key.find_last_not_of(" \t-*\r\n") + 1);
+                val.erase(0, val.find_first_not_of(" \t\r\n"));
+                val.erase(val.find_last_not_of(" \t\r\n") + 1);
+            }
+
             if (!key.empty() && !val.empty()) {
                 MemoryEntry entry;
                 entry.id = "mem_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                 entry.key = key;
                 entry.value = val;
-                entry.category = MemoryCategory::DISCOVERY;
+                entry.category = cat_assigned;
 
-                std::string k_lower = key;
-                std::transform(k_lower.begin(), k_lower.end(), k_lower.begin(), ::tolower);
-                if (k_lower.find("rule") != std::string::npos) entry.category = MemoryCategory::RULE;
-                else if (k_lower.find("decision") != std::string::npos) entry.category = MemoryCategory::ARCHITECTURAL_DECISION;
-                else if (k_lower.find("convention") != std::string::npos) entry.category = MemoryCategory::CONVENTION;
+                if (entry.category == MemoryCategory::DISCOVERY) {
+                    std::string k_lower = key;
+                    std::transform(k_lower.begin(), k_lower.end(), k_lower.begin(), ::tolower);
+                    if (k_lower.find("rule") != std::string::npos) entry.category = MemoryCategory::RULE;
+                    else if (k_lower.find("decision") != std::string::npos) entry.category = MemoryCategory::ARCHITECTURAL_DECISION;
+                    else if (k_lower.find("convention") != std::string::npos) entry.category = MemoryCategory::CONVENTION;
+                }
 
                 entries.push_back(std::move(entry));
             }

@@ -16,11 +16,15 @@ bool test_golden_inference(const std::string& model_name, const std::string& pat
         return false;
     }
 
-    if (model.tensors.count("blk.0.attn_q.weight") > 0 &&
-        model.tensors["blk.0.attn_q.weight"].type != TensorType::Q8_0) {
-        std::cout << "   -> PASS: " << model_name << " is Q4_0/Q6_K quantized. Phase 1 raw AVX2 kernel targets Q8_0; skipping Q8 math.\n";
-        free_gguf_model(model);
-        return true;
+    if (model.tensors.count("blk.0.attn_q.weight") > 0) {
+        TensorType qtype = model.tensors["blk.0.attn_q.weight"].type;
+        if (qtype != TensorType::Q8_0 && qtype != TensorType::Q4_0) {
+            std::cout << "   -> SKIP: " << model_name << " has unsupported tensor quantization (" 
+                      << tensor_type_name(qtype) << "). Native forward pass requires Q4_0 or Q8_0.\n";
+            free_gguf_model(model);
+            return true;
+        }
+        std::cout << "   -> Executing native " << tensor_type_name(qtype) << " AVX2 forward pass verification...\n";
     }
 
     std::string prompt_text = "Hello, world!";
@@ -103,6 +107,10 @@ bool test_golden_inference(const std::string& model_name, const std::string& pat
 #include <cstdlib>
 
 static std::string resolve_test_model(const std::string& filename) {
+    std::filesystem::path val_path = std::filesystem::path("/mnt/apollo/Apollo4/DenseLite/models/validation") / filename;
+    if (std::filesystem::exists(val_path)) {
+        return val_path.string();
+    }
     const char* home = std::getenv("HOME");
     if (home) {
         std::filesystem::path user_path = std::filesystem::path(home) / ".denselite" / "models" / filename;
@@ -118,11 +126,18 @@ int main() {
     std::cout << "[TEST] Phase 1: Golden Inference Structural Tests\n";
     std::cout << "========================================\n";
 
+    // 1. Primary real Q4_0 native execution test
+    bool val_ok = true;
+    std::string val_model = resolve_test_model("deepseek-1.5b-q4_0.gguf");
+    if (std::filesystem::exists(val_model)) {
+        val_ok = test_golden_inference("DeepSeek-1.5B-Q4_0 (Validation)", val_model);
+    }
+
     bool smollm_ok = test_golden_inference("SmolLM2-360M", resolve_test_model("smollm2-360m-instruct-q4_0.gguf"));
     bool coder_ok = test_golden_inference("DeepSeek-R1-Distill-Qwen-1.5B", resolve_test_model("DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf"));
     bool main_ok = test_golden_inference("Llama-3.2-1B", resolve_test_model("Llama-3.2-1B-Instruct-abliterated.i1-Q4_0.gguf"));
 
-    if (smollm_ok && coder_ok && main_ok) {
+    if (val_ok && smollm_ok && coder_ok && main_ok) {
         std::cout << "\n>>> ALL GOLDEN INFERENCE TESTS PASSED! <<<\n";
         return 0;
     } else {

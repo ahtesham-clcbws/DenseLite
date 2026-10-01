@@ -104,21 +104,24 @@ def test_context_overflow_boundaries():
         "stream": False
     }
     status, data = http_post("/v1/chat/completions", payload, timeout=120)
+    assert status != 500, f"Server crashed with 500 Internal Error under context load: {data}"
     assert status in [200, 400], f"Unexpected status {status} under context load: {data}"
     if status == 200:
         content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        print(f"  ✓ Server bounded and pruned large context cleanly (response length={len(content)}).")
+        assert len(content.strip()) > 0, "Pruned context resulted in empty completion"
+        print(f"  ✓ ContextEngine successfully pruned and summarized large context (length={len(content)}).")
     else:
-        print(f"  ✓ Server rejected oversized context with expected client error: {data.get('error')}")
+        assert "error" in data, f"400 response missing error specification: {data}"
+        print(f"  ✓ Server cleanly rejected oversized context with client error: {data.get('error')}")
 
 def main():
     print("=" * 60)
     print(" DenseLite E2E Assertion-Driven Stress Test Suite")
     print("=" * 60)
     if not test_models_endpoint():
-        print("[!] Note: DenseLite server is not running on port 9501.")
-        print("[!] E2E script structure and assertions verified. Start server to execute live.")
-        sys.exit(0)
+        print("[-] FAIL: DenseLite server is not running on port 9501.")
+        print("[-] E2E live assertion tests cannot be certified while server is offline.")
+        sys.exit(2)
 
     test_chat_completion_with_memory()
     test_code_search_intent()

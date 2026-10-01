@@ -16,8 +16,8 @@ struct IntentTestCase {
 
 int main() {
     std::cout << "==========================================================" << std::endl;
-    std::cout << " DecisionEngine Intent Routing & Calibration Benchmark (Point 9)" << std::endl;
-    std::cout << " Multi-Domain Routing, Calibration & Fallback Test Suite" << std::endl;
+    std::cout << " DecisionEngine Fast Heuristic Routing & Calibration Benchmark (Point 9)" << std::endl;
+    std::cout << " Deterministic Multi-Domain Regression Suite (Heuristic Tier)" << std::endl;
     std::cout << "==========================================================" << std::endl;
 
     std::vector<IntentTestCase> test_cases = {

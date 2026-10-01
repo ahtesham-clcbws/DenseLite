@@ -40,10 +40,10 @@ def get_process_metrics(pid):
     return metrics
 
 def find_denselite_pid():
-    """Finds running DenseLite server PID."""
+    """Finds running DenseLite server PID by exact binary name."""
     try:
         import subprocess
-        out = subprocess.check_output(["pgrep", "-f", "DenseLite"], text=True)
+        out = subprocess.check_output(["pgrep", "-x", "DenseLite"], text=True)
         pids = [int(p) for p in out.strip().split() if p.isdigit()]
         return pids[0] if pids else None
     except Exception:
@@ -71,10 +71,9 @@ def run_soak_test(duration_seconds):
 
     pid = find_denselite_pid()
     if not pid:
-        print(f"[-] DenseLite server is not running on host.")
-        print("[+] Soak test harness syntax, /proc monitoring logic, and assertion pipeline validated.")
-        print("[✓] Soak harness ready for deployment.")
-        return True
+        print("[-] FAIL: DenseLite server process not found on host.")
+        print("[-] Soak test requires a running DenseLite instance. Start server before running soak.")
+        sys.exit(2)
 
     print(f"[+] Attached to DenseLite PID: {pid}")
     initial_metrics = get_process_metrics(pid)
@@ -82,7 +81,9 @@ def run_soak_test(duration_seconds):
 
     start_time = time.time()
     cycle = 0
-    success_count = 0
+    ok_200_count = 0
+    client_err_400_count = 0
+    server_err_count = 0
     latencies = []
     rss_history = []
 
@@ -96,9 +97,13 @@ def run_soak_test(duration_seconds):
         }
 
         status, lat_ms = http_post("/v1/chat/completions", payload)
-        if status in [200, 400]:
-            success_count += 1
+        if status == 200:
+            ok_200_count += 1
             latencies.append(lat_ms)
+        elif status == 400:
+            client_err_400_count += 1
+        else:
+            server_err_count += 1
 
         if cycle % 10 == 0:
             m = get_process_metrics(pid)
@@ -111,25 +116,31 @@ def run_soak_test(duration_seconds):
     final_metrics = get_process_metrics(pid)
     print("-" * 65)
     print(" Soak Run Completed. Analyzing Stability & Leak Profile...")
-    print(f"  Total Requests:   {cycle}")
-    print(f"  Success Rate:     {(success_count/cycle)*100:.1f}%")
+    print(f"  Total Requests:       {cycle}")
+    print(f"  Successful (200 OK):  {ok_200_count} ({(ok_200_count/cycle)*100:.1f}%)")
+    print(f"  Client Rejected (400):{client_err_400_count}")
+    print(f"  Server Errors (500+): {server_err_count}")
     if latencies:
-        print(f"  Avg Latency:      {sum(latencies)/len(latencies):.2f} ms")
+        print(f"  Avg Latency (200 OK): {sum(latencies)/len(latencies):.2f} ms")
 
     rss_delta_mb = (final_metrics["rss_kb"] - initial_metrics["rss_kb"]) / 1024.0
     fd_delta = final_metrics["open_fds"] - initial_metrics["open_fds"]
-    print(f"  RSS Delta:        {rss_delta_mb:+.2f} MB")
-    print(f"  Open FD Delta:    {fd_delta:+d}")
+    thread_delta = abs(final_metrics["threads"] - initial_metrics["threads"])
+    print(f"  RSS Delta:            {rss_delta_mb:+.2f} MB")
+    print(f"  Open FD Delta:        {fd_delta:+d}")
+    print(f"  Thread Count Delta:   {thread_delta:+d}")
 
-    # Assertions
+    # Rigorous Assertions
+    assert server_err_count == 0, f"Server internal errors detected during soak: {server_err_count}"
     assert fd_delta <= 2, f"Potential File Descriptor leak detected (delta={fd_delta})"
     assert rss_delta_mb <= 150.0, f"Excessive monotonic memory expansion detected (delta={rss_delta_mb:.1f} MB)"
-    print("[✓] Zero memory leaks, zero FD leaks, stable thread profile confirmed.")
+    assert thread_delta <= 1, f"Thread pool leak or unbound spawn detected (delta={thread_delta})"
+    print(f"[✓] Soak stability assertions satisfied: RSS drift ({rss_delta_mb:+.2f} MB <= 150 MB), FD drift ({fd_delta:+d} <= 2), threads stable ({thread_delta:+d} <= 1).")
     return True
 
 def main():
     parser = argparse.ArgumentParser(description="DenseLite Soak & Stability Test")
-    parser.add_argument("--duration-seconds", type=int, default=10, help="Test duration in seconds (default: 10s for smoke, 3600s+ for multi-hour)")
+    parser.add_argument("--duration-seconds", type=int, default=10, help="Test duration in seconds (default: 10s for smoke gate, specify 3600s+ for multi-hour soak)")
     args = parser.parse_args()
 
     success = run_soak_test(args.duration_seconds)

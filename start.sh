@@ -111,9 +111,23 @@ mkdir -p "$HOME/.denselite/models/whisper"
 mkdir -p models/modernbert
 
 if [ ! -d "dependencies/onnxruntime" ] || [ ! -f "dependencies/onnxruntime/lib/libonnxruntime.so" ]; then
-    echo "[+] Downloading prebuilt ONNX Runtime C++ release..." | tee -a "$LOG_FILE"
+    echo "[+] Downloading prebuilt ONNX Runtime C++ release with SHA-256 verification..." | tee -a "$LOG_FILE"
+    mkdir -p dependencies
+    ONNX_TAR="dependencies/onnxruntime-linux-x64-1.20.1.tgz"
+    ONNX_EXPECTED_HASH="67db4dc1561f1e3fd42e619575c82c601ef89849afc7ea85a003abbac1a1a105"
+    curl -L -s -o "$ONNX_TAR" https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz
+    ONNX_ACTUAL_HASH=$(sha256sum "$ONNX_TAR" 2>/dev/null | awk '{print $1}')
+    if [ "$ONNX_ACTUAL_HASH" != "$ONNX_EXPECTED_HASH" ]; then
+        echo "[!] FATAL: SHA-256 verification failed for ONNX Runtime archive!" | tee -a "$LOG_FILE"
+        echo "    Expected: $ONNX_EXPECTED_HASH" | tee -a "$LOG_FILE"
+        echo "    Actual:   $ONNX_ACTUAL_HASH" | tee -a "$LOG_FILE"
+        rm -f "$ONNX_TAR"
+        exit 1
+    fi
     mkdir -p dependencies/onnxruntime
-    curl -L -s https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz | tar -xz -C dependencies/onnxruntime --strip-components=1
+    tar -xzf "$ONNX_TAR" -C dependencies/onnxruntime --strip-components=1
+    rm -f "$ONNX_TAR"
+    echo "[+] Verified and extracted ONNX Runtime C++ release." | tee -a "$LOG_FILE"
 fi
 
 if [ ! -f "models/modernbert/model.onnx" ] || [ ! -f "models/modernbert/tokenizer.json" ]; then
@@ -166,6 +180,13 @@ download_if_missing() {
         expected_sha256=$(grep -E "[[:space:]]+(\.\/)?(models\/)?(validation\/)?${file_name}$" models/checksums.sha256 | head -n1 | awk '{print $1}')
     fi
 
+    # Mandatory Policy: Untrusted/unverified models cannot be loaded or downloaded
+    if [ -z "$expected_sha256" ]; then
+        echo "[!] FATAL: No canonical SHA-256 checksum found for $file_name in models/checksums.sha256." | tee -a "$LOG_FILE"
+        echo "    Mandatory checksum enforcement policy prohibits unverified models." | tee -a "$LOG_FILE"
+        return 1
+    fi
+
     if [ -f "$user_model" ]; then
         target_file="$user_model"
     elif [ -f "$local_model" ]; then
@@ -173,17 +194,12 @@ download_if_missing() {
     fi
 
     if [ -n "$target_file" ]; then
-        if [ -n "$expected_sha256" ]; then
-            local actual_sha=$(sha256sum "$target_file" 2>/dev/null | awk '{print $1}')
-            if [ "$actual_sha" = "$expected_sha256" ]; then
-                return 0
-            else
-                echo "[!] Integrity checksum mismatch on existing $file_name, re-downloading..." | tee -a "$LOG_FILE"
-                rm -f "$target_file"
-            fi
-        else
-            echo "[!] WARNING: No canonical checksum found for $file_name (unverified model)." | tee -a "$LOG_FILE"
+        local actual_sha=$(sha256sum "$target_file" 2>/dev/null | awk '{print $1}')
+        if [ "$actual_sha" = "$expected_sha256" ]; then
             return 0
+        else
+            echo "[!] Integrity checksum mismatch on existing $file_name, re-downloading..." | tee -a "$LOG_FILE"
+            rm -f "$target_file"
         fi
     fi
 
@@ -192,23 +208,22 @@ download_if_missing() {
     echo "    Downloading to ~/.denselite/models/$file_name..." | tee -a "$LOG_FILE"
     wget -q --show-progress "$url" -O "$user_model"
 
-    if [ -n "$expected_sha256" ]; then
-        local actual_sha=$(sha256sum "$user_model" 2>/dev/null | awk '{print $1}')
-        if [ "$actual_sha" != "$expected_sha256" ]; then
-            echo "[!] FATAL: Downloaded model checksum verification failed for $file_name!" | tee -a "$LOG_FILE"
-            echo "    Expected: $expected_sha256" | tee -a "$LOG_FILE"
-            echo "    Actual:   $actual_sha" | tee -a "$LOG_FILE"
-            rm -f "$user_model"
-            return 1
-        fi
-        echo "[+] Model checksum verified: $file_name (SHA-256 match)" | tee -a "$LOG_FILE"
+    local actual_sha=$(sha256sum "$user_model" 2>/dev/null | awk '{print $1}')
+    if [ "$actual_sha" != "$expected_sha256" ]; then
+        echo "[!] FATAL: Downloaded model checksum verification failed for $file_name!" | tee -a "$LOG_FILE"
+        echo "    Expected: $expected_sha256" | tee -a "$LOG_FILE"
+        echo "    Actual:   $actual_sha" | tee -a "$LOG_FILE"
+        rm -f "$user_model"
+        return 1
     fi
+    echo "[+] Model checksum verified: $file_name (SHA-256 match)" | tee -a "$LOG_FILE"
+    return 0
 }
 
-echo "[+] Verifying core and requested models from .env..." | tee -a "$LOG_FILE"
+echo "[+] Verifying core and requested models from .env with mandatory checksum enforcement..." | tee -a "$LOG_FILE"
 
 # Dynamically parse .env and download missing models
-grep "^MODEL_.*_FILE=" .env | while read -r line; do
+while read -r line; do
     var_name=$(echo "$line" | cut -d'=' -f1)
     file_path=$(echo "$line" | cut -d'=' -f2 | tr -d '"')
     
@@ -224,9 +239,12 @@ grep "^MODEL_.*_FILE=" .env | while read -r line; do
     sha=$(grep "^${sha_var_name}=" .env | cut -d'=' -f2 | tr -d '"')
     
     if [ -n "$url" ]; then
-        download_if_missing "$file_path" "$url" "$sha"
+        if ! download_if_missing "$file_path" "$url" "$sha"; then
+            echo "[!] FATAL: Startup aborted due to model checksum enforcement failure." | tee -a "$LOG_FILE"
+            exit 1
+        fi
     fi
-done
+done < <(grep "^MODEL_.*_FILE=" .env)
 
 
 # 3. Check if able to run properly (Compile if needed with bounded concurrency)
