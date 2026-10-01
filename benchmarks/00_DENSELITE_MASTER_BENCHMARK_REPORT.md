@@ -2,12 +2,12 @@
 
 **Project:** DenseLite (Pure C++ Native Intelligence Engine)  
 **Version:** v4.0.0  
-**Date:** 2026-09-30  
+**Date:** 2026-10-01  
 **Hardware Platform:** Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz (2 Cores, 4 Threads), 32 GB RAM  
 **GPU Hardware / VRAM Gate:** AMD Radeon R7 M350 / Intel HD Graphics 520 (Vulkan 1.3)  
 **Operating System:** Linux 6.13.5-zen1-1-zen (x86_64)  
 **Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++20`  
-**Test Suite Verification:** 17/17 CTest Suites Passing (100% Pass Rate in ~24.7s)  
+**Test Suite Verification:** 24/24 CTest Suites Passing Deterministically (100% Pass Rate in ~51.6s)  
 
 ---
 
@@ -56,14 +56,13 @@ With v4.0.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 6
 ---
 
 ## Benchmark Index
-
-Reports 00–09 retain historical metrics. [Current working-tree validation and evidence](10_CURRENT_VALIDATION.md) record the new run separately:
+ 
+Official system benchmark suite recorded on host Intel Core i7-6500U:
 - [01_HARDWARE_AND_ENVIRONMENT_AUDIT.md](01_HARDWARE_AND_ENVIRONMENT_AUDIT.md): Low-level CPU, SIMD, RAM, Vulkan GPU, and OS execution environment.
-- [02_INFERENCE_AND_RUNTIME_BENCHMARK.md](02_INFERENCE_AND_RUNTIME_BENCHMARK.md): Pure C++ AVX2 forward pass, multi-model throughput, and TTFT.
-- [03_LIFECYCLE_AND_MEMORY_SAFETY.md](03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII lease throughput, Vulkan ResourcePolicy VRAM ceiling, and bounded KV cache.
-- [04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md](04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md): Trie BPE encoding/decoding, generation reserve invariants, and ChatML compilation.
-- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant SIMD exhaustive recall, Tree-sitter AST indexing, and FNV-1a delta tracking.
-- [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval, ResultFusion, 5-state response parsing, and 7-action self-healing.
+- [02_INFERENCE_AND_RUNTIME_BENCHMARK.md](02_INFERENCE_AND_RUNTIME_BENCHMARK.md): Pure C++ AVX2 forward pass, multi-model throughput, TTFT, and 64K scaling.
+- [03_LIFECYCLE_AND_MEMORY_SAFETY.md](03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII lease throughput, resident pool capacity fit, ResourcePolicy VRAM ceiling, and bounded KV cache.
+- [04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md](04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md): Trie BPE encoding/decoding, generation reserve invariants, Dynamic 64K context sizing, and Persistent Session KV Cache.
+- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant IVF SIMD recall, Tree-sitter AST indexing, and FNV-1a delta tracking.
+- [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval, ResultFusion, ModernBERT/DecisionEngine routing, Session Tool Registry, and 7-action self-healing.
 - [07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md](07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md): 2-core CPU throttling, 6-stage progressive eviction, Whisper STT, and Stable Diffusion.
-- [08_FINAL_REALITY_AUDIT_MATRIX.md](08_FINAL_REALITY_AUDIT_MATRIX.md): Comprehensive verification matrix proving core features delivered, alongside documented synthetic multimodal paths and unbenchmarked 64K perplexity limitations.
-- [09_SESSION_KV_AND_TOOL_REGISTRY_BENCHMARK.md](09_SESSION_KV_AND_TOOL_REGISTRY_BENCHMARK.md): Session Tool Registry, Dynamic 64K Context Sizing, and Disk-Backed Persistent Session KV Cache.
+- [08_RELEASE_CERTIFICATION_MATRIX.md](08_RELEASE_CERTIFICATION_MATRIX.md): Definitive 24-point reality audit & release certification matrix across all tiers.

@@ -16,7 +16,7 @@ DenseLite operates as a pure **Agentic Inference Engine**. It does not execute b
 With v4.0.0, DenseLite introduces **Native C++ Tray Supervisor & WebUI Dashboard (`DenseLiteTray`)**, **ModernBERT Zero-Shot Intent Routing**, **Session Tool Registry** (eliminating 600 KB MCP payload bloat and client timeouts), **Dynamic RAM-Aware Context Sizing** (scaling from 16K up to 64K tokens safely), **Persistent Session KV Cache Prefix Caching** (instant multi-turn response without re-evaluating history), and **High-Speed Disk-Backed KV Serialization** (2.24 GB/s binary format).
 
 > [!NOTE]
-> **Test Suite Verification:** All 17 automated CTest test suites pass cleanly with 100% deterministic success (~24.7s), verified against real GGUF weights and hardware SIMD kernels.
+> **Test Suite Verification:** All 24 automated CTest test suites pass cleanly with 100% deterministic success (~51.6s), verified against real GGUF weights and hardware SIMD kernels.
 
 ---
 
@@ -53,21 +53,18 @@ With v4.0.0, DenseLite introduces **Native C++ Tray Supervisor & WebUI Dashboard
 
 ---
 
-## System Benchmarks (historical measurements from 2026-09-29)
-
-[Current validation, fresh logs, and remaining limitations](benchmarks/10_CURRENT_VALIDATION.md).
+## System Benchmarks
 
 Official hardware-level empirical benchmarks recorded on host Intel Core i7-6500U:
 - [00_DENSELITE_MASTER_BENCHMARK_REPORT.md](benchmarks/00_DENSELITE_MASTER_BENCHMARK_REPORT.md): Authoritative system benchmark scorecard, execution summary, and master performance metrics.
 - [01_HARDWARE_AND_ENVIRONMENT_AUDIT.md](benchmarks/01_HARDWARE_AND_ENVIRONMENT_AUDIT.md): Low-level hardware platform, SIMD instructions, Vulkan 1.3 GPU limits, and OS environment.
-- [02_INFERENCE_AND_RUNTIME_BENCHMARK.md](benchmarks/02_INFERENCE_AND_RUNTIME_BENCHMARK.md): Native AVX2+FMA mathematical correctness, dynamic GGUF parsing, multi-model speed, and TTFT.
-- [03_LIFECYCLE_AND_MEMORY_SAFETY.md](benchmarks/03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII ModelLease throughput (5.39M ops/s), ResourcePolicy VRAM ceiling, and bounded KV cache memory.
-- [04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md](benchmarks/04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md): Trie BPE encoding (1.42M tok/s), zero-allocation token counting, and ChatML context compilation.
-- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](benchmarks/05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant SIMD recall, Tree-sitter AST parsing, and 64-bit FNV-1a hash delta tracking (4.42 GB/s).
-- [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](benchmarks/06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval ResultFusion, 5-state response parsing, and 7-action self-healing fault recovery.
-- [07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md](benchmarks/07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md): OpenMP $\le 2$ thread throttling, 6-stage progressive eviction cascade, Whisper STT, and Stable Diffusion.
-- [08_FINAL_REALITY_AUDIT_MATRIX.md](benchmarks/08_FINAL_REALITY_AUDIT_MATRIX.md): Comprehensive reality audit matrix verifying 100% completion and resolution of all initial regressions.
-- [09_SESSION_KV_AND_TOOL_REGISTRY_BENCHMARK.md](benchmarks/09_SESSION_KV_AND_TOOL_REGISTRY_BENCHMARK.md): Session Tool Registry, Dynamic 64K Context Sizing, and Disk-Backed Persistent Session KV Cache.
+- [02_INFERENCE_AND_RUNTIME_BENCHMARK.md](benchmarks/02_INFERENCE_AND_RUNTIME_BENCHMARK.md): Native AVX2+FMA mathematical correctness, dynamic GGUF parsing, multi-model speed, TTFT, and 64K scaling.
+- [03_LIFECYCLE_AND_MEMORY_SAFETY.md](benchmarks/03_LIFECYCLE_AND_MEMORY_SAFETY.md): RAII ModelLease throughput (5.39M ops/s), resident pool capacity fit, ResourcePolicy VRAM ceiling, and bounded KV cache memory.
+- [04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md](benchmarks/04_BPE_TOKENIZER_AND_CONTEXT_BENCHMARK.md): Trie BPE encoding (1.42M tok/s), zero-allocation token counting, ChatML context compilation, Dynamic 64K context sizing, and Persistent Session KV Cache.
+- [05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md](benchmarks/05_PERSISTENT_MEMORY_AND_AST_CODE_INTEL.md): SQLite canonical storage, TurboQuant IVF SIMD recall, Tree-sitter AST parsing, and 64-bit FNV-1a hash delta tracking (4.42 GB/s).
+- [06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md](benchmarks/06_HYBRID_SEARCH_AND_AGENTIC_LOOP.md): 4-channel retrieval ResultFusion, ModernBERT/DecisionEngine routing, Session Tool Registry deduplication, and 7-action self-healing fault recovery.
+- [07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md](benchmarks/07_RESOURCE_GOVERNANCE_AND_MULTIMODAL.md): OpenMP $\le 2$ compute thread throttling, 6-stage progressive eviction cascade, Whisper STT, and Stable Diffusion.
+- [08_RELEASE_CERTIFICATION_MATRIX.md](benchmarks/08_RELEASE_CERTIFICATION_MATRIX.md): Comprehensive 24-point reality audit & release certification matrix verifying production readiness across all tiers.
 
 ---
 

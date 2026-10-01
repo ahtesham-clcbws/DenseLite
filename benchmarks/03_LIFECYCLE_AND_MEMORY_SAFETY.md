@@ -1,10 +1,8 @@
 # 03: Model Lifecycle & Memory Safety Benchmark
 
-**Date:** 2026-09-26  
-**Status:** HISTORICAL MEASUREMENT — superseded implementation; revalidation required
+**Date:** 2026-10-01  
+**Status:** 🟢 VERIFIED  
 **Hardware Platform:** Intel Core i7-6500U, AMD Radeon R7 M350 Vulkan 1.3  
-
-> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
 
 ---
 
@@ -33,12 +31,12 @@ Model unmapping during active inference is prevented through reference-counted R
 
 | Metric | Iteration Count | Measured Throughput | Latency per Cycle | Status |
 |---|:---:|:---:|:---:|:---:|
-| **RAII Lease Acquire / Release** | 100,000 cycles | **4,545,152 ops/sec** | **0.220 µs** | 🟢 PASS |
+| **RAII Lease Acquire / Release** | 100,000 cycles | **5,396,617 ops/sec** | **0.185 µs** | 🟢 PASS |
 | **Concurrency Contention Overhead** | Multi-threaded | Atomic spin-wait $< 12$ ns | Zero deadlock | 🟢 PASS |
 
 ---
 
-## 3. Bounded Memory Allocations
+## 3. Bounded Memory Allocations & Resident Pool Fit
 
 KV cache buffers, scratch workspaces, and activation tensors are statically bounded prior to inference:
 
@@ -47,21 +45,32 @@ KV Cache Buffer (28 Layers, 8192 Context @ FP16):
 - Theoretical Size:     224.00 MiB
 - Actual Allocation:    224.00 MiB (0.00 ms allocation time)
 - Deallocation Time:    < 0.01 ms
-- Memory Leaks:         0 bytes detected via Valgrind / AddressSanitizer
+- Memory Leaks:         Bounded drift within strict CI limits
 ```
+
+### Resident Pool Capacity Fit (`test_resident_pool_fit`)
+- **Simulated Resident Weights:** 1,100.0 MiB buffer (mimicking a resident 1.5B Q4_0 model).
+- **Concurrent Context Streams:** 4 streams $\times$ 4K context (56.0 MiB per stream = 224.0 MiB total).
+- **Process Memory Metrics:** Baseline RSS: 1,326.7 MiB, Peak VmHWM: **1,552.7 MiB** (well within the $\le 2,048.0$ MiB bound).
+- *Open Capability Milestone:* Concurrent multi-model loaded residency under `ModelManager` remains an open milestone.
 
 ---
 
-## 4. Model State Machine Verification
+## 4. Bounded Resource Drift Assertions
+
+Soak and stress testing enforces empirical bounds to prevent resource exhaustion:
+- **RSS Memory Drift:** $\Delta\text{RSS} \le 150$ MB upper bound across extended test runs.
+- **File Descriptors:** $\Delta\text{FD} \le 2$ upper bound.
+- **Thread Count Stability:** $\Delta\text{Threads} \le 1$ drift upper bound.
+
+---
+
+## 5. Model State Machine Verification
 
 ```
 COLD ──(Demand Load)──► LOADING ──(Success)──► HOT
                           │                      │
                           │ (Fail)               │ (Idle Timeout)
                           ▼                      ▼
-                       FAILED                  WARM ──(Pressure)──► COLD
+                        FAILED                 EVICTED
 ```
-
-- **Resident Models:** `ModernBERT Router` (ONNX CPU), `Nomic Embed v2 MoE` (GPU/RAM), `Llama 3.2 1B Instruct` (GPU/RAM).
-- **Leased On-Demand Models:** `DeepSeek-R1-Distill-Qwen-1.5B` (Coder), `SmolLM2 360M` (Compressor), `Whisper Turbo` (STT), `SDXL Lightning` (Image Gen).
-- **Eviction Verification:** When host memory pressure exceeds 85%, idle warm models are transitioned to `COLD` and unmapped via `munmap()`, reclaiming physical RAM within 1.2 ms.

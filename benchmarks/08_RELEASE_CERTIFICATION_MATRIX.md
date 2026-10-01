@@ -1,9 +1,9 @@
-# DenseLite v4 Reality & Release Certification Report
+# 08: Reality Audit & Release Certification Matrix
 
 **Certification Date:** 2026-10-01  
-**Architecture:** 2-Core / 4-Thread Host (AMD Ryzen / Intel x86_64, 31,371 MiB Physical RAM)  
+**Architecture:** 2-Core / 4-Thread Host (Intel Core i7-6500U / x86_64, 31,371 MiB Physical RAM)  
 **Governing Subsystems:** `ResourcePolicy.hpp` (SSOT) & `start.sh`  
-**Test Status:** 24/24 CTest Suites Passing Deterministically (100%, 64.73s)  
+**Test Status:** 24/24 CTest Suites Passing Deterministically (100%, 51.56s)  
 **Benchmark Manifest:** `benchmarks/results/2026-10-01/manifest.json`  
 **Source Tree Hash:** `8d7cecf203477166189377df0a262449751fe95431e2bcefb75fa97371edfe97`  
 **Documentation Consistency:** 56/56 Documents Verified (0 Errors via `.agents/scripts/verify_docs_consistency.py`)  
@@ -52,31 +52,31 @@ This certification report provides an unvarnished audit of DenseLite v4.0. Claim
 ```
 Test project /mnt/apollo/Apollo4/DenseLite/build
       Start  1: MathCorrectness ...................   Passed    1.39 sec
-      Start  2: ModelConfigValidation .............   Passed    0.55 sec
-      Start  3: GoldenInference ...................   Passed   30.17 sec
-      Start  4: ModelLifecycle ....................   Passed    1.65 sec
+      Start  2: ModelConfigValidation .............   Passed    0.50 sec
+      Start  3: GoldenInference ...................   Passed   18.82 sec
+      Start  4: ModelLifecycle ....................   Passed    1.46 sec
       Start  5: ContextEngine .....................   Passed    0.00 sec
       Start  6: MemoryEngine ......................   Passed    0.00 sec
-      Start  7: CodeIntelligence ..................   Passed    0.01 sec
+      Start  7: CodeIntelligence ..................   Passed    0.00 sec
       Start  8: SearchEngine ......................   Passed    0.01 sec
       Start  9: AgentLoop .........................   Passed    0.00 sec
-      Start 10: ResourceGovernor ..................   Passed    0.01 sec
-      Start 11: MultimodalEngine ..................   Passed    0.02 sec
+      Start 10: ResourceGovernor ..................   Passed    0.00 sec
+      Start 11: MultimodalEngine ..................   Passed    0.01 sec
       Start 12: SessionKVCache ....................   Passed    0.03 sec
       Start 13: SettingsEngine ....................   Passed    0.02 sec
-      Start 14: ModelRegistry .....................   Passed    0.03 sec
-      Start 15: DecisionEngine ...................   Passed    0.04 sec
-      Start 16: TurboQuant ........................   Passed   28.71 sec
+      Start 14: ModelRegistry .....................   Passed    0.02 sec
+      Start 15: DecisionEngine ...................   Passed    0.02 sec
+      Start 16: TurboQuant ........................   Passed   27.25 sec
       Start 17: ServerIntegration .................   Passed    0.00 sec
-      Start 18: TurboQuantQuality .................   Passed    1.35 sec
+      Start 18: TurboQuantQuality .................   Passed    1.33 sec
       Start 19: CompletionQuality .................   Passed    0.00 sec
       Start 20: DecisionEngineQuality .............   Passed    0.00 sec
       Start 21: MemoryConsolidationQuality ........   Passed    0.01 sec
       Start 22: Eval64KProduction .................   Passed    0.41 sec
       Start 23: ResidentPoolCapacityFit ...........   Passed    0.23 sec
-      Start 24: ModelChecksumCoverage ............   Passed    0.04 sec
+      Start 24: ModelChecksumCoverage ............   Passed    0.03 sec
 
-100% tests passed out of 24 (Total Real Test Time: 64.73 sec)
+100% tests passed out of 24 (Total Real Test Time: 51.56 sec)
 ```
 
 ### Tier B: Live Server Integration & Process Endurance Harnesses
