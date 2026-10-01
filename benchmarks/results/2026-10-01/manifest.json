@@ -2,7 +2,7 @@
   "date_utc": "2026-10-01T07:25:00.000000+00:00",
   "base_commit": "e4d73347fcf4fa0076a0c0e5a8bcfa23cb047f3b",
   "working_tree_modified": true,
-  "source_sha256": "ea09e61d3619121aec6f72efb9141ca1940c0ced40a54ec135139a6c5855e8bf",
+  "source_sha256": "8d7cecf203477166189377df0a262449751fe95431e2bcefb75fa97371edfe97",
   "hash_scope": "Sorted src/**, tests/**, CMakeLists.txt, benchmarks/benchmark_engine.cpp; path + NUL + contents + NUL",
   "platform": "Linux-7.2.8-1-cachyos-x86_64-with-glibc2.44",
   "hardware": {

@@ -5,7 +5,7 @@
 **Governing Subsystems:** `ResourcePolicy.hpp` (SSOT) & `start.sh`  
 **Test Status:** 24/24 CTest Suites Passing Deterministically (100%, 64.73s)  
 **Benchmark Manifest:** `benchmarks/results/2026-10-01/manifest.json`  
-**Source Tree Hash:** `ea09e61d3619121aec6f72efb9141ca1940c0ced40a54ec135139a6c5855e8bf`  
+**Source Tree Hash:** `8d7cecf203477166189377df0a262449751fe95431e2bcefb75fa97371edfe97`  
 **Documentation Consistency:** 56/56 Documents Verified (0 Errors via `.agents/scripts/verify_docs_consistency.py`)  
 
 ---
@@ -34,7 +34,7 @@ This certification report provides an unvarnished audit of DenseLite v4.0. Claim
 | 14 | 🟠 P1 | Model Checksum Coverage | `start.sh` & `tests/test_model_checksum_coverage.py`: 100% of selectable models in `start.sh` and `env.example` verified to resolve to canonical SHA-256 entries in `models/checksums.sha256`. Automated CTest test suite #24 enforces full coverage. | Automated Cryptographic Policy | 🟢 PASS |
 | 15 | 🟠 P1 | Multimodal Architecture Decoupling | `MultimodalEngine`: Decoupled `PROCEDURAL_ACOUSTIC_FALLBACK` and `PROCEDURAL_LATENT_FALLBACK` from leased neural decoders. Native neural inference on Whisper / SDXL weights remains unverified. | Architectural Decoupling | 🟢 PASS (Arch) / ⚠️ LEASED (Neural) |
 | 16 | 🟠 P1 | Architecture Preflight Checks | `ModelInspector`: Preflight checks enforce native tensor topology support (AVX2 Q4_0 and Q8_0 matrices). Incompatible K-quant formats fail safely at load time. | Production Empirical Execution | 🟢 PASS |
-| 17 | 🟡 P2 | Benchmark Manifest Immutability | Manifest `benchmarks/results/2026-10-01/manifest.json` tied to source hash `ea09e61...`. Un-conflated tier architecture documented. | Reproducibility Standard | 🟢 PASS |
+| 17 | 🟡 P2 | Benchmark Manifest Immutability | Manifest `benchmarks/results/2026-10-01/manifest.json` tied to source hash `8d7cecf...`. Un-conflated tier architecture documented. | Reproducibility Standard | 🟢 PASS |
 | 18 | 🟡 P2 | Soak Test Duration Governance | `tests/soak_stability_test.py` defaults to 10 seconds for CI sanity testing, supporting `--duration-seconds 3600+` for production multi-hour endurance validation. | Test Governance Standard | 🟢 PASS |
 | 19 | 🟡 P2 | Soak Response Metrics | Soak test explicitly isolates HTTP 200 (Success), HTTP 400 (Client Rejected), and HTTP 500+ (Server Errors). Client errors are not counted as successful inference. | Metric Reporting Standard | 🟢 PASS |
 | 20 | 🟡 P2 | Bounded Resource Drift Assertions | Leak assertions enforce strict upper bounds: $\Delta \text{RSS} \le 150$ MB, $\Delta \text{FD} \le 2$, $\Delta \text{Threads} \le 1$. Overclaims of "zero leaks" replaced with bounded drift guarantees. | Empirical Metric Boundary | 🟢 PASS |

@@ -4,13 +4,6 @@
 #include <vector>
 #include <cmath>
 #include <cassert>
-
-#include "../src/infer.hpp"
-#include "../src/gguf_parser.hpp"
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <cassert>
 #include <filesystem>
 #include <cstdlib>
 
