@@ -36,6 +36,10 @@ bool ModelInspector::is_role_compatible(const std::string& arch, const std::stri
     return false;
 }
 
+bool ModelInspector::is_native_architecture_supported(const std::string& arch) {
+    return (arch == "qwen2" || arch == "llama" || arch == "smollm" || arch == "smollm2" || arch == "mistral");
+}
+
 ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
     ModelInspectionResult res;
     if (!std::filesystem::exists(file_path)) {
@@ -103,9 +107,16 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
 
     std::map<uint32_t, uint64_t> quant_counts;
     uint64_t total_params = 0;
+    bool has_token_embd = false;
+    bool has_output = false;
+    bool has_output_norm = false;
 
     for (uint64_t i = 0; i < tensor_count && file.good(); ++i) {
         std::string tensor_name = read_str();
+        if (tensor_name == "token_embd.weight") has_token_embd = true;
+        if (tensor_name == "output.weight" || tensor_name == "token_embd.weight") has_output = true;
+        if (tensor_name == "output_norm.weight") has_output_norm = true;
+
         uint32_t n_dims = 0;
         file.read(reinterpret_cast<char*>(&n_dims), 4);
         uint64_t elements = 1;
@@ -164,6 +175,24 @@ ModelInspectionResult ModelInspector::inspect(const std::string& file_path) {
     }
 
     res.native_tensor_compatible = file.good() && tensor_count > 0 && res.unsupported_native_tensors.empty();
+
+    // Architecture-level preflight validation
+    if (is_native_architecture_supported(res.architecture)) {
+        if (!has_token_embd || !has_output || !has_output_norm) {
+            res.native_architecture_compatible = false;
+            res.architecture_status = ArchitectureStatus::MISSING_CRITICAL_TENSORS;
+            res.architecture_details = "Missing required root transformer tensors (token_embd, output, or output_norm)";
+        } else {
+            res.native_architecture_compatible = true;
+            res.architecture_status = ArchitectureStatus::COMPATIBLE;
+            res.architecture_details = "Architecture '" + res.architecture + "' is fully compatible with native AVX2 forward pass";
+        }
+    } else {
+        res.native_architecture_compatible = false;
+        res.architecture_status = ArchitectureStatus::UNSUPPORTED_FAMILY;
+        res.architecture_details = "Architecture '" + res.architecture + "' is not supported by native transformer forward pass (supported: qwen2, llama, smollm2, mistral)";
+    }
+
     res.is_valid = file.good();
     return res;
 }

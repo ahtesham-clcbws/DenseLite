@@ -116,19 +116,43 @@ if [ ! -d "dependencies/onnxruntime" ] || [ ! -f "dependencies/onnxruntime/lib/l
     curl -L -s https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz | tar -xz -C dependencies/onnxruntime --strip-components=1
 fi
 
-if [ ! -f "models/modernbert/model.onnx" ] || [ ! -f "models/modernbert/model.safetensors" ]; then
-    echo "[+] Downloading internal ModernBERT Zero-Shot Intent Router (MoritzLaurer/ModernBERT-large-zeroshot-v2.0)..." | tee -a "$LOG_FILE"
+if [ ! -f "models/modernbert/model.onnx" ] || [ ! -f "models/modernbert/tokenizer.json" ]; then
+    echo "[+] Downloading internal ModernBERT Zero-Shot Intent Router with SHA-256 verification..." | tee -a "$LOG_FILE"
     mkdir -p models/modernbert
-    curl -L -s -o models/modernbert/config.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/config.json
-    curl -L -s -o models/modernbert/tokenizer.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/tokenizer.json
-    curl -L -s -o models/modernbert/tokenizer_config.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/tokenizer_config.json
-    curl -L -s -o models/modernbert/special_tokens_map.json https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/special_tokens_map.json
-    curl -L -s -o models/modernbert/model.onnx https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/onnx/model_int8.onnx
-    curl -L -s -o models/modernbert/model.safetensors https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/model.safetensors
-    curl -L -s -o models/modernbert/README.md https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/raw/main/README.md
+    
+    download_with_sha256() {
+        local target_path=$1
+        local url=$2
+        local expected_hash=$3
+
+        if [ -f "$target_path" ]; then
+            local current_hash=$(sha256sum "$target_path" 2>/dev/null | awk '{print $1}')
+            if [ "$current_hash" = "$expected_hash" ]; then
+                return 0
+            fi
+            echo "[!] Checksum mismatch on existing $target_path, re-downloading..." | tee -a "$LOG_FILE"
+            rm -f "$target_path"
+        fi
+
+        echo "    Downloading $target_path..." | tee -a "$LOG_FILE"
+        curl -L -s -o "$target_path" "$url"
+        local actual_hash=$(sha256sum "$target_path" 2>/dev/null | awk '{print $1}')
+        if [ "$actual_hash" != "$expected_hash" ]; then
+            echo "[!] FATAL: SHA-256 verification failed for $target_path!" | tee -a "$LOG_FILE"
+            echo "    Expected: $expected_hash" | tee -a "$LOG_FILE"
+            echo "    Actual:   $actual_hash" | tee -a "$LOG_FILE"
+            rm -f "$target_path"
+            exit 1
+        fi
+        echo "    [+] Verified $target_path (SHA-256 match)" | tee -a "$LOG_FILE"
+    }
+
+    download_with_sha256 "models/modernbert/config.json" "https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/config.json" "ababd87e19a2c783e08495996e5e32e7d6661ea66686ba41fd02f9e7d46d547f"
+    download_with_sha256 "models/modernbert/tokenizer.json" "https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/tokenizer.json" "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30"
+    download_with_sha256 "models/modernbert/model.onnx" "https://huggingface.co/MoritzLaurer/ModernBERT-large-zeroshot-v2.0/resolve/main/onnx/model_int8.onnx" "4fcd879d3433e2fff506ac86221b4656f6a960653752ee87d087efd3a64cc128"
 fi
 
-# Function to download model if missing
+# Function to download model if missing with mandatory checksum enforcement
 download_if_missing() {
     local file_name=$1
     local url=$2
@@ -136,6 +160,11 @@ download_if_missing() {
     local user_model="$HOME/.denselite/models/$file_name"
     local local_model="models/$file_name"
     local target_file=""
+
+    # Auto-resolve expected SHA-256 from models/checksums.sha256 if not explicitly passed
+    if [ -z "$expected_sha256" ] && [ -f "models/checksums.sha256" ]; then
+        expected_sha256=$(grep -E "[[:space:]]+(\.\/)?(models\/)?(validation\/)?${file_name}$" models/checksums.sha256 | head -n1 | awk '{print $1}')
+    fi
 
     if [ -f "$user_model" ]; then
         target_file="$user_model"
@@ -153,6 +182,7 @@ download_if_missing() {
                 rm -f "$target_file"
             fi
         else
+            echo "[!] WARNING: No canonical checksum found for $file_name (unverified model)." | tee -a "$LOG_FILE"
             return 0
         fi
     fi
@@ -166,6 +196,8 @@ download_if_missing() {
         local actual_sha=$(sha256sum "$user_model" 2>/dev/null | awk '{print $1}')
         if [ "$actual_sha" != "$expected_sha256" ]; then
             echo "[!] FATAL: Downloaded model checksum verification failed for $file_name!" | tee -a "$LOG_FILE"
+            echo "    Expected: $expected_sha256" | tee -a "$LOG_FILE"
+            echo "    Actual:   $actual_sha" | tee -a "$LOG_FILE"
             rm -f "$user_model"
             return 1
         fi
@@ -180,7 +212,7 @@ grep "^MODEL_.*_FILE=" .env | while read -r line; do
     var_name=$(echo "$line" | cut -d'=' -f1)
     file_path=$(echo "$line" | cut -d'=' -f2 | tr -d '"')
     
-    # ModernBERT ONNX router is bundled in models/modernbert
+    # ModernBERT ONNX router is handled above with strict verification
     if [[ "$file_path" == *"modernbert"* ]]; then
         continue
     fi
@@ -197,11 +229,15 @@ grep "^MODEL_.*_FILE=" .env | while read -r line; do
 done
 
 
-# 3. Check if able to run properly (Compile if needed)
+# 3. Check if able to run properly (Compile if needed with bounded concurrency)
 if [ ! -f "build/DenseLite" ] || [ ! -f "build/DenseLiteTray" ]; then
     echo "[!] Compiled binaries not found. Starting build process..." | tee -a "$LOG_FILE"
+    # Hardware Rule: Bound build concurrency to 50% of logical threads (ResourcePolicy compliance)
+    BUILD_JOBS=${DENSELITE_BUILD_JOBS:-$(( ($(nproc) + 1) / 2 ))}
+    if [ "$BUILD_JOBS" -lt 1 ]; then BUILD_JOBS=1; fi
+    echo "[+] Using $BUILD_JOBS parallel compilation jobs (host concurrency preserved)..." | tee -a "$LOG_FILE"
     cmake -B build -S . >> "$LOG_FILE" 2>&1
-    cmake --build build -j$(nproc) >> "$LOG_FILE" 2>&1
+    cmake --build build -j"$BUILD_JOBS" >> "$LOG_FILE" 2>&1
     
     if [ ! -f "build/DenseLite" ] || [ ! -f "build/DenseLiteTray" ]; then
         echo "[!] Compilation failed. Please check $LOG_FILE for details." | tee -a "$LOG_FILE"

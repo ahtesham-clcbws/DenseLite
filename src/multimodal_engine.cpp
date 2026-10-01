@@ -44,6 +44,7 @@ TranscribeResult MultimodalEngine::transcribe_audio(const std::vector<float>& pc
         lease = model_manager_->acquire(ModelRole::SPEECH_TO_TEXT);
         if (lease.is_valid()) {
             res.engine_mode = "whisper_native:" + lease.model_id();
+            res.mode = MultimodalMode::LEASED_NEURAL_WHISPER;
         }
     }
 
@@ -154,6 +155,7 @@ ImageGenerationResult MultimodalEngine::generate_image(
         lease = model_manager_->acquire(ModelRole::IMAGE_GENERATOR);
         if (lease.is_valid()) {
             res.engine_mode = "sd_native:" + lease.model_id();
+            res.mode = MultimodalMode::LEASED_NEURAL_DIFFUSION;
         }
     }
 

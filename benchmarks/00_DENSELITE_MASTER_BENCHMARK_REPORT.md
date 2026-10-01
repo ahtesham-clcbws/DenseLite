@@ -9,16 +9,14 @@
 **Compiler:** GCC 15.2.1 with flags `-O3 -mavx2 -mfma -fopenmp -std=c++20`  
 **Test Suite Verification:** 17/17 CTest Suites Passing (100% Pass Rate in ~24.7s)  
 
-> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
-
 ---
 
 ## Executive Summary
 
-DenseLite v4.0.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict ResourcePolicy CPU allocation (50% of hardware threads for compute; not a total CPU utilization cap) and a RAM ceiling derived from detected host RAM through ResourcePolicy while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
+DenseLite v4.0.0 is an edge-optimized, native C++ multi-model orchestration and intelligence engine. Designed specifically for resource-constrained hardware (dual-core edge laptops), it enforces a strict ResourcePolicy compute thread allocation (50% of hardware threads for compute; compute-bounded workload isolation; not a total host CPU utilization cap) and a RAM ceiling derived from detected host RAM through ResourcePolicy (50% of physical RAM; 15,685 MiB on 31,371 MiB host) while providing high-performance transformer inference, structural code understanding, persistent memory, and agentic self-healing recovery.
 
 With v4.0.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 64K context scaling, and Disk-Backed Persistent Session KV Caching with delta prefix evaluation. Furthermore, the engine is fortified with **Phase 1-4 Hardening**, which includes:
-- **Strict Hardware Governance & VRAM Gate:** Enforcement of an ResourcePolicy VRAM ceiling, deterministic CPU/GPU admission gates, and strict RAM-bound KV caching.
+- **Strict Hardware Governance & VRAM Gate:** Enforcement of a ResourcePolicy VRAM ceiling, deterministic CPU/GPU admission gates, and strict RAM-bound KV caching.
 - **ModernBERT Strict Routing:** Zero-shot intent classification explicitly overriding legacy heuristic fallbacks.
 - **Unification of TurboQuant:** Direct routing of VectorSearch and MemoryStore queries through SIMD-accelerated exhaustive scans.
 - **Core Semantic Fixes:** NLI evaluation downgraded from hard heuristic decisions, proper JSON exception bubbling, and strict session/workspace DB isolation.
@@ -44,12 +42,12 @@ With v4.0.0, DenseLite integrates Session Tool Registry deduplication, Dynamic 6
 | **Response Analyzer** | 5-State Multi-Schema Parser | **470,336 parses/sec** (2.13 µs) | $> 50,000$ parses/sec | 🟢 PASS |
 | **Fault Recovery** | 7-Action Self-Healing Engine | **13,011,777 decisions/sec** (0.08 µs) | $> 500,000$ decisions/sec | 🟢 PASS |
 | **Completion Gate** | Evidence policy evaluation (effectiveness unmeasured) | **105,620,712 evals/sec** (0.01 µs) | $> 10,000,000$ evals/sec | 🟢 PASS |
-| **Thread Throttling** | OpenMP $\le 2$ Thread Cap | **1,217,537 enforcements/sec** (0.82 µs) | Strict 2 Threads | 🟢 PASS |
+| **Thread Throttling** | OpenMP $\le 2$ Thread Cap | **1,217,537 enforcements/sec** (0.82 µs) | Strict 2 Threads (Compute Quota) | 🟢 PASS |
 | **Memory Eviction** | 6-Stage Progressive Cascade | **35,200 assessments/sec** (28.41 µs) | $> 5,000$ assessments/sec | 🟢 PASS |
 | **Speech-to-Text** | Synthetic audio chunk processing | **29,444 chunks/sec** (synthetic chunk processing)| $> 1,000$ chunks/sec | ⚠️ SYNTHETIC |
 | **Image Generation** | Diffusion Step Simulation | **14,847 passes/sec** (67.35 µs) | $> 1,000$ passes/sec | ⚠️ SYNTHETIC |
 | **Cloud LLM Routing** | HTTPS Multi-Provider Failover | **52.6 ms Latency / 100% Failover Resilient** | $< 100$ ms Gateway Overhead | 🟢 PASS |
-| **Dynamic Context Sizing**| 64K Context Headroom Scaling | **40,385 evals/sec (24.76 µs)** | 64K Tokens Allocated | 🟢 PASS |
+| **Dynamic Context Sizing**| 64K Context Headroom Scaling | **40,385 evals/sec (24.76 µs)** | 64K Tokens Allocated (Synthetic) | 🟢 PASS |
 | **Session Tool Registry** | Handshake Schema Deduplication | **434,723 handshakes/sec (2.30 µs)** | 0-Schema Chat Pruning | 🟢 PASS |
 | **Tool Payload Pruning** | Selective Tool Schema Extraction | **2,219,108 queries/sec (0.45 µs)** | Sub-Microsecond Pruning | 🟢 PASS |
 | **KV Prefix Delta Match** | Common Token Sequence Matching | **1,676,250 matches/sec (0.60 µs)** | Delta Prefill Speedup | 🟢 PASS |

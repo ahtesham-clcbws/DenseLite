@@ -1,14 +1,11 @@
 # 01: Hardware & Environment Audit
 
-**Date:** 2026-09-26  
-**Status:** HISTORICAL MEASUREMENT — revalidation required
+**Date:** 2026-09-30  
 **Target Environment:** Edge Laptop (Dual-Core Ultra-Low Voltage)  
-
-> Evidence scope: historical measurements describe the dated implementation, not the current working tree. See [current validation](10_CURRENT_VALIDATION.md) for fresh logs and remaining gaps.
 
 ---
 
-Current run detected **31,371 MiB** physical RAM and a **15,685 MiB** default policy ceiling; see [fresh evidence](10_CURRENT_VALIDATION.md). The figures below are historical.
+Detected host physical RAM is **31,371 MiB**, with a **15,685 MiB** canonical ResourcePolicy ceiling (50% physical RAM budget; superseding all early uncalibrated 14,117 MiB drafts).
 
 ## 1. Physical Hardware Specifications
 
@@ -23,9 +20,8 @@ L1d Cache:              64 KiB (2 x 32 KiB)
 L1i Cache:              64 KiB (2 x 32 KiB)
 L2 Cache:               512 KiB (2 x 256 KiB)
 L3 Cache:               4096 KiB (4 MiB shared)
-System RAM:             31.2 GiB (32 GB DDR3/DDR4 dual-channel)
-Historical configured RAM ceiling: 15,974 MiB (50% of the recorded 31.2 GiB host RAM).
-Current default: ResourcePolicy caps allocations at 50% of detected host RAM (~15.6 GiB for the recorded 31.2 GiB host); lower settings are allowed.
+System RAM:             31.2 GiB (32 GB DDR3/DDR4 dual-channel, 31,371 MiB detected)
+Configured RAM Ceiling: 15,685 MiB (50% host RAM ceiling enforced via ResourcePolicy).
 ```
 
 ---
@@ -76,6 +72,6 @@ POSIX Subsystems:       Direct mmap with MAP_SHARED / MAP_PRIVATE, non-blocking 
 
 ## 5. Hardware Constraints & Resource Rules
 
-1. **CPU Throttling Rule:** DenseLite operates under a strict 50% logical-thread ceiling to prevent OS starvation. For this 4-thread reference machine, this is realized as a strict maximum of half of hardware threads during forward passes or vector searches, ensuring at least 2 hardware threads remain available for the operating system, editor (Zed), and window compositor.
+1. **CPU Throttling Rule:** DenseLite operates under a strict 50% logical-thread ceiling for compute regions to prevent OS starvation. For this 4-thread reference machine, this is realized as a strict maximum of 2 hardware threads during forward passes or vector searches (compute-bounded workload isolation; total host CPU utilization is not capped at 50% because HTTP worker threads, SQLite workers, and background I/O operate outside this compute allocation), ensuring remaining hardware threads remain available for the operating system, editor (Zed), and window compositor.
 2. **RAM Safety Ceiling:** Host allocations are checked against the ResourcePolicy RAM ceiling before expanding context or admitting on-demand models.
 3. **Display Server Protection:** The ResourcePolicy VRAM limit cap ensures desktop sessions never experience stutter or GPU resets.

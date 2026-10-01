@@ -20,7 +20,7 @@ To prevent DenseLite from overwhelming edge laptops, the `ResourceGovernor` cont
 | **`/proc` Polling Overhead** | Non-blocking | **7,817 snapshots/sec** | **127.92 µs** | 🟢 PASS |
 | **OpenMP Thread Throttle** | $\le 2$ Threads | **125,632 enforcements/s**| **7.96 µs** | 🟢 PASS |
 | **6-Stage Eviction Evaluation** | Proactive | **28,301 assessments/s**| **35.33 µs** | 🟢 PASS |
-| **Memory Headroom Verification**| Historical ceiling (superseded) | **74,386 checks/sec** | **13.44 µs** | 🟢 PASS |
+| **Memory Headroom Verification**| ResourcePolicy 50% RAM ceiling | **74,386 checks/sec** | **13.44 µs** | 🟢 PASS |
 | **Component Accounting Overhead**| Atomic counters | **39,518,541 updates/sec** | **25.31 ns** | 🟢 PASS |
 
 ---

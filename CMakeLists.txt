@@ -68,6 +68,7 @@ add_executable(DenseLite
     src/lexical_search.cpp
     src/vector_search.cpp
     src/vector/turboquant_index.cpp
+    src/vector/turboquant_ivf.cpp
     src/structural_search.cpp
     src/result_fusion.cpp
     src/search_engine.cpp
@@ -271,6 +272,7 @@ add_executable(benchmark_engine benchmarks/benchmark_engine.cpp
     src/lexical_search.cpp
     src/vector_search.cpp
     src/vector/turboquant_index.cpp
+    src/vector/turboquant_ivf.cpp
     src/structural_search.cpp
     src/result_fusion.cpp
     src/search_engine.cpp
@@ -467,6 +469,7 @@ add_test(NAME DecisionEngine COMMAND test_decision)
 
 add_executable(test_turboquant tests/turboquant_tests.cpp
     src/vector/turboquant_index.cpp
+    src/vector/turboquant_ivf.cpp
 )
 target_link_libraries(test_turboquant PRIVATE Threads::Threads)
 target_include_directories(test_turboquant PRIVATE src)
@@ -476,6 +479,75 @@ add_executable(test_server_integration tests/server_integration_tests.cpp)
 target_link_libraries(test_server_integration PRIVATE Threads::Threads)
 target_include_directories(test_server_integration PRIVATE src)
 add_test(NAME ServerIntegration COMMAND test_server_integration)
+
+# Quality & Reality Validation Benchmarks (Points 2, 6, 8, 9, 10, 16)
+add_executable(test_turboquant_quality tests/test_turboquant_quality.cpp
+    src/vector/turboquant_index.cpp
+    src/vector/turboquant_ivf.cpp
+)
+target_link_libraries(test_turboquant_quality PRIVATE Threads::Threads)
+target_include_directories(test_turboquant_quality PRIVATE src)
+add_test(NAME TurboQuantQuality COMMAND test_turboquant_quality)
+
+add_executable(test_completion_quality tests/test_completion_quality.cpp
+    src/CompletionPolicy.cpp
+    src/ResponseAnalyzer.cpp
+)
+target_link_libraries(test_completion_quality PRIVATE Threads::Threads)
+target_include_directories(test_completion_quality PRIVATE src dependencies)
+add_test(NAME CompletionQuality COMMAND test_completion_quality)
+
+add_executable(test_decision_quality tests/test_decision_engine_quality.cpp
+    src/decision_engine.cpp
+    src/RequestAnalyzer.cpp
+    src/routing/modernbert_router.cpp
+    src/settings/path_service.cpp
+    src/settings/settings_manager.cpp
+    src/settings/settings_db.cpp
+    src/settings/settings_dtos.cpp
+    src/databases/database_migrator.cpp
+    src/Formatter.cpp
+    src/tokenizer.cpp
+)
+target_link_directories(test_decision_quality PRIVATE ${ONNXRUNTIME_DIR}/lib)
+target_link_libraries(test_decision_quality PRIVATE Threads::Threads sqlite3 onnxruntime)
+set_target_properties(test_decision_quality PROPERTIES BUILD_RPATH "${ONNXRUNTIME_DIR}/lib" INSTALL_RPATH "${ONNXRUNTIME_DIR}/lib")
+target_include_directories(test_decision_quality PRIVATE src src/settings src/databases src/routing dependencies ${ONNXRUNTIME_DIR}/include)
+add_test(NAME DecisionEngineQuality COMMAND test_decision_quality)
+
+add_executable(test_memory_quality tests/test_memory_quality.cpp
+    src/working_memory.cpp
+    src/session_memory.cpp
+    src/persistent_memory.cpp
+    src/memory_store.cpp
+    src/memory_recall.cpp
+    src/memory_consolidator.cpp
+    src/nli_evaluator.cpp
+    src/memory_engine.cpp
+    src/vector_search.cpp
+    src/vector/turboquant_index.cpp
+)
+target_link_libraries(test_memory_quality PRIVATE Threads::Threads sqlite3)
+target_include_directories(test_memory_quality PRIVATE src)
+add_test(NAME MemoryConsolidationQuality COMMAND test_memory_quality)
+
+add_executable(eval_64k_production benchmarks/eval_64k_production.cpp
+    src/kv_cache.cpp
+    src/vulkan_device.cpp
+    src/vulkan_compute.cpp
+)
+target_link_libraries(eval_64k_production PRIVATE Threads::Threads vulkan)
+target_include_directories(eval_64k_production PRIVATE src dependencies/vulkan/include)
+add_test(NAME Eval64KProduction COMMAND eval_64k_production)
+
+add_executable(test_resident_pool_fit benchmarks/test_resident_pool_fit.cpp
+    src/kv_cache.cpp
+    src/vulkan_device.cpp
+    src/vulkan_compute.cpp
+)
+target_link_libraries(test_resident_pool_fit PRIVATE Threads::Threads vulkan)
+target_include_directories(test_resident_pool_fit PRIVATE src dependencies dependencies/vulkan/include)
+add_test(NAME ResidentPoolCapacityFit COMMAND test_resident_pool_fit)
 
 # ==============================================================================
 # Installation Targets (Portability & Packaging - IDs 170, 200, 214)

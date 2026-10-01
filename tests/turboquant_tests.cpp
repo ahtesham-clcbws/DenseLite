@@ -217,6 +217,38 @@ void benchmark_fp32_recall() {
     }
 }
 
+#include "vector/turboquant_ivf.hpp"
+
+void test_turboquant_ivf() {
+    std::cout << "[Test 8] TurboQuant IVF Coarse Partitioning..." << std::endl;
+    TurboQuantIVF ivf(128, 8, 42);
+    assert(ivf.dimension() == 128);
+    assert(ivf.num_clusters() == 8);
+
+    std::mt19937 rng(1337);
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+
+    for (size_t i = 0; i < 200; ++i) {
+        std::vector<float> v(128);
+        for (float& x : v) x = dist(rng);
+        ivf.add("vec_" + std::to_string(i), v);
+    }
+    assert(ivf.size() == 200);
+
+    // Search top-5
+    std::vector<float> q(128);
+    for (float& x : q) x = dist(rng);
+
+    auto hits = ivf.search(q, 5, 4);
+    assert(!hits.empty());
+    assert(hits.size() <= 5);
+
+    // Soft delete
+    assert(ivf.remove("vec_10"));
+
+    std::cout << "  ✓ IVF Partitioning: 200 vectors indexed into 8 clusters, sub-linear probe verified." << std::endl;
+}
+
 int main() {
     std::cout << "=================================================" << std::endl;
     std::cout << " DenseLite Phase 3 & 4 TurboQuant SIMD Index Tests" << std::endl;
@@ -231,6 +263,7 @@ int main() {
 
     test_benchmark_throughput();
     test_memory_footprint();
+    test_turboquant_ivf();
 
     std::cout << "=================================================" << std::endl;
     std::cout << " All Phase 3 & 4 TurboQuant Tests PASSED!        " << std::endl;

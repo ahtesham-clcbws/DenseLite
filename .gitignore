@@ -1,5 +1,6 @@
 build/
-models/
+models/*
+!models/checksums.sha256
 .env
 .DS_Store
 *.db

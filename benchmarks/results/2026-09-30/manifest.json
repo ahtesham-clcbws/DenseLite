@@ -10,5 +10,13 @@
     "Vulkan unavailable during this validation",
     "No production GGUF model weights available",
     "64K production model inference and quality unverified"
-  ]
+  ],
+  "models_manifest": {
+    "checksums_file": "models/checksums.sha256",
+    "artifacts": {
+      "modernbert/model.onnx": "4fcd879d3433e2fff506ac86221b4656f6a960653752ee87d087efd3a64cc128",
+      "modernbert/tokenizer.json": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30",
+      "models/validation/deepseek-1.5b-q4_0.gguf": "ca16c59d7b5a7fe119a546eb497e6b6def2a9f3acd4db1d99d6b59da077b76fc"
+    }
+  }
 }

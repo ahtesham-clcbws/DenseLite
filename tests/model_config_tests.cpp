@@ -1,4 +1,5 @@
 #include "../src/gguf_parser.hpp"
+#include "../src/model_inspector.hpp"
 #include <iostream>
 #include <cassert>
 
@@ -56,9 +57,17 @@ static std::string resolve_test_model(const std::string& filename) {
 }
 
 int main() {
-    std::cout << "========================================\n";
     std::cout << "[TEST] Phase 1: ModelConfig & Tensor-Shape Validation\n";
     std::cout << "========================================\n";
+
+    // Test Architecture Preflight Validation rules
+    assert(ModelInspector::is_native_architecture_supported("qwen2"));
+    assert(ModelInspector::is_native_architecture_supported("llama"));
+    assert(ModelInspector::is_native_architecture_supported("smollm2"));
+    assert(ModelInspector::is_native_architecture_supported("mistral"));
+    assert(!ModelInspector::is_native_architecture_supported("falcon"));
+    assert(!ModelInspector::is_native_architecture_supported("gpt2"));
+    std::cout << "[PASS] Architecture Preflight Classifier verified for native families.\n";
 
     bool smollm_ok = test_model_config(
         "SmolLM2-360M", resolve_test_model("smollm2-360m-instruct-q4_0.gguf"),

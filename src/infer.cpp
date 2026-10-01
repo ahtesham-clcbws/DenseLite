@@ -152,6 +152,15 @@ static std::string native_tensor_error(const std::string& tensor_name, TensorTyp
            "  => Resolution:     Native execution requires Q4_0/Q8_0 for matrices, and FP32 for 1D biases/norm.";
 }
 
+static std::string model_tensor_error(const DenseModel& model) {
+    for (const auto& entry : model.tensors) {
+        if (!native_tensor_supported(entry.first, entry.second.type)) {
+            return native_tensor_error(entry.first, entry.second.type);
+        }
+    }
+    return "Inference Error: Forward pass failed due to tensor incompatibility or numerical error.";
+}
+
 bool forward_pass(DenseModel& model, InferenceState& state, int token_id, std::vector<float>& logits) {
     auto& config = model.config;
     for (const auto& entry : model.tensors) {
@@ -434,7 +443,7 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         if (state.current_pos >= ctx_len - 1) break;
         if (!forward_pass(model, state, effective_tokens[i], logits)) {
             std::cerr << "[Infer] Prefill aborted due to forward pass failure." << std::endl;
-            callback("\n\n[DenseLite Runtime Error: " + native_tensor_error(model) + "]");
+            callback("\n\n[DenseLite Runtime Error: " + model_tensor_error(model) + "]");
             return;
         }
         state.current_pos++;
@@ -453,7 +462,7 @@ void generate(DenseModel& model, const std::vector<int>& prompt_tokens, StreamCa
         if (state.current_pos >= ctx_len - 1) break;
         if (!forward_pass(model, state, current_token, logits)) {
             std::cerr << "[Infer] Generation aborted due to forward pass failure." << std::endl;
-            callback("\n\n[DenseLite Runtime Error: " + native_tensor_error(model) + "]");
+            callback("\n\n[DenseLite Runtime Error: " + model_tensor_error(model) + "]");
             return;
         }
         

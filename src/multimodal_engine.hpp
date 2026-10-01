@@ -6,12 +6,20 @@
 #include "model_manager.hpp"
 #include "resource_governor.hpp"
 
+enum class MultimodalMode {
+    PROCEDURAL_ACOUSTIC_FALLBACK,
+    LEASED_NEURAL_WHISPER,
+    PROCEDURAL_LATENT_FALLBACK,
+    LEASED_NEURAL_DIFFUSION
+};
+
 struct TranscribeResult {
     bool success = false;
     std::string text;
     std::string detected_language = "en";
     float duration_seconds = 0.0f;
     std::string engine_mode = "acoustic_spectral_fourier";
+    MultimodalMode mode = MultimodalMode::PROCEDURAL_ACOUSTIC_FALLBACK;
     std::string error_message;
 };
 
@@ -24,6 +32,7 @@ struct ImageGenerationResult {
     int seed = 42;
     std::string format = "png";
     std::string engine_mode = "latent_vae_synthesis";
+    MultimodalMode mode = MultimodalMode::PROCEDURAL_LATENT_FALLBACK;
     size_t data_bytes = 0;
     std::vector<uint8_t> rgba_data;
     std::string error_message;
