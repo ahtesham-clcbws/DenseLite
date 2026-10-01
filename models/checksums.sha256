@@ -12,12 +12,29 @@ ababd87e19a2c783e08495996e5e32e7d6661ea66686ba41fd02f9e7d46d547f  models/modernb
 # Validation GGUF Weights
 ca16c59d7b5a7fe119a546eb497e6b6def2a9f3acd4db1d99d6b59da077b76fc  models/validation/deepseek-1.5b-q4_0.gguf
 
-# Standard User Models (~/.denselite/models/)
-f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840  DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf
-f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840  DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+# Standard Reasoner Models (Llama 3.2 1B Abliterated)
 90132864bafdf2cc90d7e3c9b47a07152ab57f2849ce12b2c82d796d006a7a25  Llama-3.2-1B-Instruct-abliterated.i1-Q4_0.gguf
 90132864bafdf2cc90d7e3c9b47a07152ab57f2849ce12b2c82d796d006a7a25  Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf
-b5fb2811647b8ef461519a68a3bf67014a84a66a130c8a2af9413ff9f06d3f22  nomic-embed-text-v2-moe.Q4_K_M.gguf
-4d7c17042a32501a24d85e7ecf5298f2ba7dc982705fe05574aa97b1caae525d  nomic-embed-text-v2-moe.Q4_0.gguf
+c2f84a9521594b7c2d77d34a461233ac76ce605a6a3a3cf5b2ccee15a1df8aef  Llama-3.2-1B-Instruct-abliterated.Q8_0.gguf
+
+# Standard Coder Models (DeepSeek-R1 Distill Qwen 1.5B)
+f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840  DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf
+f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840  DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+068a721e47419ccfc94b6420118f772478544e1a0d4fad7118212774b3f9ba9e  DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf
+
+# Formatter / Slicer Models (SmolLM2)
 8856952e27c65a87618f8347d1d06328c3953af04e8327b6dd1fab6670358fd0  smollm2-360m-instruct-q4_0.gguf
 8856952e27c65a87618f8347d1d06328c3953af04e8327b6dd1fab6670358fd0  smollm2-360m-instruct-q4_k_m.gguf
+bcc3af2849ad6095af57e9b5cd43775256efdc66e306acb529172f92d0c04b03  SmolLM2-135M-Instruct-Q4_0.gguf
+bcc3af2849ad6095af57e9b5cd43775256efdc66e306acb529172f92d0c04b03  smollm2-135m-instruct-q4_0.gguf
+
+# Vector Memory Embedder Models (Nomic)
+b5fb2811647b8ef461519a68a3bf67014a84a66a130c8a2af9413ff9f06d3f22  nomic-embed-text-v2-moe.Q4_K_M.gguf
+4d7c17042a32501a24d85e7ecf5298f2ba7dc982705fe05574aa97b1caae525d  nomic-embed-text-v2-moe.Q4_0.gguf
+3e24342164b3d94991ba9692fdc0dd08e3fd7362e0aacc396a9a5c54a544c3b7  nomic-embed-text-v1.5.Q8_0.gguf
+
+# Multimodal Audio & Vision Engines (Leased Models)
+0491b6f2cb3e60b1406db4f5f155638a8e1e4a92fbfaba4d3c5e7fa59346e33d  whisper/whisper-large-v3-turbo-q4_0.gguf
+0491b6f2cb3e60b1406db4f5f155638a8e1e4a92fbfaba4d3c5e7fa59346e33d  whisper-large-v3-turbo-q4_0.gguf
+33cc25b6f5dd121ecf3ad28e35eb38cb21427b7794c53527ceafe2dc3b109f4f  vision/sdxl_lightning_4step.q4_0.gguf
+33cc25b6f5dd121ecf3ad28e35eb38cb21427b7794c53527ceafe2dc3b109f4f  sdxl_lightning_4step.q4_0.gguf

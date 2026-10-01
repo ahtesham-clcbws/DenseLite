@@ -549,6 +549,8 @@ target_link_libraries(test_resident_pool_fit PRIVATE Threads::Threads vulkan)
 target_include_directories(test_resident_pool_fit PRIVATE src dependencies dependencies/vulkan/include)
 add_test(NAME ResidentPoolCapacityFit COMMAND test_resident_pool_fit)
 
+add_test(NAME ModelChecksumCoverage COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_model_checksum_coverage.py)
+
 # ==============================================================================
 # Installation Targets (Portability & Packaging - IDs 170, 200, 214)
 # ==============================================================================

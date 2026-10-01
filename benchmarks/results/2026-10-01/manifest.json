@@ -1,8 +1,8 @@
 {
-  "date_utc": "2026-10-01T06:25:00.000000+00:00",
-  "base_commit": "c14c22737095d74cbf236ceaa4984f19228acfb2",
+  "date_utc": "2026-10-01T07:25:00.000000+00:00",
+  "base_commit": "e4d73347fcf4fa0076a0c0e5a8bcfa23cb047f3b",
   "working_tree_modified": true,
-  "source_sha256": "be7f28872f73f58e390d1056c03d502859d5b1564a2655e81c86d33b03d41ae4",
+  "source_sha256": "ea09e61d3619121aec6f72efb9141ca1940c0ced40a54ec135139a6c5855e8bf",
   "hash_scope": "Sorted src/**, tests/**, CMakeLists.txt, benchmarks/benchmark_engine.cpp; path + NUL + contents + NUL",
   "platform": "Linux-7.2.8-1-cachyos-x86_64-with-glibc2.44",
   "hardware": {
@@ -13,34 +13,53 @@
     "governed_ram_ceiling_mib": 15685
   },
   "test_suites": {
-    "total": 23,
-    "passed": 23,
-    "failed": 0,
-    "ctest_pass_rate": 1.0
+    "tier_a_ctest_offline_suites": {
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "execution_time_sec": 64.73
+    },
+    "tier_b_live_server_harnesses": {
+      "suites": [
+        "tests/e2e_assert_stress.py",
+        "tests/e2e_agent_tool_loop.py",
+        "tests/soak_stability_test.py"
+      ],
+      "governance": "Requires running DenseLite server daemon; exits with code 2 (SKIP/FAIL) if server is offline"
+    }
   },
   "assertions_policy": {
     "test_verification": "Deterministic verification via explicit VERIFY macros and undef NDEBUG across quality suites; false-positive exits strictly prohibited",
-    "golden_inference": "Native AVX2 Q4_0 execution verified against models/validation/deepseek-1.5b-q4_0.gguf; unsupported tensor quantization formats explicitly reported as SKIP"
+    "golden_inference": "Mandatory native AVX2 Q4_0 execution verified against models/validation/deepseek-1.5b-q4_0.gguf with zero false-positives and portable path resolution; test fails if mandatory validation model is missing or unexecuted"
   },
-  "limitations": [
-    "Vulkan GPU offloading unavailable on reference CPU-only test host",
-    "64K context scaling verified via analytical KV allocation formula, chunked-prefill latency model, and synthetic NIAH retrieval (full end-to-end production LLM generation at 64K unbenchmarked pending production weights)",
-    "Resident pool 1.5B capacity verified via synthetic memory-buffer allocation and peak VmHWM tracking (full loaded ModelLoader execution validated up to available RAM)",
-    "Multimodal audio/vision modules verified via decoupled procedural fallbacks (Whisper/SDXL native neural inference unbenchmarked)",
-    "Process monitoring utilities (/proc/meminfo, /proc/$PID/statm) require platform-specific adapters on non-Linux OS"
+  "open_capability_milestones": [
+    "64K Production Inference: Analytical KV allocation formula ($M_{KV}$) and chunked-prefill latency model validated; full end-to-end token generation on real 64K weights remains an open capability milestone pending production GGUF weights",
+    "Resident Model Capacity: Buffer memory footprint verified up to 1,552.7 MiB peak RSS under concurrent 4K KV streams; full concurrent multi-model residency under ModelManager (Main + Coder + Router) remains an open production validation milestone",
+    "Real Nomic Embedding Quality: 768-dim clustered vector benchmark proves quantization and trained IVF coarse quantizer (82.5% R@1, 100% R@10, 0.9083 MRR); real Nomic embedding inference on natural language domain texts is unbenchmarked",
+    "DecisionEngine Full Pipeline: Heuristic fast tier routing and calibration verified (86.7% accuracy, 100% flags); complete ModernBERT ONNX neural classification accuracy benchmark is an open milestone",
+    "Native IDE Round-Trip: OpenAI HTTP tool protocol loop validated via simulated tool dispatch; native Zed UI extension execution remains an open milestone",
+    "Multimodal Neural Decoders: Decoupled procedural acoustic/latent fallbacks verified; native neural inference on Whisper Large V3 and SDXL Lightning weights is leased/unverified"
   ],
   "models_manifest": {
     "checksums_file": "models/checksums.sha256",
+    "checksum_coverage": "100% of selectable models in start.sh and env.example verified via tests/test_model_checksum_coverage.py",
     "artifacts": {
       "dependencies/onnxruntime-linux-x64-1.20.1.tgz": "67db4dc1561f1e3fd42e619575c82c601ef89849afc7ea85a003abbac1a1a105",
       "models/modernbert/model.onnx": "4fcd879d3433e2fff506ac86221b4656f6a960653752ee87d087efd3a64cc128",
       "models/modernbert/tokenizer.json": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30",
       "models/modernbert/config.json": "ababd87e19a2c783e08495996e5e32e7d6661ea66686ba41fd02f9e7d46d547f",
       "models/validation/deepseek-1.5b-q4_0.gguf": "ca16c59d7b5a7fe119a546eb497e6b6def2a9f3acd4db1d99d6b59da077b76fc",
-      "DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf": "f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840",
-      "Llama-3.2-1B-Instruct-abliterated.i1-Q4_K_M.gguf": "90132864bafdf2cc90d7e3c9b47a07152ab57f2849ce12b2c82d796d006a7a25",
-      "nomic-embed-text-v2-moe.Q4_K_M.gguf": "b5fb2811647b8ef461519a68a3bf67014a84a66a130c8a2af9413ff9f06d3f22",
-      "smollm2-360m-instruct-q4_k_m.gguf": "8856952e27c65a87618f8347d1d06328c3953af04e8327b6dd1fab6670358fd0"
+      "DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf": "f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840",
+      "DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf": "068a721e47419ccfc94b6420118f772478544e1a0d4fad7118212774b3f9ba9e",
+      "Llama-3.2-1B-Instruct-abliterated.i1-Q4_0.gguf": "90132864bafdf2cc90d7e3c9b47a07152ab57f2849ce12b2c82d796d006a7a25",
+      "Llama-3.2-1B-Instruct-abliterated.Q8_0.gguf": "c2f84a9521594b7c2d77d34a461233ac76ce605a6a3a3cf5b2ccee15a1df8aef",
+      "smollm2-360m-instruct-q4_0.gguf": "8856952e27c65a87618f8347d1d06328c3953af04e8327b6dd1fab6670358fd0",
+      "SmolLM2-135M-Instruct-Q4_0.gguf": "bcc3af2849ad6095af57e9b5cd43775256efdc66e306acb529172f92d0c04b03",
+      "nomic-embed-text-v2-moe.Q4_0.gguf": "4d7c17042a32501a24d85e7ecf5298f2ba7dc982705fe05574aa97b1caae525d",
+      "nomic-embed-text-v1.5.Q8_0.gguf": "3e24342164b3d94991ba9692fdc0dd08e3fd7362e0aacc396a9a5c54a544c3b7",
+      "whisper-large-v3-turbo-q4_0.gguf": "0491b6f2cb3e60b1406db4f5f155638a8e1e4a92fbfaba4d3c5e7fa59346e33d",
+      "sdxl_lightning_4step.q4_0.gguf": "33cc25b6f5dd121ecf3ad28e35eb38cb21427b7794c53527ceafe2dc3b109f4f"
     }
   }
 }

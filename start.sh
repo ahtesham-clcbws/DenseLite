@@ -63,8 +63,8 @@ if [ ! -f ".env" ]; then
                 SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-360M-Instruct-Q4_0-GGUF/resolve/main/smollm2-360m-instruct-q4_0.gguf"
                 break;;
             "SmolLM2-135M Q4_0 (Ultra-light, ~100MB)" )
-                SMOLLM_FILE="smollm2-135m-instruct-q4_0.gguf"
-                SMOLLM_URL="https://huggingface.co/mfuntowicz/SmolLM2-135M-Instruct-Q4_0-GGUF/resolve/main/smollm2-135m-instruct-q4_0.gguf"
+                SMOLLM_FILE="SmolLM2-135M-Instruct-Q4_0.gguf"
+                SMOLLM_URL="https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_0.gguf"
                 break;;
         esac
     done
@@ -115,7 +115,11 @@ if [ ! -d "dependencies/onnxruntime" ] || [ ! -f "dependencies/onnxruntime/lib/l
     mkdir -p dependencies
     ONNX_TAR="dependencies/onnxruntime-linux-x64-1.20.1.tgz"
     ONNX_EXPECTED_HASH="67db4dc1561f1e3fd42e619575c82c601ef89849afc7ea85a003abbac1a1a105"
-    curl -L -s -o "$ONNX_TAR" https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz
+    if ! curl -fL --retry 3 --retry-delay 2 --connect-timeout 10 -s -o "$ONNX_TAR" https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz || [ ! -s "$ONNX_TAR" ]; then
+        echo "[!] FATAL: Network download failed for ONNX Runtime release archive!" | tee -a "$LOG_FILE"
+        rm -f "$ONNX_TAR"
+        exit 1
+    fi
     ONNX_ACTUAL_HASH=$(sha256sum "$ONNX_TAR" 2>/dev/null | awk '{print $1}')
     if [ "$ONNX_ACTUAL_HASH" != "$ONNX_EXPECTED_HASH" ]; then
         echo "[!] FATAL: SHA-256 verification failed for ONNX Runtime archive!" | tee -a "$LOG_FILE"
@@ -149,10 +153,14 @@ if [ ! -f "models/modernbert/model.onnx" ] || [ ! -f "models/modernbert/tokenize
         fi
 
         echo "    Downloading $target_path..." | tee -a "$LOG_FILE"
-        curl -L -s -o "$target_path" "$url"
+        if ! curl -fL --retry 3 --retry-delay 2 --connect-timeout 10 -s -o "$target_path" "$url" || [ ! -s "$target_path" ]; then
+            echo "[!] FATAL: Network download failed for $url (HTTP failure or empty payload)!" | tee -a "$LOG_FILE"
+            rm -f "$target_path"
+            exit 1
+        fi
         local actual_hash=$(sha256sum "$target_path" 2>/dev/null | awk '{print $1}')
         if [ "$actual_hash" != "$expected_hash" ]; then
-            echo "[!] FATAL: SHA-256 verification failed for $target_path!" | tee -a "$LOG_FILE"
+            echo "[!] FATAL: Cryptographic SHA-256 verification failed for $target_path!" | tee -a "$LOG_FILE"
             echo "    Expected: $expected_hash" | tee -a "$LOG_FILE"
             echo "    Actual:   $actual_hash" | tee -a "$LOG_FILE"
             rm -f "$target_path"
@@ -206,11 +214,15 @@ download_if_missing() {
     mkdir -p "$(dirname "$user_model")"
     echo "[-] Model missing: $file_name" | tee -a "$LOG_FILE"
     echo "    Downloading to ~/.denselite/models/$file_name..." | tee -a "$LOG_FILE"
-    wget -q --show-progress "$url" -O "$user_model"
+    if ! wget --retry-connrefused --waitretry=2 --tries=3 --timeout=15 -q --show-progress "$url" -O "$user_model" || [ ! -s "$user_model" ]; then
+        echo "[!] FATAL: Network download failed for $file_name from $url!" | tee -a "$LOG_FILE"
+        rm -f "$user_model"
+        return 1
+    fi
 
     local actual_sha=$(sha256sum "$user_model" 2>/dev/null | awk '{print $1}')
     if [ "$actual_sha" != "$expected_sha256" ]; then
-        echo "[!] FATAL: Downloaded model checksum verification failed for $file_name!" | tee -a "$LOG_FILE"
+        echo "[!] FATAL: Cryptographic model checksum verification failed for $file_name!" | tee -a "$LOG_FILE"
         echo "    Expected: $expected_sha256" | tee -a "$LOG_FILE"
         echo "    Actual:   $actual_sha" | tee -a "$LOG_FILE"
         rm -f "$user_model"
@@ -251,7 +263,20 @@ done < <(grep "^MODEL_.*_FILE=" .env)
 if [ ! -f "build/DenseLite" ] || [ ! -f "build/DenseLiteTray" ]; then
     echo "[!] Compiled binaries not found. Starting build process..." | tee -a "$LOG_FILE"
     # Hardware Rule: Bound build concurrency to 50% of logical threads (ResourcePolicy compliance)
-    BUILD_JOBS=${DENSELITE_BUILD_JOBS:-$(( ($(nproc) + 1) / 2 ))}
+    MAX_ALLOWED_JOBS=$(( ($(nproc) + 1) / 2 ))
+    if [ "$MAX_ALLOWED_JOBS" -lt 1 ]; then MAX_ALLOWED_JOBS=1; fi
+
+    if [ -n "$DENSELITE_BUILD_JOBS" ]; then
+        if [ "$DENSELITE_BUILD_JOBS" -gt "$MAX_ALLOWED_JOBS" ]; then
+            echo "[!] WARNING: DENSELITE_BUILD_JOBS ($DENSELITE_BUILD_JOBS) exceeds 50% host compute capacity." | tee -a "$LOG_FILE"
+            echo "    Clamping to $MAX_ALLOWED_JOBS jobs to preserve host responsiveness..." | tee -a "$LOG_FILE"
+            BUILD_JOBS=$MAX_ALLOWED_JOBS
+        else
+            BUILD_JOBS=$DENSELITE_BUILD_JOBS
+        fi
+    else
+        BUILD_JOBS=$MAX_ALLOWED_JOBS
+    fi
     if [ "$BUILD_JOBS" -lt 1 ]; then BUILD_JOBS=1; fi
     echo "[+] Using $BUILD_JOBS parallel compilation jobs (host concurrency preserved)..." | tee -a "$LOG_FILE"
     cmake -B build -S . >> "$LOG_FILE" 2>&1
